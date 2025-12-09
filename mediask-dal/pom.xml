@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>me.jianwen</groupId>
+        <artifactId>mediask-be</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>mediask-dal</artifactId>
+    <packaging>jar</packaging>
+    <name>MediAsk DAL</name>
+    <description>数据访问层 - 数据库访问、缓存、外部服务集成</description>
+
+    <!-- 依赖继承自父 POM，暂不引入具体依赖 -->
+    <dependencies>
+    </dependencies>
+
+</project>

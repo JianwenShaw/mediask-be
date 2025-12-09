@@ -1,0 +1,3 @@
+[submodule "MediAskDocs"]
+	path = MediAskDocs
+	url = https://github.com/JianwenShaw/MediAskDocs.git

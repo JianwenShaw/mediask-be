@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>me.jianwen</groupId>
+        <artifactId>mediask-be</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>mediask-domain</artifactId>
+    <packaging>jar</packaging>
+    <name>MediAsk Domain</name>
+    <description>领域模型层 - 实体、值对象、领域服务、仓储接口</description>
+
+    <!-- 依赖继承自父 POM，暂不引入具体依赖 -->
+    <dependencies>
+    </dependencies>
+
+</project>

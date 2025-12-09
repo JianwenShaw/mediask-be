@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>me.jianwen</groupId>
+        <artifactId>mediask-be</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>mediask-worker</artifactId>
+    <packaging>jar</packaging>
+    <name>MediAsk Worker</name>
+    <description>后台任务层 - 消息消费、定时任务、异步处理</description>
+
+    <!-- 依赖继承自父 POM，暂不引入具体依赖 -->
+    <dependencies>
+    </dependencies>
+
+</project>
