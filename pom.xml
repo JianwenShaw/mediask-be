@@ -77,6 +77,9 @@
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
+
+        <!-- JaCoCo 参数 (默认空值，运行时由插件填充) -->
+        <jacocoArgLine></jacocoArgLine>
     </properties>
 
     <!-- ==================== 依赖版本管理 (仅声明，不引入) ==================== -->
