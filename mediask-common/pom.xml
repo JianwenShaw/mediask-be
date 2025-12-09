@@ -14,8 +14,23 @@
     <name>MediAsk Common</name>
     <description>公共基础模块 - 工具类、常量、通用异常、基础配置</description>
 
-    <!-- 依赖继承自父 POM，暂不引入具体依赖 -->
     <dependencies>
+        <!-- ==================== 工具库 ==================== -->
+        <!-- SLF4J 日志 -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- Jackson JSON -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
     </dependencies>
 
 </project>
