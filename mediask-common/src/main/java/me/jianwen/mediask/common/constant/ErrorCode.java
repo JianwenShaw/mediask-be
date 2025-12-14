@@ -1,4 +1,4 @@
-package me.jianwen.mediask.common.enums;
+package me.jianwen.mediask.common.constant;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,14 +10,14 @@ import java.util.Arrays;
  * <p>
  * 错误码规范：
  * <ul>
- *   <li>0: 成功</li>
- *   <li>1xxx: 通用错误（参数、权限等）</li>
- *   <li>2xxx: 用户模块错误</li>
- *   <li>3xxx: 挂号预约模块错误</li>
- *   <li>4xxx: 医生/排班模块错误</li>
- *   <li>5xxx: 病历模块错误</li>
- *   <li>6xxx: AI 问诊模块错误</li>
- *   <li>9xxx: 系统级错误</li>
+ * <li>0: 成功</li>
+ * <li>1xxx: 通用错误（参数、权限等）</li>
+ * <li>2xxx: 用户模块错误</li>
+ * <li>3xxx: 挂号预约模块错误</li>
+ * <li>4xxx: 医生/排班模块错误</li>
+ * <li>5xxx: 病历模块错误</li>
+ * <li>6xxx: AI 问诊模块错误</li>
+ * <li>9xxx: 系统级错误</li>
  * </ul>
  * </p>
  *

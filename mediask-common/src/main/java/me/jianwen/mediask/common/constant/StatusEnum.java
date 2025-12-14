@@ -1,4 +1,4 @@
-package me.jianwen.mediask.common.enums;
+package me.jianwen.mediask.common.constant;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
