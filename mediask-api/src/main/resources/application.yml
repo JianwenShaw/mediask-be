@@ -1,0 +1,29 @@
+# MediAsk 智能医疗辅助问诊系统 - 主配置文件
+# 通过 spring.profiles.active 激活对应环境配置
+
+spring:
+  application:
+    name: mediask-api
+  profiles:
+    active: dev  # 默认激活开发环境，部署时通过环境变量覆盖
+
+---
+# 通用配置（所有环境共享）
+server:
+  port: 8989
+  servlet:
+    context-path: /
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: me.jianwen.mediask.dal.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # 开发时打印SQL，生产环境关闭
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID  # 雪花算法
+      logic-delete-field: deletedAt
+      logic-delete-value: "NOW()"
+      logic-not-delete-value: "NULL"

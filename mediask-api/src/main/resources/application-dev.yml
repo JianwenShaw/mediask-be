@@ -1,0 +1,52 @@
+# MediAsk - 开发环境配置
+
+spring:
+  # ==================== 数据源配置 ====================
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://47.115.230.63:3309/mediask_dev?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: jianwen
+    password: jkl123 # TODO: 替换为你的MySQL密码
+
+    # Druid 连接池配置
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      # 监控配置
+      stat-view-servlet:
+        enabled: true
+        url-pattern: /druid/*
+        login-username: admin
+        login-password: admin123
+      filter:
+        stat:
+          enabled: true
+          slow-sql-millis: 1000
+          log-slow-sql: true
+        wall:
+          enabled: true
+
+  # ==================== Redis 配置 ====================
+  data:
+    redis:
+      host: 47.115.230.63
+      port: 16379  # 你的 Redis 端口
+      password: your_redis_strong_password  # TODO: 替换为你的Redis密码
+      database: 0
+      timeout: 10000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+# ==================== 日志配置 ====================
+logging:
+  level:
+    root: INFO
+    me.jianwen.mediask: DEBUG
+    com.baomidou.mybatisplus: DEBUG

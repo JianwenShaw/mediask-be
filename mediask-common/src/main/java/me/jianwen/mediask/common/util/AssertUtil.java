@@ -1,6 +1,6 @@
 package me.jianwen.mediask.common.util;
 
-import me.jianwen.mediask.common.enums.ErrorCode;
+import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 
 import java.util.Collection;

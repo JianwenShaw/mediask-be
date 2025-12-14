@@ -1,0 +1,14 @@
+# MediAsk - 测试环境配置
+# TODO: 待配置
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/mediask_test
+    username: root
+    password: ""
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""

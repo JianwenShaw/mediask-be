@@ -14,8 +14,43 @@
     <name>MediAsk API</name>
     <description>API接入层 - REST控制器、请求响应、参数校验</description>
 
-    <!-- 依赖继承自父 POM，暂不引入具体依赖 -->
     <dependencies>
+        <!-- ==================== 内部模块 ==================== -->
+        <dependency>
+            <groupId>me.jianwen</groupId>
+            <artifactId>mediask-dal</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>me.jianwen</groupId>
+            <artifactId>mediask-common</artifactId>
+        </dependency>
+
+        <!-- ==================== Spring Boot ==================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

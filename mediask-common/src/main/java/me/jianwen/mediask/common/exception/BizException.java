@@ -1,7 +1,7 @@
 package me.jianwen.mediask.common.exception;
 
 import lombok.Getter;
-import me.jianwen.mediask.common.enums.ErrorCode;
+import me.jianwen.mediask.common.constant.ErrorCode;
 
 import java.io.Serial;
 

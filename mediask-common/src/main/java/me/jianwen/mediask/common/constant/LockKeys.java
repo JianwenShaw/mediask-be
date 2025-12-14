@@ -185,7 +185,7 @@ public enum LockKeys {
 
     // ==================== 构造器 ====================
 
-    LockKeyType(String prefix, String description, LockCategory category,
+    LockKeys(String prefix, String description, LockCategory category,
             int recommendedWaitTime, int recommendedLeaseTime) {
         this.prefix = prefix;
         this.description = description;
