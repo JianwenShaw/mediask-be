@@ -1,0 +1,8 @@
+---
+alwaysApply: false
+description: 当你输出Markdown文档的过程中，必须严格遵守本规则
+---
+
+1. 文档设计时序图，流程图，甘特图等等图标的时候不要要ASCII字符绘制，使用标准的Mermaid语法，并且保证能够在Typora以及mermaid.js上正确无误的渲染
+2. 文档要尽量简洁优雅，切中要害，切忌泛泛而谈、言之无物。
+3. 
