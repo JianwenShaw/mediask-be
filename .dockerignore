@@ -1,0 +1,27 @@
+# Build outputs
+target/
+**/target/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# GitHub
+.github/
+
+# Documentation
+*.md
+MediAskDocs/
+
+# Environment
+.env
+.env.*
+
+# Misc
+node_modules/
+.DS_Store
