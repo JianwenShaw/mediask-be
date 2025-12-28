@@ -27,3 +27,10 @@ mybatis-plus:
       logic-delete-field: deletedAt
       logic-delete-value: "NOW()"
       logic-not-delete-value: "NULL"
+
+# JWT 基础配置（可在各环境覆盖）
+security:
+  jwt:
+    secret: mediask-dev-secret-please-change-32chars-min
+    issuer: mediask
+    expire-seconds: 604800 # 7 天

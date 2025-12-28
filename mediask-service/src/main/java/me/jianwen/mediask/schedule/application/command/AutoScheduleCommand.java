@@ -3,9 +3,9 @@ package me.jianwen.mediask.schedule.application.command;
 import lombok.Data;
 import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.Set;

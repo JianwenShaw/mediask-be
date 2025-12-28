@@ -1,6 +1,8 @@
 package me.jianwen.mediask.schedule.infrastructure.converter;
 
 import me.jianwen.mediask.dal.entity.DoctorScheduleDO;
+import me.jianwen.mediask.dal.enums.StatusEnum;
+import me.jianwen.mediask.dal.enums.TimePeriodEnum;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
 import me.jianwen.mediask.schedule.domain.valueobject.*;
 import org.mapstruct.Mapper;
@@ -30,10 +32,10 @@ public interface ScheduleConverter {
         }
         dataObject.setDoctorId(schedule.getDoctorId().getValue());
         dataObject.setScheduleDate(schedule.getScheduleDate());
-        dataObject.setTimePeriod(schedule.getTimePeriod().getCode());
+        dataObject.setTimePeriod(TimePeriodEnum.fromCode(schedule.getTimePeriod().getCode()));
         dataObject.setTotalSlots(schedule.getCapacity().getTotalSlots());
         dataObject.setAvailableSlots(schedule.getCapacity().getAvailableSlots());
-        dataObject.setStatus(schedule.getStatus().getCode());
+        dataObject.setStatus(mapToStatusEnum(schedule.getStatus()));
         dataObject.setCreatedAt(schedule.getCreatedAt());
         dataObject.setUpdatedAt(schedule.getUpdatedAt());
 
@@ -52,15 +54,29 @@ public interface ScheduleConverter {
         schedule.setId(ScheduleId.of(dataObject.getId()));
         schedule.setDoctorId(DoctorId.of(dataObject.getDoctorId()));
         schedule.setScheduleDate(dataObject.getScheduleDate());
-        schedule.setTimePeriod(TimePeriod.fromCode(dataObject.getTimePeriod()));
+        schedule.setTimePeriod(TimePeriod.fromCode(dataObject.getTimePeriod().getCode()));
         schedule.setCapacity(new SlotCapacity(
                 dataObject.getTotalSlots(),
                 dataObject.getAvailableSlots()));
-        schedule.setStatus(ScheduleStatus.fromCode(dataObject.getStatus()));
+        schedule.setStatus(mapToScheduleStatus(dataObject.getStatus()));
         schedule.setSlotDurationMinutes(15); // TODO: 从数据库读取
         schedule.setCreatedAt(dataObject.getCreatedAt());
         schedule.setUpdatedAt(dataObject.getUpdatedAt());
 
         return schedule;
+    }
+
+    private StatusEnum mapToStatusEnum(ScheduleStatus status) {
+        if (status == null) {
+            return StatusEnum.ENABLED;
+        }
+        return status == ScheduleStatus.OPEN ? StatusEnum.ENABLED : StatusEnum.DISABLED;
+    }
+
+    private ScheduleStatus mapToScheduleStatus(StatusEnum statusEnum) {
+        if (statusEnum == null) {
+            return ScheduleStatus.OPEN;
+        }
+        return statusEnum == StatusEnum.ENABLED ? ScheduleStatus.OPEN : ScheduleStatus.CLOSED;
     }
 }

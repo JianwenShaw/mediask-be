@@ -14,8 +14,23 @@
     <name>MediAsk Service</name>
     <description>应用服务层 - 业务编排、用例实现、DTO转换</description>
 
-    <!-- 依赖继承自父 POM，暂不引入具体依赖 -->
     <dependencies>
+        <dependency>
+            <groupId>me.jianwen</groupId>
+            <artifactId>mediask-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>me.jianwen</groupId>
+            <artifactId>mediask-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
     </dependencies>
 
 </project>
