@@ -1,0 +1,168 @@
+name: Email Notification
+
+on:
+  workflow_call:
+    inputs:
+      status:
+        description: "Build status: success or failure"
+        required: true
+        type: string
+      workflow_name:
+        description: "Name of the calling workflow"
+        required: true
+        type: string
+      version:
+        description: "Version or branch name"
+        required: false
+        type: string
+        default: ""
+      failure_stage:
+        description: "Which stage failed (for failure notifications)"
+        required: false
+        type: string
+        default: "未知阶段"
+      run_id:
+        description: "The workflow run ID"
+        required: true
+        type: string
+      run_url:
+        description: "URL to the workflow run"
+        required: true
+        type: string
+    secrets:
+      MAIL_SERVER:
+        required: true
+      MAIL_PORT:
+        required: true
+      MAIL_USERNAME:
+        required: true
+      MAIL_PASSWORD:
+        required: true
+      MAIL_TO:
+        required: true
+
+jobs:
+  send-notification:
+    name: Send Email
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send success email
+        if: inputs.status == 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          from: MediAsk CI/CD <${{ secrets.MAIL_USERNAME }}>
+          to: ${{ secrets.MAIL_TO }}
+          subject: "✅ [MediAsk] ${{ inputs.workflow_name }} ${{ inputs.version }} 构建成功"
+          html_body: |
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+                <h1 style="margin: 0; font-size: 24px;">✅ 构建成功</h1>
+                <p style="margin: 8px 0 0 0; opacity: 0.9;">MediAsk ${{ inputs.workflow_name }} ${{ inputs.version }}</p>
+              </div>
+              
+              <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
+                <h2 style="color: #374151; font-size: 16px; margin-top: 0;">📦 构建信息</h2>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">工作流</td>
+                    <td style="padding: 8px 0; color: #111827; font-weight: 500;">${{ inputs.workflow_name }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">版本/分支</td>
+                    <td style="padding: 8px 0; color: #111827; font-weight: 500;">${{ inputs.version || 'N/A' }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Commit</td>
+                    <td style="padding: 8px 0; font-family: monospace; color: #111827;">${{ github.sha }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">触发者</td>
+                    <td style="padding: 8px 0; color: #111827;">${{ github.actor }}</td>
+                  </tr>
+                </table>
+                
+                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                  <p style="margin: 0; color: #065f46; font-size: 14px;">
+                    🎉 所有检查已通过，构建成功完成！
+                  </p>
+                </div>
+              </div>
+              
+              <div style="background: #f3f4f6; padding: 15px 20px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb; border-top: none;">
+                <a href="${{ inputs.run_url }}" 
+                   style="display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px;">
+                  查看构建详情 →
+                </a>
+              </div>
+            </div>
+
+      - name: Send failure email
+        if: inputs.status == 'failure'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          from: MediAsk CI/CD <${{ secrets.MAIL_USERNAME }}>
+          to: ${{ secrets.MAIL_TO }}
+          subject: "❌ [MediAsk] ${{ inputs.workflow_name }} ${{ inputs.version }} 构建失败"
+          html_body: |
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+                <h1 style="margin: 0; font-size: 24px;">❌ 构建失败</h1>
+                <p style="margin: 8px 0 0 0; opacity: 0.9;">MediAsk ${{ inputs.workflow_name }} ${{ inputs.version }}</p>
+              </div>
+              
+              <div style="background: #fef2f2; padding: 20px; border: 1px solid #fecaca; border-top: none;">
+                <h2 style="color: #991b1b; font-size: 16px; margin-top: 0;">⚠️ 失败信息</h2>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">工作流</td>
+                    <td style="padding: 8px 0; color: #111827; font-weight: 500;">${{ inputs.workflow_name }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">版本/分支</td>
+                    <td style="padding: 8px 0; color: #111827; font-weight: 500;">${{ inputs.version || 'N/A' }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Commit</td>
+                    <td style="padding: 8px 0; font-family: monospace; color: #111827;">${{ github.sha }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">触发者</td>
+                    <td style="padding: 8px 0; color: #111827;">${{ github.actor }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">失败阶段</td>
+                    <td style="padding: 8px 0; color: #dc2626; font-weight: 500;">${{ inputs.failure_stage }}</td>
+                  </tr>
+                </table>
+                
+                <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 15px; margin-top: 15px;">
+                  <p style="margin: 0; color: #991b1b; font-size: 14px;">
+                    <strong>请检查以下可能的原因：</strong>
+                  </p>
+                  <ul style="color: #7f1d1d; font-size: 13px; margin: 10px 0 0 0; padding-left: 20px;">
+                    <li>单元测试或集成测试失败</li>
+                    <li>代码编译错误</li>
+                    <li>依赖下载失败</li>
+                    <li>Docker 构建问题</li>
+                    <li>认证或权限问题</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div style="background: #f3f4f6; padding: 15px 20px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb; border-top: none;">
+                <a href="${{ inputs.run_url }}" 
+                   style="display: inline-block; background: #dc2626; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px;">
+                  查看失败日志 →
+                </a>
+              </div>
+            </div>
+

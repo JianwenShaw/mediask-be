@@ -37,3 +37,23 @@ jobs:
           path: |
             **/target/surefire-reports/*.xml
             **/target/site/jacoco/jacoco.xml
+
+  # CI 失败通知（仅直接触发时，不在被调用时通知）
+  notify-failure:
+    name: Notify Failure
+    needs: test
+    if: failure() && github.event_name != 'workflow_call'
+    uses: ./.github/workflows/notify.yml
+    with:
+      status: failure
+      workflow_name: CI
+      version: ${{ github.ref_name }}
+      failure_stage: Build & Test
+      run_id: ${{ github.run_id }}
+      run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    secrets:
+      MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+      MAIL_PORT: ${{ secrets.MAIL_PORT }}
+      MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+      MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}

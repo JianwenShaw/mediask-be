@@ -92,3 +92,42 @@ jobs:
           subject-name: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image_suffix }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+  # Release 成功通知
+  notify-success:
+    name: Notify Success
+    needs: [ci, release]
+    if: success()
+    uses: ./.github/workflows/notify.yml
+    with:
+      status: success
+      workflow_name: Release
+      version: ${{ github.ref_name }}
+      run_id: ${{ github.run_id }}
+      run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    secrets:
+      MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+      MAIL_PORT: ${{ secrets.MAIL_PORT }}
+      MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+      MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
+
+  # Release 失败通知
+  notify-failure:
+    name: Notify Failure
+    needs: [ci, release]
+    if: failure()
+    uses: ./.github/workflows/notify.yml
+    with:
+      status: failure
+      workflow_name: Release
+      version: ${{ github.ref_name }}
+      failure_stage: ${{ needs.ci.result == 'failure' && 'CI 测试' || 'Docker 构建' }}
+      run_id: ${{ github.run_id }}
+      run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    secrets:
+      MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+      MAIL_PORT: ${{ secrets.MAIL_PORT }}
+      MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+      MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
