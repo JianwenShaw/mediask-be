@@ -113,12 +113,44 @@ docker run -d \
 | Workflow | 触发条件 | 功能 |
 |----------|---------|------|
 | `ci.yml` | Push/PR 到 master/dev | 构建、测试、生成覆盖率报告 |
-| `release.yml` | CI 成功后 (master) | 构建 Docker 镜像并推送到 GHCR |
+| `release.yml` | 推送语义化版本 Tag (v*.*.*) | 运行 CI → 构建 Docker 镜像 → 推送到 GHCR |
+
+### 发布流程
+
+```bash
+# 1. 确保代码已合并到 master
+git checkout master && git pull
+
+# 2. 创建语义化版本标签
+git tag v1.0.0
+
+# 3. 推送标签触发 Release
+git push origin v1.0.0
+```
+
+Release 工作流会自动：
+1. 运行完整的 CI 测试套件
+2. 构建 Docker 镜像
+3. 推送镜像到 GHCR，并生成以下标签：
+
+| 标签格式 | 示例 | 说明 |
+|----------|------|------|
+| `{version}` | `1.0.0` | 完整版本号 |
+| `{major}.{minor}` | `1.0` | 主次版本（自动获取最新 patch） |
+| `{major}` | `1` | 主版本（v0.x.x 除外） |
+| `latest` | - | 最新正式版（prerelease 不更新） |
+| `sha-{hash}` | `sha-abc1234` | Git commit SHA |
+
+> 💡 支持 prerelease 版本：`v1.0.0-beta.1`、`v1.0.0-rc.1` 等
 
 ### 拉取镜像
 
 ```bash
+# 拉取最新稳定版
 docker pull ghcr.io/<username>/mediask-be-api:latest
+
+# 拉取指定版本
+docker pull ghcr.io/<username>/mediask-be-api:1.0.0
 ```
 
 ## 文档

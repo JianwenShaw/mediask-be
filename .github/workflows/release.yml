@@ -1,19 +1,30 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [master]
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"        # v1.0.0
+      - "v[0-9]+.[0-9]+.[0-9]+-*"      # v1.0.0-beta.1, v1.0.0-rc.1
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g., v1.0.0)"
+        required: true
+        type: string
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
-  docker:
+  # 先运行 CI 确保代码质量
+  ci:
+    name: Run CI
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Build & Push Docker Images
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    needs: ci
     permissions:
       contents: read
       packages: write
@@ -34,6 +45,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -51,9 +64,14 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image_suffix }}
           tags: |
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
+            # 语义化版本标签：v1.2.3 -> 1.2.3, 1.2, 1
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            # latest 标签（仅正式版本，不含 prerelease）
+            type=raw,value=latest,enable=${{ !contains(github.ref, '-') }}
+            # commit SHA 用于精确追踪
+            type=sha,prefix=sha-,format=short
 
       - name: Build & Push
         id: push
@@ -74,4 +92,3 @@ jobs:
           subject-name: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image_suffix }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
-

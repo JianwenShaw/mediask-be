@@ -5,9 +5,12 @@ on:
     branches: [master, dev]
   push:
     branches: [dev, master]
+  # 允许其他工作流调用
+  workflow_call:
 
 jobs:
-  build:
+  test:
+    name: Build & Test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,4 +37,3 @@ jobs:
           path: |
             **/target/surefire-reports/*.xml
             **/target/site/jacoco/jacoco.xml
-
