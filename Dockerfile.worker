@@ -4,14 +4,12 @@
 FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /app
 
-# Cache dependencies
-COPY pom.xml .
-COPY mediask-*/pom.xml mediask-*/
-RUN mvn -B -U -Dmaven.test.skip=true dependency:go-offline
-
-# Build
+# Copy source code
 COPY . .
-RUN mvn -B -U -DskipTests clean package
+
+# Build with cache mount for Maven dependencies
+RUN --mount=type=cache,target=/root/.m2/repository \
+    mvn -B -U -DskipTests clean package
 
 # ====================
 # Runtime stage
@@ -33,4 +31,3 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 EXPOSE 8080
 
 ENTRYPOINT ["java", "-Xms256m", "-Xmx512m", "-XX:+UseZGC", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
-
