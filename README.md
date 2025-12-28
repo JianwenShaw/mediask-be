@@ -112,8 +112,25 @@ docker run -d \
 
 | Workflow | 触发条件 | 功能 |
 |----------|---------|------|
-| `ci.yml` | Push/PR 到 master/dev | 构建、测试、生成覆盖率报告 |
+| `ci.yml` | Push/PR 到 master/dev | 构建、测试、失败时邮件通知 |
 | `release.yml` | 推送语义化版本 Tag (v*.*.*) | 运行 CI → 构建 Docker 镜像 → 推送到 GHCR |
+| `notify.yml` | 被其他工作流调用 | 可复用的邮件通知模块 |
+
+### 分支保护规则
+
+建议为 `master` 分支配置保护规则：
+
+**Settings → Branches → Add branch protection rule**
+
+| 设置项 | 推荐值 |
+|--------|--------|
+| Branch name pattern | `master` |
+| Require a pull request before merging | ✅ |
+| Require status checks to pass before merging | ✅ |
+| **Status checks that are required** | `Build & Test` |
+| Require branches to be up to date before merging | ✅ |
+
+> ⚠️ Status check 名称是 `Build & Test`（ci.yml 中 job 的 `name` 字段）
 
 ### 发布流程
 
@@ -152,6 +169,29 @@ docker pull ghcr.io/<username>/mediask-be-api:latest
 # 拉取指定版本
 docker pull ghcr.io/<username>/mediask-be-api:1.0.0
 ```
+
+### 邮件通知
+
+CI 和 Release 工作流都支持邮件通知：
+
+| 工作流 | 成功通知 | 失败通知 |
+|--------|---------|---------|
+| CI | ❌ | ✅ |
+| Release | ✅ | ✅ |
+
+**配置 Repository Secrets：**
+
+在 GitHub 仓库 → Settings → Secrets and variables → Actions 中添加：
+
+| Secret | 说明 | 示例 |
+|--------|------|------|
+| `MAIL_SERVER` | SMTP 服务器地址 | `smtp.gmail.com` |
+| `MAIL_PORT` | SMTP 端口 | `587` |
+| `MAIL_USERNAME` | 发件人邮箱 | `ci-bot@example.com` |
+| `MAIL_PASSWORD` | 邮箱密码/应用密码 | `xxxx xxxx xxxx xxxx` |
+| `MAIL_TO` | 收件人邮箱（多个用逗号分隔） | `dev@example.com` |
+
+> 💡 **Gmail 用户**：需要开启两步验证并生成[应用专用密码](https://myaccount.google.com/apppasswords)
 
 ## 文档
 
