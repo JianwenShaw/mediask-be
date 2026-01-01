@@ -2,8 +2,8 @@
 
 > 基于大语言模型的智能医疗辅助问诊系统 - 后端服务
 
-[![CI](https://github.com/jianwen/mediask-be/actions/workflows/ci.yml/badge.svg)](https://github.com/jianwen/mediask-be/actions/workflows/ci.yml)
-[![Release](https://github.com/jianwen/mediask-be/actions/workflows/release.yml/badge.svg)](https://github.com/jianwen/mediask-be/actions/workflows/release.yml)
+[![CI](https://github.com/JianwenShaw/mediask-be/actions/workflows/ci.yml/badge.svg)](https://github.com/JianwenShaw/mediask-be/actions/workflows/ci.yml)
+[![Release](https://github.com/JianwenShaw/mediask-be/actions/workflows/release.yml/badge.svg)](https://github.com/JianwenShaw/mediask-be/actions/workflows/release.yml)
 [![Java](https://img.shields.io/badge/Java-21-blue.svg)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -62,7 +62,7 @@ mediask-be/
 1. **克隆仓库**
 
 ```bash
-git clone https://github.com/jianwen/mediask-be.git
+git clone https://github.com/JianwenShaw/mediask-be.git
 cd mediask-be
 ```
 
@@ -164,10 +164,10 @@ Release 工作流会自动：
 
 ```bash
 # 拉取最新稳定版
-docker pull ghcr.io/<username>/mediask-be-api:latest
+docker pull ghcr.io/jianwenshaw/mediask-be-api:latest
 
 # 拉取指定版本
-docker pull ghcr.io/<username>/mediask-be-api:1.0.0
+docker pull ghcr.io/jianwenshaw/mediask-be-api:1.0.0
 ```
 
 ### 邮件通知
