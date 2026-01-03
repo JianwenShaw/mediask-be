@@ -28,10 +28,19 @@ public class JwtProperties {
      */
     private long expireSeconds = 604800L;
 
+    /**
+     * Refresh Token 过期时间（秒）
+     * <p>
+     * 默认 30 天。refresh token 仅用于换取新的 access token，本身不应作为 API 访问凭证。
+     * </p>
+     */
+    private long refreshExpireSeconds = 2592000L;
+
     public void validate() {
         Assert.hasText(secret, "security.jwt.secret 不能为空");
         Assert.isTrue(secret.length() >= 32, "security.jwt.secret 长度需至少 32 字符");
         Assert.isTrue(expireSeconds > 0, "security.jwt.expire-seconds 必须大于 0");
+        Assert.isTrue(refreshExpireSeconds > 0, "security.jwt.refresh-expire-seconds 必须大于 0");
     }
 }
 

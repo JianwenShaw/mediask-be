@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.api.model.auth.LoginRequest;
 import me.jianwen.mediask.api.model.auth.LoginResponse;
+import me.jianwen.mediask.api.model.auth.RefreshTokenRequest;
 import me.jianwen.mediask.api.model.auth.RegisterRequest;
 import me.jianwen.mediask.api.security.JwtService;
 import me.jianwen.mediask.common.constant.ErrorCode;
@@ -18,6 +19,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.time.Instant;
+import java.util.Collections;
 
 /**
  * 认证相关应用服务
@@ -91,16 +95,69 @@ public class AuthService {
         }
 
         var authorities = deriveAuthorities(user.getUserType());
-        JwtService.JwtToken token = jwtService.generateToken(user.getId(), user.getUsername(), user.getUserType(),
-                authorities);
+        JwtService.JwtToken access = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getUserType(), authorities);
+        JwtService.JwtToken refresh = jwtService.generateRefreshToken(user.getId(), user.getUsername(), user.getUserType(), authorities);
 
+        long nowSec = Instant.now().getEpochSecond();
         return LoginResponse.builder()
                 .userId(user.getId())
                 .username(user.getUsername())
                 .userType(user.getUserType() != null ? user.getUserType().getCode() : null)
                 .authorities(authorities)
-                .token(token.token())
-                .expireAt(token.expireAt())
+                .token(access.token())
+                .expireAt(access.expireAt())
+                .expiresIn(Math.max(0, access.expireAt() - nowSec))
+                .refreshToken(refresh.token())
+                .build();
+    }
+
+    /**
+     * 刷新 token：使用 refreshToken 换取新的 access token（并轮换 refresh token）
+     */
+    public LoginResponse refresh(RefreshTokenRequest request) {
+        AssertUtil.notNull(request, ErrorCode.PARAM_MISSING);
+        AssertUtil.notBlank(request.getRefreshToken(), ErrorCode.PARAM_MISSING);
+
+        JwtService.JwtPayload payload;
+        try {
+            payload = jwtService.parseToken(request.getRefreshToken());
+        } catch (io.jsonwebtoken.ExpiredJwtException ex) {
+            throw new BizException(ErrorCode.TOKEN_EXPIRED);
+        } catch (io.jsonwebtoken.JwtException ex) {
+            throw new BizException(ErrorCode.TOKEN_INVALID);
+        }
+
+        if (payload.tokenKind() != JwtService.TokenKind.REFRESH) {
+            throw new BizException(ErrorCode.TOKEN_INVALID, "refreshToken 类型不正确");
+        }
+        if (payload.userId() == null || !StringUtils.hasText(payload.username())) {
+            throw new BizException(ErrorCode.TOKEN_INVALID, "refreshToken 载荷不完整");
+        }
+
+        UserTypeEnum userType = null;
+        if (payload.userType() != null) {
+            try {
+                userType = UserTypeEnum.fromCode(payload.userType());
+            } catch (IllegalArgumentException ignore) {
+                userType = null;
+            }
+        }
+
+        var authorities = payload.authorities() != null ? payload.authorities() : Collections.<String>emptyList();
+
+        JwtService.JwtToken access = jwtService.generateAccessToken(payload.userId(), payload.username(), userType, authorities);
+        JwtService.JwtToken refresh = jwtService.generateRefreshToken(payload.userId(), payload.username(), userType, authorities);
+
+        long nowSec = Instant.now().getEpochSecond();
+        return LoginResponse.builder()
+                .userId(payload.userId())
+                .username(payload.username())
+                .userType(payload.userType())
+                .authorities(authorities)
+                .token(access.token())
+                .expireAt(access.expireAt())
+                .expiresIn(Math.max(0, access.expireAt() - nowSec))
+                .refreshToken(refresh.token())
                 .build();
     }
 

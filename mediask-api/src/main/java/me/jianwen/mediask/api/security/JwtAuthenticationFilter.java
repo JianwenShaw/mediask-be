@@ -44,6 +44,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = header.substring(BEARER_PREFIX.length());
         try {
             JwtService.JwtPayload payload = jwtService.parseToken(token);
+            if (payload.tokenKind() != JwtService.TokenKind.ACCESS) {
+                // refresh token 不允许作为 API 访问凭证
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
             List<SimpleGrantedAuthority> authorities = payload.authorities().stream()
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toList());

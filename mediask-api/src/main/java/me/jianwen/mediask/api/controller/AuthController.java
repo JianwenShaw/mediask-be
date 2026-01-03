@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.model.auth.LoginRequest;
 import me.jianwen.mediask.api.model.auth.LoginResponse;
+import me.jianwen.mediask.api.model.auth.RefreshTokenRequest;
 import me.jianwen.mediask.api.model.auth.RegisterRequest;
 import me.jianwen.mediask.api.service.AuthService;
 import me.jianwen.mediask.common.result.Result;
@@ -36,6 +37,13 @@ public class AuthController {
     @Operation(summary = "用户登录", description = "支持用户名或手机号登录")
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
+        return Result.ok(response);
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "刷新令牌", description = "使用 refreshToken 换取新的 access token（并轮换 refresh token）")
+    public Result<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        LoginResponse response = authService.refresh(request);
         return Result.ok(response);
     }
 }

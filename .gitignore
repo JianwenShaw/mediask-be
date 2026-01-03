@@ -41,3 +41,4 @@ build/
 
 mvn-settings.xml
 .mvn/
+.cursor/rules/macos-specified-rule.mdc
