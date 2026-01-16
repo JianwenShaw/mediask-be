@@ -15,14 +15,17 @@
     <description>应用服务层 - 业务编排、用例实现、DTO转换</description>
 
     <dependencies>
+        <!-- ==================== 内部模块 ==================== -->
         <dependency>
             <groupId>me.jianwen</groupId>
-            <artifactId>mediask-domain</artifactId>
+            <artifactId>mediask-infra</artifactId>
         </dependency>
         <dependency>
             <groupId>me.jianwen</groupId>
             <artifactId>mediask-common</artifactId>
         </dependency>
+
+        <!-- ==================== Spring Boot ==================== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>

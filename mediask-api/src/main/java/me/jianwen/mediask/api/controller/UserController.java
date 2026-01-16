@@ -4,8 +4,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.model.user.CurrentUserResponse;
-import me.jianwen.mediask.api.service.UserService;
 import me.jianwen.mediask.common.result.Result;
+import me.jianwen.mediask.user.application.dto.CurrentUserDTO;
+import me.jianwen.mediask.user.application.service.UserApplicationService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,13 +22,24 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "用户", description = "用户信息相关接口")
 public class UserController {
 
-    private final UserService userService;
+    private final UserApplicationService userApplicationService;
 
     @GetMapping("/me")
     @Operation(summary = "获取当前登录用户信息")
     public Result<CurrentUserResponse> me() {
         Long userId = currentUserId();
-        return Result.ok(userService.getCurrentUser(userId));
+        CurrentUserDTO dto = userApplicationService.getCurrentUser(userId);
+        CurrentUserResponse response = CurrentUserResponse.builder()
+                .userId(dto.getUserId())
+                .username(dto.getUsername())
+                .phone(dto.getPhone())
+                .userType(dto.getUserType())
+                .realName(dto.getRealName())
+                .gender(dto.getGender())
+                .birthDate(dto.getBirthDate())
+                .avatarUrl(dto.getAvatarUrl())
+                .build();
+        return Result.ok(response);
     }
 
     private static Long currentUserId() {

@@ -8,8 +8,9 @@ import me.jianwen.mediask.api.model.auth.LoginRequest;
 import me.jianwen.mediask.api.model.auth.LoginResponse;
 import me.jianwen.mediask.api.model.auth.RefreshTokenRequest;
 import me.jianwen.mediask.api.model.auth.RegisterRequest;
-import me.jianwen.mediask.api.service.AuthService;
 import me.jianwen.mediask.common.result.Result;
+import me.jianwen.mediask.user.application.dto.LoginResponseDTO;
+import me.jianwen.mediask.user.application.service.AuthApplicationService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,26 +25,62 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "认证与注册", description = "登录、注册基础接口")
 public class AuthController {
 
-    private final AuthService authService;
+    private final AuthApplicationService authApplicationService;
 
     @PostMapping("/register")
     @Operation(summary = "用户注册")
-    public Result<Long> register(@Valid @RequestBody RegisterRequest request) {
-        Long userId = authService.register(request);
+    public Result<Long> register(@Valid @RequestBody RegisterRequest apiRequest) {
+        me.jianwen.mediask.user.application.request.RegisterRequest serviceRequest = new me.jianwen.mediask.user.application.request.RegisterRequest();
+        serviceRequest.setUsername(apiRequest.getUsername());
+        serviceRequest.setPassword(apiRequest.getPassword());
+        serviceRequest.setPhone(apiRequest.getPhone());
+        serviceRequest.setUserType(apiRequest.getUserType());
+        serviceRequest.setRealName(apiRequest.getRealName());
+        serviceRequest.setGender(apiRequest.getGender());
+        serviceRequest.setBirthDate(apiRequest.getBirthDate());
+        serviceRequest.setAvatarUrl(apiRequest.getAvatarUrl());
+        
+        Long userId = authApplicationService.register(serviceRequest);
         return Result.ok(userId);
     }
 
     @PostMapping("/login")
     @Operation(summary = "用户登录", description = "支持用户名或手机号登录")
-    public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponse response = authService.login(request);
+    public Result<LoginResponse> login(@Valid @RequestBody LoginRequest apiRequest) {
+        me.jianwen.mediask.user.application.request.LoginRequest serviceRequest = new me.jianwen.mediask.user.application.request.LoginRequest();
+        serviceRequest.setAccount(apiRequest.getAccount());
+        serviceRequest.setPassword(apiRequest.getPassword());
+        
+        LoginResponseDTO dto = authApplicationService.login(serviceRequest);
+        LoginResponse response = LoginResponse.builder()
+                .userId(dto.getUserId())
+                .username(dto.getUsername())
+                .userType(dto.getUserType())
+                .authorities(dto.getAuthorities())
+                .tokenType(dto.getTokenType())
+                .token(dto.getToken())
+                .expireAt(dto.getExpireAt())
+                .expiresIn(dto.getExpiresIn())
+                .refreshToken(dto.getRefreshToken())
+                .build();
         return Result.ok(response);
     }
 
     @PostMapping("/refresh")
     @Operation(summary = "刷新令牌", description = "使用 refreshToken 换取新的 access token（并轮换 refresh token）")
     public Result<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-        LoginResponse response = authService.refresh(request);
+        LoginResponseDTO dto = authApplicationService.refresh(request.getRefreshToken());
+        LoginResponse response = LoginResponse.builder()
+                .userId(dto.getUserId())
+                .username(dto.getUsername())
+                .userType(dto.getUserType())
+                .authorities(dto.getAuthorities())
+                .tokenType(dto.getTokenType())
+                .token(dto.getToken())
+                .expireAt(dto.getExpireAt())
+                .expiresIn(dto.getExpiresIn())
+                .refreshToken(dto.getRefreshToken())
+                .build();
         return Result.ok(response);
     }
 }

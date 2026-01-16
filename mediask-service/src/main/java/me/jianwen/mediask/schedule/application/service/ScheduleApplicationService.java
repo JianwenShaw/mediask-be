@@ -2,15 +2,15 @@ package me.jianwen.mediask.schedule.application.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import me.jianwen.mediask.schedule.application.command.AutoScheduleCommand;
-import me.jianwen.mediask.schedule.application.command.CreateScheduleCommand;
+import me.jianwen.mediask.schedule.application.request.AutoScheduleRequest;
+import me.jianwen.mediask.schedule.application.request.CreateScheduleRequest;
 import me.jianwen.mediask.schedule.domain.entity.AppointmentSlot;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
 import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
 import me.jianwen.mediask.schedule.domain.rule.ScheduleRule;
-import me.jianwen.mediask.schedule.domain.service.AutoScheduleService;
+import me.jianwen.mediask.schedule.domain.service.AutoScheduleDomainService;
 import me.jianwen.mediask.schedule.domain.service.ScheduleContext;
-import me.jianwen.mediask.schedule.domain.service.SlotManagementService;
+import me.jianwen.mediask.schedule.domain.service.SlotManagementDomainService;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
 import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
 import me.jianwen.mediask.schedule.domain.valueobject.ScheduleStatus;
@@ -29,7 +29,7 @@ import java.util.List;
  * 1. 协调多个聚合和领域服务完成业务用例
  * 2. 管理事务边界
  * 3. 发布领域事件
- * 4. DTO/Command 到领域对象的转换
+     * 4. Request 到领域对象的转换
  *
  * @author jianwen
  */
@@ -39,39 +39,39 @@ import java.util.List;
 public class ScheduleApplicationService {
 
     private final DoctorScheduleRepository scheduleRepository;
-    private final AutoScheduleService autoScheduleService;
-    private final SlotManagementService slotManagementService;
+    private final AutoScheduleDomainService autoScheduleDomainService;
+    private final SlotManagementDomainService slotManagementDomainService;
 
     /**
      * 创建单个排班
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long createSchedule(CreateScheduleCommand command) {
+    public Long createSchedule(CreateScheduleRequest request) {
         log.info("创建排班: doctorId={}, date={}, period={}",
-                command.getDoctorId(), command.getScheduleDate(), command.getTimePeriodCode());
+                request.getDoctorId(), request.getScheduleDate(), request.getTimePeriodCode());
 
-        DoctorId doctorId = DoctorId.of(command.getDoctorId());
-        TimePeriod timePeriod = command.getTimePeriod();
+        DoctorId doctorId = DoctorId.of(request.getDoctorId());
+        TimePeriod timePeriod = request.getTimePeriod();
 
         // 1. 检查是否已存在排班
-        if (scheduleRepository.exists(doctorId, command.getScheduleDate(), timePeriod)) {
+        if (scheduleRepository.exists(doctorId, request.getScheduleDate(), timePeriod)) {
             throw new IllegalArgumentException("该时段的排班已存在");
         }
 
         // 2. 创建排班聚合
         DoctorSchedule schedule = DoctorSchedule.create(
                 doctorId,
-                command.getScheduleDate(),
+                request.getScheduleDate(),
                 timePeriod,
-                command.getTotalSlots(),
-                command.getSlotDurationMinutes());
+                request.getTotalSlots(),
+                request.getSlotDurationMinutes());
 
         // 3. 保存排班
         scheduleRepository.save(schedule);
 
         // 4. 生成号源时段
-        List<AppointmentSlot> slots = slotManagementService.generateSlotsForSchedule(schedule);
-        slotManagementService.saveSlots(slots);
+        List<AppointmentSlot> slots = slotManagementDomainService.generateSlotsForSchedule(schedule);
+        slotManagementDomainService.saveSlots(slots);
 
         // 5. 发布领域事件（在实际项目中需要实现事件发布器）
         publishEvents(schedule);
@@ -85,20 +85,20 @@ public class ScheduleApplicationService {
      * 执行自动排班
      */
     @Transactional(rollbackFor = Exception.class)
-    public List<Long> autoSchedule(AutoScheduleCommand command) {
+    public List<Long> autoSchedule(AutoScheduleRequest request) {
         log.info("执行自动排班: doctorId={}, dateRange={} to {}",
-                command.getDoctorId(), command.getStartDate(), command.getEndDate());
+                request.getDoctorId(), request.getStartDate(), request.getEndDate());
 
         // 1. 构建排班规则
         ScheduleRule rule = new ScheduleRule();
         rule.setRuleName("自动排班规则");
-        rule.setEffectiveDaysOfWeek(command.getWorkDays());
-        rule.setEffectivePeriods(command.getTimePeriods());
-        rule.setSlotsPerPeriod(command.getSlotsPerPeriod());
-        rule.setSlotDurationMinutes(command.getSlotDurationMinutes());
-        rule.setEffectiveStartDate(command.getStartDate());
-        rule.setEffectiveEndDate(command.getEndDate());
-        rule.setExcludeHolidays(command.getExcludeHolidays());
+        rule.setEffectiveDaysOfWeek(request.getWorkDays());
+        rule.setEffectivePeriods(request.getTimePeriods());
+        rule.setSlotsPerPeriod(request.getSlotsPerPeriod());
+        rule.setSlotDurationMinutes(request.getSlotDurationMinutes());
+        rule.setEffectiveStartDate(request.getStartDate());
+        rule.setEffectiveEndDate(request.getEndDate());
+        rule.setExcludeHolidays(request.getExcludeHolidays());
 
         // 2. 构建排班上下文
         ScheduleContext context = ScheduleContext.builder()
@@ -107,21 +107,21 @@ public class ScheduleApplicationService {
                 .build();
 
         // 3. 执行自动排班
-        DoctorId doctorId = DoctorId.of(command.getDoctorId());
-        List<DoctorSchedule> schedules = autoScheduleService.autoSchedule(
+        DoctorId doctorId = DoctorId.of(request.getDoctorId());
+        List<DoctorSchedule> schedules = autoScheduleDomainService.autoSchedule(
                 doctorId,
-                command.getStartDate(),
-                command.getEndDate(),
+                request.getStartDate(),
+                request.getEndDate(),
                 context,
-                command.getStrategyName());
+                request.getStrategyName());
 
         // 4. 保存排班
-        autoScheduleService.saveSchedules(schedules);
+        autoScheduleDomainService.saveSchedules(schedules);
 
         // 5. 为每个排班生成号源时段
         schedules.forEach(schedule -> {
-            List<AppointmentSlot> slots = slotManagementService.generateSlotsForSchedule(schedule);
-            slotManagementService.saveSlots(slots);
+            List<AppointmentSlot> slots = slotManagementDomainService.generateSlotsForSchedule(schedule);
+            slotManagementDomainService.saveSlots(slots);
         });
 
         // 6. 发布领域事件

@@ -5,8 +5,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.common.result.Result;
-import me.jianwen.mediask.schedule.application.command.AutoScheduleCommand;
-import me.jianwen.mediask.schedule.application.command.CreateScheduleCommand;
+import me.jianwen.mediask.schedule.application.request.AutoScheduleRequest;
+import me.jianwen.mediask.schedule.application.request.CreateScheduleRequest;
 import me.jianwen.mediask.schedule.application.service.ScheduleApplicationService;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
 import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
@@ -37,8 +37,8 @@ public class ScheduleController {
     @PostMapping
     @Operation(summary = "创建排班", description = "手动创建单个排班")
     @PreAuthorize("hasAuthority('schedule:create')")
-    public Result<Long> createSchedule(@Validated @RequestBody CreateScheduleCommand command) {
-        Long scheduleId = scheduleApplicationService.createSchedule(command);
+    public Result<Long> createSchedule(@Validated @RequestBody CreateScheduleRequest request) {
+        Long scheduleId = scheduleApplicationService.createSchedule(request);
         return Result.ok(scheduleId);
     }
 
@@ -48,8 +48,8 @@ public class ScheduleController {
     @PostMapping("/auto")
     @Operation(summary = "自动排班", description = "根据规则自动批量生成排班")
     @PreAuthorize("hasAuthority('schedule:auto')")
-    public Result<List<Long>> autoSchedule(@Validated @RequestBody AutoScheduleCommand command) {
-        List<Long> scheduleIds = scheduleApplicationService.autoSchedule(command);
+    public Result<List<Long>> autoSchedule(@Validated @RequestBody AutoScheduleRequest request) {
+        List<Long> scheduleIds = scheduleApplicationService.autoSchedule(request);
         return Result.ok(scheduleIds);
     }
 
