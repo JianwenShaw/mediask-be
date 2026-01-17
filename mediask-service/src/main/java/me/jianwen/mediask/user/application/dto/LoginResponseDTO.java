@@ -20,5 +20,6 @@ public class LoginResponseDTO {
     Long expireAt;
     Long expiresIn;
     String refreshToken;
+    String refreshTokenId; // Refresh Token 的 jti，用于登出时撤销
 }
 

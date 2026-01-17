@@ -25,8 +25,9 @@ public class JwtProperties {
 
     /**
      * 过期时间（秒）
+     * 最佳实践：短期 Access Token（15-30分钟），减少泄露风险
      */
-    private long expireSeconds = 604800L;
+    private long expireSeconds = 1800L; // 30 分钟
 
     /**
      * Refresh Token 过期时间（秒）

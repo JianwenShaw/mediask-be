@@ -1,16 +1,20 @@
 package me.jianwen.mediask.api.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.model.auth.LoginRequest;
 import me.jianwen.mediask.api.model.auth.LoginResponse;
+import me.jianwen.mediask.api.model.auth.LogoutRequest;
 import me.jianwen.mediask.api.model.auth.RefreshTokenRequest;
 import me.jianwen.mediask.api.model.auth.RegisterRequest;
 import me.jianwen.mediask.common.result.Result;
 import me.jianwen.mediask.user.application.dto.LoginResponseDTO;
 import me.jianwen.mediask.user.application.service.AuthApplicationService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,6 +66,7 @@ public class AuthController {
                 .expireAt(dto.getExpireAt())
                 .expiresIn(dto.getExpiresIn())
                 .refreshToken(dto.getRefreshToken())
+                .refreshTokenId(dto.getRefreshTokenId())
                 .build();
         return Result.ok(response);
     }
@@ -80,8 +85,43 @@ public class AuthController {
                 .expireAt(dto.getExpireAt())
                 .expiresIn(dto.getExpiresIn())
                 .refreshToken(dto.getRefreshToken())
+                .refreshTokenId(dto.getRefreshTokenId())
                 .build();
         return Result.ok(response);
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "用户登出", description = "撤销 Refresh Token，使 Token 失效")
+    @SecurityRequirement(name = "bearerAuth")
+    public Result<Void> logout(@RequestBody LogoutRequest request) {
+        Long userId = currentUserId();
+        if (userId == null) {
+            return Result.ok();
+        }
+
+        if (request.getRefreshTokenId() == null || request.getRefreshTokenId().isBlank()) {
+            // 登出所有设备
+            authApplicationService.logoutAll(userId);
+        } else {
+            // 仅登出当前设备
+            authApplicationService.logout(userId, request.getRefreshTokenId());
+        }
+        return Result.ok();
+    }
+
+    private static Long currentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return null;
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof Long id) return id;
+        if (principal instanceof String str) {
+            try {
+                return Long.valueOf(str);
+            } catch (NumberFormatException ignore) {
+                return null;
+            }
+        }
+        return null;
     }
 }
 

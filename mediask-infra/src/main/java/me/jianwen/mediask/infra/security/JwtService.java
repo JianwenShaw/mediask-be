@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * JWT 生成与解析服务
@@ -28,6 +29,7 @@ public class JwtService {
     private static final String CLAIM_USER_TYPE = "userType";
     private static final String CLAIM_PERMS = "perms";
     private static final String CLAIM_TOKEN_KIND = "tokenKind";
+    private static final String CLAIM_JTI = "jti"; // JWT ID，用于标识单个 Token
 
     public enum TokenKind {
         ACCESS,
@@ -54,6 +56,13 @@ public class JwtService {
         return buildToken(userId, username, userType, authorities, TokenKind.REFRESH, properties.getRefreshExpireSeconds());
     }
 
+    /**
+     * 获取 Refresh Token 过期时间（秒）
+     */
+    public long getRefreshExpireSeconds() {
+        return properties.getRefreshExpireSeconds();
+    }
+
     private JwtToken buildToken(
             Long userId,
             String username,
@@ -69,6 +78,9 @@ public class JwtService {
         byte[] keyBytes = properties.getSecret().getBytes(StandardCharsets.UTF_8);
         var signingKey = Keys.hmacShaKeyFor(keyBytes);
 
+        // 生成唯一 Token ID
+        String tokenId = UUID.randomUUID().toString();
+
         String token = Jwts.builder()
                 .subject(String.valueOf(userId))
                 .issuer(properties.getIssuer())
@@ -78,11 +90,12 @@ public class JwtService {
                 .claim(CLAIM_USER_TYPE, userType != null ? userType.getCode() : null)
                 .claim(CLAIM_PERMS, authorities)
                 .claim(CLAIM_TOKEN_KIND, tokenKind.name())
+                .claim(CLAIM_JTI, tokenId)
                 // jjwt 0.12+: SignatureAlgorithm.HS256 已过时，使用 Jwts.SIG.HS256
                 .signWith(signingKey, Jwts.SIG.HS256)
                 .compact();
 
-        return new JwtToken(token, expireAt.getEpochSecond());
+        return new JwtToken(token, expireAt.getEpochSecond(), tokenId);
     }
 
     /**
@@ -106,8 +119,9 @@ public class JwtService {
             List<String> perms = readStringListClaim(claims, CLAIM_PERMS);
             String tokenKindRaw = claims.get(CLAIM_TOKEN_KIND, String.class);
             TokenKind tokenKind = parseTokenKindOrDefault(tokenKindRaw);
+            String tokenId = claims.get(CLAIM_JTI, String.class);
 
-            return new JwtPayload(userId, username, userTypeCode, perms, tokenKind);
+            return new JwtPayload(userId, username, userTypeCode, perms, tokenKind, tokenId);
         } catch (JwtException ex) {
             // 统一抛出，交由上层映射为业务错误码
             throw ex;
@@ -143,14 +157,15 @@ public class JwtService {
      *
      * @param token    JWT 字符串
      * @param expireAt 过期时间（秒级时间戳）
+     * @param tokenId  Token ID (jti)，用于标识单个 Token
      */
-    public record JwtToken(String token, long expireAt) {
+    public record JwtToken(String token, long expireAt, String tokenId) {
     }
 
     /**
      * token 解析后的载荷
      */
-    public record JwtPayload(Long userId, String username, Integer userType, List<String> authorities, TokenKind tokenKind) {
+    public record JwtPayload(Long userId, String username, Integer userType, List<String> authorities, TokenKind tokenKind, String tokenId) {
     }
 }
 

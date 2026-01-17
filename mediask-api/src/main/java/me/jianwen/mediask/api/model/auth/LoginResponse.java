@@ -39,5 +39,10 @@ public class LoginResponse {
      * refresh token（用于换取新的 access token）
      */
     String refreshToken;
+
+    /**
+     * refresh token ID（用于登出时撤销）
+     */
+    String refreshTokenId;
 }
 

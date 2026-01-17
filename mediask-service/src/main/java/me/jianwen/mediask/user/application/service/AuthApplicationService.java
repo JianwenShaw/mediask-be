@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.infra.security.JwtService;
+import me.jianwen.mediask.infra.security.RefreshTokenStore;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.common.util.AssertUtil;
@@ -37,6 +38,7 @@ public class AuthApplicationService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenStore refreshTokenStore;
 
     /**
      * 用户注册
@@ -101,6 +103,9 @@ public class AuthApplicationService {
         JwtService.JwtToken access = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getUserType(), authorities);
         JwtService.JwtToken refresh = jwtService.generateRefreshToken(user.getId(), user.getUsername(), user.getUserType(), authorities);
 
+        // 存储 Refresh Token 到 Redis
+        refreshTokenStore.store(user.getId(), refresh.tokenId(), jwtService.getRefreshExpireSeconds());
+
         long nowSec = Instant.now().getEpochSecond();
         return LoginResponseDTO.builder()
                 .userId(user.getId())
@@ -112,6 +117,7 @@ public class AuthApplicationService {
                 .expireAt(access.expireAt())
                 .expiresIn(Math.max(0, access.expireAt() - nowSec))
                 .refreshToken(refresh.token())
+                .refreshTokenId(refresh.tokenId())
                 .build();
     }
 
@@ -137,6 +143,11 @@ public class AuthApplicationService {
             throw new BizException(ErrorCode.TOKEN_INVALID, "refreshToken 载荷不完整");
         }
 
+        // 检查 Refresh Token 是否在 Redis 中有效
+        if (payload.tokenId() == null || !refreshTokenStore.isValid(payload.userId(), payload.tokenId())) {
+            throw new BizException(ErrorCode.TOKEN_INVALID, "refreshToken 已失效");
+        }
+
         UserTypeEnum userType = null;
         if (payload.userType() != null) {
             try {
@@ -148,8 +159,11 @@ public class AuthApplicationService {
 
         var authorities = payload.authorities() != null ? payload.authorities() : Collections.<String>emptyList();
 
-        JwtService.JwtToken access = jwtService.generateAccessToken(payload.userId(), payload.username(), userType, authorities);
-        JwtService.JwtToken refresh = jwtService.generateRefreshToken(payload.userId(), payload.username(), userType, authorities);
+        // 轮换 Refresh Token：删除旧的，存储新的
+        refreshTokenStore.remove(payload.userId(), payload.tokenId());
+        JwtService.JwtToken newAccess = jwtService.generateAccessToken(payload.userId(), payload.username(), userType, authorities);
+        JwtService.JwtToken newRefresh = jwtService.generateRefreshToken(payload.userId(), payload.username(), userType, authorities);
+        refreshTokenStore.store(payload.userId(), newRefresh.tokenId(), jwtService.getRefreshExpireSeconds());
 
         long nowSec = Instant.now().getEpochSecond();
         return LoginResponseDTO.builder()
@@ -158,11 +172,35 @@ public class AuthApplicationService {
                 .userType(payload.userType())
                 .authorities(authorities)
                 .tokenType("Bearer")
-                .token(access.token())
-                .expireAt(access.expireAt())
-                .expiresIn(Math.max(0, access.expireAt() - nowSec))
-                .refreshToken(refresh.token())
+                .token(newAccess.token())
+                .expireAt(newAccess.expireAt())
+                .expiresIn(Math.max(0, newAccess.expireAt() - nowSec))
+                .refreshToken(newRefresh.token())
+                .refreshTokenId(newRefresh.tokenId())
                 .build();
+    }
+
+    /**
+     * 登出：撤销当前用户的 Refresh Token
+     *
+     * @param userId     用户ID
+     * @param refreshTokenId 要撤销的 Refresh Token ID
+     */
+    public void logout(Long userId, String refreshTokenId) {
+        if (refreshTokenId != null) {
+            refreshTokenStore.remove(userId, refreshTokenId);
+        }
+        log.info("用户登出: userId={}", userId);
+    }
+
+    /**
+     * 登出所有设备：撤销用户的所有 Refresh Token
+     *
+     * @param userId 用户ID
+     */
+    public void logoutAll(Long userId) {
+        refreshTokenStore.revokeAll(userId);
+        log.info("用户登出所有设备: userId={}", userId);
     }
 
     private UserTypeEnum resolveUserType(Integer code) {

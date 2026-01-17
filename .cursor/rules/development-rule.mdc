@@ -1,24 +1,24 @@
 ---
-alwaysApply: false
-description: Java开发规范代码规范 DDD领域驱动设计分层架构 架构设计命名规范 JDK21特性 高内聚低耦合 应用服务ApplicationService 领域服务DomainService 基础设施层Infrastructure 数据访问层DAL Request DTO VO DO 工具类Utils 助手类Helper 代码风格 最佳实践
+alwaysApply: true
+description: Java development standards, code standards, DDD domain-driven design layered architecture, architecture design naming conventions, JDK21 features, high cohesion low coupling, ApplicationService, DomainService, Infrastructure layer, DAL layer, Request DTO VO DO, Utils, Helper, code style, best practices. **IMPORTANT: You must be able to understand and respond to user queries in both English and Chinese. When users ask questions in Chinese, respond in clear, fluent Chinese.**
 ---
 
-## 项目架构
+## Project Architecture
 
-### 分层架构（DDD）
+### Layered Architecture (DDD)
 
-本项目采用 **DDD（领域驱动设计）分层架构**，模块划分如下：
+This project adopts **DDD (Domain-Driven Design) layered architecture** with the following module division:
 
 ```
-mediask-api          # API接入层 - REST控制器、请求响应、参数校验
-mediask-service      # 应用服务层 - 业务编排、用例实现、Request/DTO转换
-mediask-domain       # 领域层 - 实体、值对象、领域服务、仓储接口（核心业务逻辑）
-mediask-infra        # 基础设施层 - 仓储实现、缓存、分布式锁、文件存储、AI客户端
-mediask-dal          # 数据对象层 - DO实体、Mapper接口定义
-mediask-common       # 通用层 - 工具类、常量、异常、统一响应
+mediask-api          # API Layer - REST controllers, request/response, parameter validation
+mediask-service      # Application Service Layer - business orchestration, use case implementation, Request/DTO conversion
+mediask-domain       # Domain Layer - entities, value objects, domain services, repository interfaces (core business logic)
+mediask-infra        # Infrastructure Layer - repository implementations, cache, distributed locks, file storage, AI clients
+mediask-dal          # Data Access Layer - DO entities, Mapper interface definitions
+mediask-common       # Common Layer - utility classes, constants, exceptions, unified responses
 ```
 
-### 依赖关系规则（严格遵循）
+### Dependency Rules (Strictly Follow)
 
 ```
 API → Service → Domain
@@ -28,95 +28,95 @@ API → Service → Domain
             DAL → Common
 ```
 
-**关键约束**：
-- ✅ API 层只能依赖 Service 层和 Common 层
-- ✅ Service 层只能依赖 Domain 层、Infra 层和 Common 层
-- ✅ Domain 层只能依赖 Common 层（核心业务逻辑，不依赖基础设施）
-- ✅ Infra 层实现 Domain 层的仓储接口，依赖 Domain、DAL、Common
-- ✅ DAL 层只包含 DO 和 Mapper，依赖 Common 层
-- ❌ **禁止跨层依赖**（如 API 直接依赖 Domain 或 Infra）
-- ❌ **禁止循环依赖**
+**Key Constraints**:
+- ✅ API layer can only depend on Service layer and Common layer
+- ✅ Service layer can only depend on Domain layer, Infra layer and Common layer
+- ✅ Domain layer can only depend on Common layer (core business logic, no infrastructure dependencies)
+- ✅ Infra layer implements Domain layer repository interfaces, depends on Domain, DAL, Common
+- ✅ DAL layer only contains DO and Mapper, depends on Common layer
+- ❌ **Cross-layer dependencies are prohibited** (e.g., API directly depends on Domain or Infra)
+- ❌ **Circular dependencies are prohibited**
 
-## 命名规范（强制执行）
+## Naming Conventions (Enforced)
 
-### 应用层命名
+### Application Layer Naming
 
-| 层级 | 类型 | 命名规范 | 示例 |
-|------|------|---------|------|
-| **API 层** | HTTP 请求对象 | `XxxRequest` | `LoginRequest`, `RegisterRequest` |
-| **API 层** | HTTP 响应对象 | `XxxResponse` | `LoginResponse`, `CurrentUserResponse` |
-| **Service 层** | 应用层请求对象 | `XxxRequest` | `LoginRequest`, `CreateScheduleRequest` |
-| **Service 层** | 应用层响应对象 | `XxxDTO` | `LoginResponseDTO`, `CurrentUserDTO` |
-| **Domain 层** | 领域服务 | `XxxDomainService` | `AutoScheduleDomainService` |
-| **Domain 层** | 领域实体 | 业务名称 | `DoctorSchedule`, `AppointmentSlot` |
-| **Domain 层** | 值对象 | 业务名称 | `DoctorId`, `TimePeriod`, `ScheduleStatus` |
-| **DAL 层** | 数据对象 | `XxxDO` | `UserDO`, `DoctorScheduleDO` |
-| **DAL 层** | Mapper | `XxxMapper` | `UserMapper`, `DoctorScheduleMapper` |
-| **Infra 层** | 仓储实现 | `XxxRepositoryImpl` | `DoctorScheduleRepositoryImpl` |
-| **Infra 层** | 转换器 | `XxxConverter` | `ScheduleConverter` |
-| **Common 层** | 工具类 | `XxxUtils` | `DateUtils`, `StringUtils` |
-| **Common 层** | 助手类 | `XxxHelper` | `EncryptHelper`, `ValidationHelper` |
+| Layer | Type | Naming Convention | Examples |
+|---|---|---|---|
+| **API Layer** | HTTP Request Object | `XxxRequest` | `LoginRequest`, `RegisterRequest` |
+| **API Layer** | HTTP Response Object | `XxxResponse` | `LoginResponse`, `CurrentUserResponse` |
+| **Service Layer** | Application Request Object | `XxxRequest` | `LoginRequest`, `CreateScheduleRequest` |
+| **Service Layer** | Application Response Object | `XxxDTO` | `LoginResponseDTO`, `CurrentUserDTO` |
+| **Domain Layer** | Domain Service | `XxxDomainService` | `AutoScheduleDomainService` |
+| **Domain Layer** | Domain Entity | Business Name | `DoctorSchedule`, `AppointmentSlot` |
+| **Domain Layer** | Value Object | Business Name | `DoctorId`, `TimePeriod`, `ScheduleStatus` |
+| **DAL Layer** | Data Object | `XxxDO` | `UserDO`, `DoctorScheduleDO` |
+| **DAL Layer** | Mapper | `XxxMapper` | `UserMapper`, `DoctorScheduleMapper` |
+| **Infra Layer** | Repository Implementation | `XxxRepositoryImpl` | `DoctorScheduleRepositoryImpl` |
+| **Infra Layer** | Converter | `XxxConverter` | `ScheduleConverter` |
+| **Common Layer** | Utility Class | `XxxUtils` | `DateUtils`, `StringUtils` |
+| **Common Layer** | Helper Class | `XxxHelper` | `EncryptHelper`, `ValidationHelper` |
 
-### 通用对象类型说明
+### Common Object Type Descriptions
 
-| 类型 | 全称 | 用途 | 命名规范 | 示例 |
-|------|------|------|---------|------|
-| **DTO** | Data Transfer Object | 在各层之间传递数据的对象，不包含业务逻辑 | `XxxDTO` | `LoginResponseDTO`, `UserInfoDTO` |
-| **VO** | View Object | 用于用户界面层向应用层传递数据，本质也是一种DTO。**注意：不要和DDD的Value Object值对象搞混** | `XxxVO` | `UserInfoVO`, `DoctorDetailVO` |
-| **DO** | Data Object | 数据库表映射对象（本项目使用DO，不使用PO） | `XxxDO` | `UserDO`, `DoctorScheduleDO` |
-| **PO** | Persistence Object | 持久化对象（传统命名，本项目统一使用DO） | - | - |
-| **Utils** | - | 工具类，提供静态方法 | `XxxUtils` | `DateUtils`, `StringUtils` |
-| **Helper** | - | 助手类，帮助完成某类操作的工具类 | `XxxHelper` | `EncryptHelper`, `ValidationHelper` |
+| Type | Full Name | Purpose | Naming Convention | Examples |
+|---|---|---|---|---|
+| **DTO** | Data Transfer Object | Objects that transfer data between layers, no business logic | `XxxDTO` | `LoginResponseDTO`, `UserInfoDTO` |
+| **VO** | View Object | Used for passing data from UI layer to application layer, essentially a type of DTO. **Note: Do not confuse with DDD's Value Object** | `XxxVO` | `UserInfoVO`, `DoctorDetailVO` |
+| **DO** | Data Object | Database table mapping object (this project uses DO, not PO) | `XxxDO` | `UserDO`, `DoctorScheduleDO` |
+| **PO** | Persistence Object | Persistence object (traditional naming, this project uniformly uses DO) | - | - |
+| **Utils** | - | Utility class providing static methods | `XxxUtils` | `DateUtils`, `StringUtils` |
+| **Helper** | - | Helper class that assists with certain operations | `XxxHelper` | `EncryptHelper`, `ValidationHelper` |
 
-### 重要说明
+### Important Notes
 
-1. **Request vs Command**：
-   - ✅ 使用 `Request`（更符合传统 DDD 实践）
-   - ❌ 不使用 `Command`（除非明确采用 CQRS 模式）
+1. **Request vs Command**:
+   - ✅ Use `Request` (more aligned with traditional DDD practices)
+   - ❌ Do not use `Command` (unless explicitly adopting CQRS pattern)
 
-2. **DTO vs VO**：
-   - Service 层输出使用 `DTO`（Data Transfer Object）
-   - API 层输出使用 `Response` 或 `VO`（View Object）
-   - **注意**：VO 是 View Object，不要和 DDD 的 Value Object（值对象）混淆
+2. **DTO vs VO**:
+   - Service layer output uses `DTO` (Data Transfer Object)
+   - API layer output uses `Response` or `VO` (View Object)
+   - **Note**: VO is View Object, do not confuse with DDD's Value Object
 
-3. **DO vs PO**：
-   - 本项目统一使用 `DO`（Data Object）作为数据库表映射对象
-   - 不使用 `PO`（Persistence Object）命名
-   - DO 放在 DAL 层，使用 MyBatis-Plus 注解
+3. **DO vs PO**:
+   - This project uniformly uses `DO` (Data Object) as database table mapping objects
+   - Do not use `PO` (Persistence Object) naming
+   - DO is placed in DAL layer, uses MyBatis-Plus annotations
 
-4. **Utils vs Helper**：
-   - `Utils`：提供静态方法的工具类，通常是无状态的
-   - `Helper`：助手类，可能包含状态或更复杂的逻辑
-   - 两者都放在 Common 层
+4. **Utils vs Helper**:
+   - `Utils`: Utility classes providing static methods, usually stateless
+   - `Helper`: Helper classes that may contain state or more complex logic
+   - Both are placed in Common layer
 
-5. **领域服务命名**：
-   - 领域服务使用 `XxxDomainService` 后缀，与应用服务区分
-   - 应用服务使用 `XxxApplicationService` 后缀
+5. **Domain Service Naming**:
+   - Domain services use `XxxDomainService` suffix to distinguish from application services
+   - Application services use `XxxApplicationService` suffix
 
-## 代码风格
+## Code Style
 
-### 参考文档
+### Reference Documentation
 
-请严格参考代码风格文档：
+Please strictly refer to the code style documentation:
 - `/home/ethan/dev/mediask-be/MediAskDocs/docs/02-CODE_STANDARDS.md`
 
-### 核心原则
+### Core Principles
 
-1. **命名清晰**：变量、方法、类名必须清晰表达业务含义，禁止缩写和拼音
-2. **单一职责**：每个类、方法只做一件事
-3. **高内聚低耦合**：相关功能聚合，模块间依赖最小化
-4. **优雅简洁**：代码应该易读、易维护，避免过度设计
+1. **Clear Naming**: Variable, method, and class names must clearly express business meaning, abbreviations and pinyin are prohibited
+2. **Single Responsibility**: Each class and method does one thing only
+3. **High Cohesion Low Coupling**: Related functionality is aggregated, module dependencies are minimized
+4. **Elegant and Concise**: Code should be readable and maintainable, avoid over-engineering
 
-## JDK 21 特性使用指南
+## JDK 21 Features Usage Guide
 
-### 推荐使用的特性
+### Recommended Features
 
-1. **Record 类**：用于不可变数据传输对象
+1. **Record Classes**: For immutable data transfer objects
    ```java
    public record LoginResponseDTO(Long userId, String username, String token) {}
    ```
 
-2. **Pattern Matching**：switch 表达式和模式匹配
+2. **Pattern Matching**: Switch expressions and pattern matching
    ```java
    return switch (userType) {
        case ADMIN -> List.of("schedule:create", "schedule:update");
@@ -125,7 +125,7 @@ API → Service → Domain
    };
    ```
 
-3. **Text Blocks**：多行字符串
+3. **Text Blocks**: Multi-line strings
    ```java
    String sql = """
        SELECT * FROM users
@@ -133,171 +133,171 @@ API → Service → Domain
        """;
    ```
 
-4. **Sealed Classes**：限制类继承（用于值对象或枚举扩展）
+4. **Sealed Classes**: Restrict class inheritance (for value objects or enum extensions)
 
-5. **var 关键字**：局部变量类型推断（适度使用，保持可读性）
+5. **var Keyword**: Local variable type inference (use moderately, maintain readability)
 
-### 虚拟线程注意事项 ⚠️
+### Virtual Threads Notes ⚠️
 
-1. **数据库连接池**：
-   - MySQL 驱动在虚拟线程环境下可能性能下降
-   - 使用传统线程池处理数据库操作，避免虚拟线程
-   - 连接池大小需要根据实际情况调整
+1. **Database Connection Pool**:
+   - MySQL driver may have performance degradation in virtual thread environment
+   - Use traditional thread pool for database operations, avoid virtual threads
+   - Connection pool size needs to be adjusted based on actual situation
 
-2. **I/O 密集型操作**：
-   - 文件操作、网络请求可以使用虚拟线程
-   - 但需要验证实际性能表现
+2. **I/O Intensive Operations**:
+   - File operations and network requests can use virtual threads
+   - But actual performance needs to be verified
 
-3. **原则**：**性能优先，不盲目使用新特性**
+3. **Principle**: **Performance first, don't blindly use new features**
 
-## DDD 开发守则
+## DDD Development Guidelines
 
-### 领域层（Domain Layer）
+### Domain Layer
 
-1. **实体（Entity）**：
-   - 包含业务标识和业务逻辑
-   - 通过工厂方法或构造函数创建
-   - 封装业务规则，不暴露内部状态
+1. **Entity**:
+   - Contains business identity and business logic
+   - Created through factory methods or constructors
+   - Encapsulates business rules, does not expose internal state
 
-2. **值对象（Value Object）**：
-   - 不可变，通过值相等判断
-   - 使用 Record 或 final class 实现
+2. **Value Object**:
+   - Immutable, equality determined by value
+   - Implemented using Record or final class
 
-3. **领域服务（Domain Service）**：
-   - 处理跨实体的业务逻辑
-   - 命名：`XxxDomainService`
-   - 不依赖基础设施，只依赖领域对象和 Common
+3. **Domain Service**:
+   - Handles business logic across entities
+   - Naming: `XxxDomainService`
+   - Does not depend on infrastructure, only depends on domain objects and Common
 
-4. **仓储接口（Repository Interface）**：
-   - 定义在 Domain 层
-   - 使用领域对象作为参数和返回值
-   - 实现放在 Infra 层
+4. **Repository Interface**:
+   - Defined in Domain layer
+   - Uses domain objects as parameters and return values
+   - Implementation is placed in Infra layer
 
-### 应用层（Application Layer）
+### Application Layer
 
-1. **应用服务（Application Service）**：
-   - 协调领域服务和仓储完成用例
-   - 管理事务边界
-   - 处理 Request/DTO 转换
-   - 命名：`XxxApplicationService`
+1. **Application Service**:
+   - Coordinates domain services and repositories to complete use cases
+   - Manages transaction boundaries
+   - Handles Request/DTO conversion
+   - Naming: `XxxApplicationService`
 
-2. **Request/DTO**：
-   - Request：应用层输入参数（`XxxRequest`）
-   - DTO：应用层输出对象（`XxxDTO`）
-   - 放在 `application/request` 和 `application/dto` 包下
+2. **Request/DTO**:
+   - Request: Application layer input parameters (`XxxRequest`)
+   - DTO: Application layer output objects (`XxxDTO`)
+   - Placed in `application/request` and `application/dto` packages
 
-### 基础设施层（Infrastructure Layer）
+### Infrastructure Layer
 
-1. **仓储实现**：
-   - 实现 Domain 层的仓储接口
-   - 使用 MyBatis-Plus 或 JPA
-   - DO 和领域对象的转换
+1. **Repository Implementation**:
+   - Implements Domain layer repository interfaces
+   - Uses MyBatis-Plus or JPA
+   - Conversion between DO and domain objects
 
-2. **基础设施组件**：
-   - Redis 配置、分布式锁
-   - 文件存储、AI 客户端
-   - JWT 服务、密码编码器
-   - 所有技术实现细节
+2. **Infrastructure Components**:
+   - Redis configuration, distributed locks
+   - File storage, AI clients
+   - JWT service, password encoder
+   - All technical implementation details
 
-### 数据对象层（DAL Layer）
+### Data Access Layer (DAL)
 
-1. **DO（Data Object）**：
-   - 数据库表映射对象（等同于传统意义上的 PO）
-   - 使用 MyBatis-Plus 注解
-   - 命名：`XxxDO`
-   - **注意**：本项目统一使用 DO，不使用 PO 命名
+1. **DO (Data Object)**:
+   - Database table mapping object (equivalent to traditional PO)
+   - Uses MyBatis-Plus annotations
+   - Naming: `XxxDO`
+   - **Note**: This project uniformly uses DO, does not use PO naming
 
-2. **Mapper**：
-   - MyBatis Mapper 接口
-   - 只包含数据访问方法
-   - 不包含业务逻辑
+2. **Mapper**:
+   - MyBatis Mapper interface
+   - Only contains data access methods
+   - Does not contain business logic
 
-### 通用层（Common Layer）
+### Common Layer
 
-1. **工具类（Utils）**：
-   - 提供静态方法的工具类
-   - 通常是无状态的
-   - 命名：`XxxUtils`
-   - 示例：`DateUtils`, `StringUtils`, `CollectionUtils`
+1. **Utility Classes (Utils)**:
+   - Utility classes providing static methods
+   - Usually stateless
+   - Naming: `XxxUtils`
+   - Examples: `DateUtils`, `StringUtils`, `CollectionUtils`
 
-2. **助手类（Helper）**：
-   - 帮助完成某类操作的工具类
-   - 可能包含状态或更复杂的逻辑
-   - 命名：`XxxHelper`
-   - 示例：`EncryptHelper`, `ValidationHelper`, `FileHelper`
+2. **Helper Classes**:
+   - Helper classes that assist with certain operations
+   - May contain state or more complex logic
+   - Naming: `XxxHelper`
+   - Examples: `EncryptHelper`, `ValidationHelper`, `FileHelper`
 
-## Spring Security 组件分层
+## Spring Security Component Layering
 
-1. **API 层**：
-   - `SecurityConfig` - Web 安全配置
-   - `JwtAuthenticationFilter` - JWT 认证过滤器
-   - 异常处理器（`JwtAuthenticationEntryPoint`、`JwtAccessDeniedHandler`）
+1. **API Layer**:
+   - `SecurityConfig` - Web security configuration
+   - `JwtAuthenticationFilter` - JWT authentication filter
+   - Exception handlers (`JwtAuthenticationEntryPoint`, `JwtAccessDeniedHandler`)
 
-2. **Infra 层**：
-   - `PasswordEncoderConfig` - 密码编码器配置
-   - `JwtService` - JWT 服务
-   - `JwtProperties` - JWT 配置属性
+2. **Infra Layer**:
+   - `PasswordEncoderConfig` - Password encoder configuration
+   - `JwtService` - JWT service
+   - `JwtProperties` - JWT configuration properties
 
-3. **Service 层**：
-   - 通过依赖注入使用 `PasswordEncoder`（不直接依赖 Spring Security）
+3. **Service Layer**:
+   - Uses `PasswordEncoder` through dependency injection (does not directly depend on Spring Security)
 
-## 代码质量要求
+## Code Quality Requirements
 
-1. **异常处理**：
-   - 使用项目统一的异常体系（`BizException`）
-   - 不吞异常，记录日志
-   - 异常信息清晰，便于排查
+1. **Exception Handling**:
+   - Use project's unified exception system (`BizException`)
+   - Do not swallow exceptions, log them
+   - Exception messages should be clear for troubleshooting
 
-2. **日志规范**：
-   - 使用 SLF4J + Logback
-   - 关键业务操作记录 INFO 日志
-   - 异常记录 ERROR 日志，包含上下文信息
+2. **Logging Standards**:
+   - Use SLF4J + Logback
+   - Record INFO logs for key business operations
+   - Record ERROR logs for exceptions, include context information
 
-3. **事务管理**：
-   - 在应用服务方法上使用 `@Transactional`
-   - 明确指定 `rollbackFor = Exception.class`
-   - 避免在领域对象中直接使用事务注解
+3. **Transaction Management**:
+   - Use `@Transactional` on application service methods
+   - Explicitly specify `rollbackFor = Exception.class`
+   - Avoid using transaction annotations directly in domain objects
 
-4. **参数校验**：
-   - API 层使用 `@Valid` 或 `@Validated`
-   - Service 层使用 `AssertUtil` 进行业务校验
-   - 校验失败抛出明确的业务异常
+4. **Parameter Validation**:
+   - API layer uses `@Valid` or `@Validated`
+   - Service layer uses `AssertUtil` for business validation
+   - Validation failures throw clear business exceptions
 
-5. **空值处理**：
-   - 使用 `Optional` 处理可能为空的值
-   - 避免 `null` 传递，使用空对象模式或明确处理
+5. **Null Value Handling**:
+   - Use `Optional` to handle potentially null values
+   - Avoid `null` passing, use null object pattern or explicit handling
 
-## 性能优化原则
+## Performance Optimization Principles
 
-1. **数据库查询**：
-   - 避免 N+1 查询问题
-   - 合理使用索引
-   - 批量操作使用批量方法
+1. **Database Queries**:
+   - Avoid N+1 query problems
+   - Use indexes appropriately
+   - Use batch methods for batch operations
 
-2. **缓存策略**：
-   - 热点数据使用 Redis 缓存
-   - 注意缓存穿透、击穿、雪崩问题
-   - 使用分布式锁保证数据一致性
+2. **Caching Strategy**:
+   - Use Redis cache for hot data
+   - Pay attention to cache penetration, breakdown, and avalanche issues
+   - Use distributed locks to ensure data consistency
 
-3. **对象转换**：
-   - 使用 MapStruct 进行对象转换（编译时生成，性能高）
-   - 避免手动 getter/setter 转换
+3. **Object Conversion**:
+   - Use MapStruct for object conversion (compile-time generation, high performance)
+   - Avoid manual getter/setter conversion
 
-## 禁止事项
+## Prohibited Practices
 
-1. ❌ **禁止在 Domain 层使用 Spring 注解**（除了 `@Service` 用于领域服务）
-2. ❌ **禁止在 Domain 层直接依赖 DAL 层**
-3. ❌ **禁止在 Service 层直接使用 Mapper**（通过 Repository 接口）
-4. ❌ **禁止在 API 层直接调用 Domain 层**
-5. ❌ **禁止使用缩写和拼音命名**
-6. ❌ **禁止在循环中进行数据库查询**
-7. ❌ **禁止忽略异常或使用空的 catch 块**
+1. ❌ **Prohibited to use Spring annotations in Domain layer** (except `@Service` for domain services)
+2. ❌ **Prohibited to directly depend on DAL layer in Domain layer**
+3. ❌ **Prohibited to directly use Mapper in Service layer** (through Repository interface)
+4. ❌ **Prohibited to directly call Domain layer from API layer**
+5. ❌ **Prohibited to use abbreviations and pinyin in naming**
+6. ❌ **Prohibited to perform database queries in loops**
+7. ❌ **Prohibited to ignore exceptions or use empty catch blocks**
 
-## 最佳实践
+## Best Practices
 
-1. **优先使用组合而非继承**
-2. **使用依赖注入，避免硬编码依赖**
-3. **保持方法简短，单一职责**
-4. **使用有意义的变量名和方法名**
-5. **及时重构，保持代码整洁**
-6. **编写清晰的注释，解释"为什么"而非"是什么"**
+1. **Prefer composition over inheritance**
+2. **Use dependency injection, avoid hard-coded dependencies**
+3. **Keep methods short, single responsibility**
+4. **Use meaningful variable and method names**
+5. **Refactor promptly, keep code clean**
+6. **Write clear comments explaining "why" rather than "what"**
