@@ -5,7 +5,6 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
-import me.jianwen.mediask.dal.enums.UserTypeEnum;
 import me.jianwen.mediask.infra.config.JwtProperties;
 import org.springframework.stereotype.Component;
 
@@ -41,19 +40,19 @@ public class JwtService {
      *
      * @param userId   用户ID
      * @param username 用户名
-     * @param userType 用户类型
+     * @param userTypeCode 用户类型编码
      * @return token 及过期时间
      */
-    public JwtToken generateToken(Long userId, String username, UserTypeEnum userType, List<String> authorities) {
-        return generateAccessToken(userId, username, userType, authorities);
+    public JwtToken generateToken(Long userId, String username, Integer userTypeCode, List<String> authorities) {
+        return generateAccessToken(userId, username, userTypeCode, authorities);
     }
 
-    public JwtToken generateAccessToken(Long userId, String username, UserTypeEnum userType, List<String> authorities) {
-        return buildToken(userId, username, userType, authorities, TokenKind.ACCESS, properties.getExpireSeconds());
+    public JwtToken generateAccessToken(Long userId, String username, Integer userTypeCode, List<String> authorities) {
+        return buildToken(userId, username, userTypeCode, authorities, TokenKind.ACCESS, properties.getExpireSeconds());
     }
 
-    public JwtToken generateRefreshToken(Long userId, String username, UserTypeEnum userType, List<String> authorities) {
-        return buildToken(userId, username, userType, authorities, TokenKind.REFRESH, properties.getRefreshExpireSeconds());
+    public JwtToken generateRefreshToken(Long userId, String username, Integer userTypeCode, List<String> authorities) {
+        return buildToken(userId, username, userTypeCode, authorities, TokenKind.REFRESH, properties.getRefreshExpireSeconds());
     }
 
     /**
@@ -66,7 +65,7 @@ public class JwtService {
     private JwtToken buildToken(
             Long userId,
             String username,
-            UserTypeEnum userType,
+            Integer userTypeCode,
             List<String> authorities,
             TokenKind tokenKind,
             long expireSeconds
@@ -87,7 +86,7 @@ public class JwtService {
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expireAt))
                 .claim(CLAIM_USERNAME, username)
-                .claim(CLAIM_USER_TYPE, userType != null ? userType.getCode() : null)
+                .claim(CLAIM_USER_TYPE, userTypeCode)
                 .claim(CLAIM_PERMS, authorities)
                 .claim(CLAIM_TOKEN_KIND, tokenKind.name())
                 .claim(CLAIM_JTI, tokenId)

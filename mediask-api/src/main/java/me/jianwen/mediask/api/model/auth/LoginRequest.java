@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 登录请求
+ * 用户登录请求
  */
 @Data
 public class LoginRequest {
@@ -18,4 +18,3 @@ public class LoginRequest {
     @Size(min = 6, max = 64, message = "密码长度需在6-64之间")
     private String password;
 }
-

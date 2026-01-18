@@ -8,7 +8,7 @@ import lombok.Data;
 import java.time.LocalDate;
 
 /**
- * 注册请求
+ * 用户注册请求
  */
 @Data
 public class RegisterRequest {
@@ -37,4 +37,3 @@ public class RegisterRequest {
     @Size(max = 255, message = "头像地址过长")
     private String avatarUrl;
 }
-

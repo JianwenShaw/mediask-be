@@ -18,6 +18,10 @@
         <!-- ==================== 内部模块 ==================== -->
         <dependency>
             <groupId>me.jianwen</groupId>
+            <artifactId>mediask-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>me.jianwen</groupId>
             <artifactId>mediask-infra</artifactId>
         </dependency>
         <dependency>

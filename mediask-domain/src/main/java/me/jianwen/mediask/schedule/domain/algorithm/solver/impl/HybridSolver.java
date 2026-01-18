@@ -7,6 +7,7 @@ import me.jianwen.mediask.schedule.domain.algorithm.result.SolutionEvaluator;
 import me.jianwen.mediask.schedule.domain.algorithm.solver.ScheduleSolver;
 import me.jianwen.mediask.schedule.domain.algorithm.solver.SolverFactory;
 import me.jianwen.mediask.schedule.domain.algorithm.solver.SolverMetadata;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,7 +28,7 @@ public class HybridSolver implements ScheduleSolver {
 
     private final SolverFactory solverFactory;
 
-    public HybridSolver(SolverFactory solverFactory) {
+    public HybridSolver(@Lazy SolverFactory solverFactory) {
         this.solverFactory = solverFactory;
     }
 

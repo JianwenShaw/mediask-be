@@ -5,17 +5,17 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import me.jianwen.mediask.api.model.appointment.CancelAppointmentRequest;
+import me.jianwen.mediask.api.model.appointment.CreateAppointmentRequest;
+import me.jianwen.mediask.api.model.appointment.AppointmentResponse;
+import me.jianwen.mediask.api.model.appointment.AppointmentResultResponse;
+import me.jianwen.mediask.api.model.appointment.AvailableSlotResponse;
+import me.jianwen.mediask.api.mapper.AppointmentApiMapper;
+import me.jianwen.mediask.api.security.CurrentUserProvider;
 import me.jianwen.mediask.common.result.Result;
-import me.jianwen.mediask.schedule.application.dto.AppointmentDTO;
-import me.jianwen.mediask.schedule.application.dto.AppointmentResultDTO;
-import me.jianwen.mediask.schedule.application.dto.AvailableSlotDTO;
-import me.jianwen.mediask.schedule.application.request.CancelAppointmentRequest;
-import me.jianwen.mediask.schedule.application.request.CreateAppointmentRequest;
-import me.jianwen.mediask.schedule.application.service.AppointmentApplicationService;
+import me.jianwen.mediask.service.application.service.AppointmentApplicationService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -33,6 +33,8 @@ import java.util.List;
 public class AppointmentController {
 
     private final AppointmentApplicationService appointmentApplicationService;
+    private final CurrentUserProvider currentUserProvider;
+    private final AppointmentApiMapper appointmentApiMapper;
 
     /**
      * 创建预约
@@ -40,11 +42,13 @@ public class AppointmentController {
     @PostMapping
     @Operation(summary = "创建预约", description = "患者选择排班和时段进行挂号")
     @PreAuthorize("hasAuthority('patient')")
-    public Result<AppointmentResultDTO> createAppointment(
+    public Result<AppointmentResultResponse> createAppointment(
             @Valid @RequestBody CreateAppointmentRequest request) {
         Long patientId = currentUserId();
-        AppointmentResultDTO result = appointmentApplicationService.createAppointment(patientId, request);
-        return Result.ok(result);
+        var serviceRequest = appointmentApiMapper.toService(request);
+        me.jianwen.mediask.service.application.response.AppointmentResultResponse result =
+            appointmentApplicationService.createAppointment(patientId, serviceRequest);
+        return Result.ok(appointmentApiMapper.toResponse(result));
     }
 
     /**
@@ -56,7 +60,8 @@ public class AppointmentController {
     public Result<Void> cancelAppointment(
             @Valid @RequestBody CancelAppointmentRequest request) {
         Long patientId = currentUserId();
-        appointmentApplicationService.cancelAppointment(patientId, request);
+        var serviceRequest = appointmentApiMapper.toService(request);
+        appointmentApplicationService.cancelAppointment(patientId, serviceRequest);
         return Result.ok();
     }
 
@@ -90,13 +95,14 @@ public class AppointmentController {
     @GetMapping("/my")
     @Operation(summary = "查询我的预约", description = "查询当前登录患者的预约列表")
     @PreAuthorize("hasAuthority('patient')")
-    public Result<List<AppointmentDTO>> listMyAppointments(
+    public Result<List<AppointmentResponse>> listMyAppointments(
             @Parameter(description = "开始日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "结束日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
         Long patientId = currentUserId();
-        List<AppointmentDTO> appointments = appointmentApplicationService.listPatientAppointments(patientId, startDate, endDate);
-        return Result.ok(appointments);
+        List<me.jianwen.mediask.service.application.response.AppointmentResponse> appointments =
+            appointmentApplicationService.listPatientAppointments(patientId, startDate, endDate);
+        return Result.ok(appointments.stream().map(appointmentApiMapper::toResponse).toList());
     }
 
     /**
@@ -105,10 +111,11 @@ public class AppointmentController {
     @GetMapping("/my/unpaid")
     @Operation(summary = "查询待支付预约", description = "查询当前登录患者的待支付预约")
     @PreAuthorize("hasAuthority('patient')")
-    public Result<List<AppointmentDTO>> listUnpaidAppointments() {
+    public Result<List<AppointmentResponse>> listUnpaidAppointments() {
         Long patientId = currentUserId();
-        List<AppointmentDTO> appointments = appointmentApplicationService.listUnpaidAppointments(patientId);
-        return Result.ok(appointments);
+        List<me.jianwen.mediask.service.application.response.AppointmentResponse> appointments =
+            appointmentApplicationService.listUnpaidAppointments(patientId);
+        return Result.ok(appointments.stream().map(appointmentApiMapper::toResponse).toList());
     }
 
     /**
@@ -116,10 +123,11 @@ public class AppointmentController {
      */
     @GetMapping("/{appointmentId}")
     @Operation(summary = "查询预约详情")
-    public Result<AppointmentDTO> getAppointment(
+    public Result<AppointmentResponse> getAppointment(
             @Parameter(description = "预约ID") @PathVariable Long appointmentId) {
-        AppointmentDTO appointment = appointmentApplicationService.getAppointment(appointmentId);
-        return Result.ok(appointment);
+        me.jianwen.mediask.service.application.response.AppointmentResponse appointment =
+            appointmentApplicationService.getAppointment(appointmentId);
+        return Result.ok(appointmentApiMapper.toResponse(appointment));
     }
 
     /**
@@ -127,26 +135,18 @@ public class AppointmentController {
      */
     @GetMapping("/slots/available")
     @Operation(summary = "查询可预约时段", description = "查询指定排班的可预约时段列表")
-    public Result<List<AvailableSlotDTO>> listAvailableSlots(
+    public Result<List<AvailableSlotResponse>> listAvailableSlots(
             @Parameter(description = "排班ID") @RequestParam Long scheduleId) {
-        List<AvailableSlotDTO> slots = appointmentApplicationService.listAvailableSlots(scheduleId);
-        return Result.ok(slots);
+        List<me.jianwen.mediask.service.application.response.AvailableSlotResponse> slots =
+            appointmentApplicationService.listAvailableSlots(scheduleId);
+        return Result.ok(slots.stream().map(appointmentApiMapper::toResponse).toList());
     }
 
     /**
      * 获取当前登录用户ID
      */
     private Long currentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) return null;
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof Long id) return id;
-        if (principal instanceof String str) {
-            try {
-                return Long.parseLong(str);
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        return null;
+        return currentUserProvider.currentUserId();
     }
+
 }

@@ -4,10 +4,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import me.jianwen.mediask.api.mapper.ScheduleApiMapper;
+import me.jianwen.mediask.api.model.schedule.AutoScheduleRequest;
+import me.jianwen.mediask.api.model.schedule.CreateScheduleRequest;
+import me.jianwen.mediask.api.model.schedule.ScheduleResponse;
 import me.jianwen.mediask.common.result.Result;
-import me.jianwen.mediask.schedule.application.request.AutoScheduleRequest;
-import me.jianwen.mediask.schedule.application.request.CreateScheduleRequest;
-import me.jianwen.mediask.schedule.application.service.ScheduleApplicationService;
+import me.jianwen.mediask.service.application.service.ScheduleApplicationService;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
 import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -30,6 +32,7 @@ import java.util.List;
 public class ScheduleController {
 
     private final ScheduleApplicationService scheduleApplicationService;
+    private final ScheduleApiMapper scheduleApiMapper;
 
     /**
      * 创建排班
@@ -38,7 +41,8 @@ public class ScheduleController {
     @Operation(summary = "创建排班", description = "手动创建单个排班")
     @PreAuthorize("hasAuthority('schedule:create')")
     public Result<Long> createSchedule(@Validated @RequestBody CreateScheduleRequest request) {
-        Long scheduleId = scheduleApplicationService.createSchedule(request);
+        var serviceRequest = scheduleApiMapper.toService(request);
+        Long scheduleId = scheduleApplicationService.createSchedule(serviceRequest);
         return Result.ok(scheduleId);
     }
 
@@ -49,7 +53,8 @@ public class ScheduleController {
     @Operation(summary = "自动排班", description = "根据规则自动批量生成排班")
     @PreAuthorize("hasAuthority('schedule:auto')")
     public Result<List<Long>> autoSchedule(@Validated @RequestBody AutoScheduleRequest request) {
-        List<Long> scheduleIds = scheduleApplicationService.autoSchedule(request);
+        var serviceRequest = scheduleApiMapper.toService(request);
+        List<Long> scheduleIds = scheduleApplicationService.autoSchedule(serviceRequest);
         return Result.ok(scheduleIds);
     }
 
@@ -96,10 +101,10 @@ public class ScheduleController {
      */
     @GetMapping("/{scheduleId}")
     @Operation(summary = "查询排班详情")
-    public Result<DoctorSchedule> getSchedule(
+    public Result<ScheduleResponse> getSchedule(
             @Parameter(description = "排班ID") @PathVariable Long scheduleId) {
         DoctorSchedule schedule = scheduleApplicationService.getScheduleById(scheduleId);
-        return Result.ok(schedule);
+        return Result.ok(scheduleApiMapper.toResponse(schedule));
     }
 
     /**
@@ -107,14 +112,14 @@ public class ScheduleController {
      */
     @GetMapping("/doctor/{doctorId}")
     @Operation(summary = "查询医生排班列表", description = "查询医生在日期范围内的所有排班")
-    public Result<List<DoctorSchedule>> listDoctorSchedules(
+    public Result<List<ScheduleResponse>> listDoctorSchedules(
             @Parameter(description = "医生ID") @PathVariable Long doctorId,
             @Parameter(description = "开始日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "结束日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
         List<DoctorSchedule> schedules = scheduleApplicationService
                 .listSchedulesByDoctorAndDateRange(doctorId, startDate, endDate);
-        return Result.ok(schedules);
+        return Result.ok(schedules.stream().map(scheduleApiMapper::toResponse).toList());
     }
 
     /**
@@ -122,12 +127,12 @@ public class ScheduleController {
      */
     @GetMapping("/available")
     @Operation(summary = "查询可预约排班", description = "查询指定日期和时段的可预约排班列表")
-    public Result<List<DoctorSchedule>> listAvailableSchedules(
+    public Result<List<ScheduleResponse>> listAvailableSchedules(
             @Parameter(description = "日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @Parameter(description = "时段代码：1上午 2下午 3晚上") @RequestParam Integer periodCode) {
 
         TimePeriod period = TimePeriod.fromCode(periodCode);
         List<DoctorSchedule> schedules = scheduleApplicationService.listOpenSchedules(date, period);
-        return Result.ok(schedules);
+        return Result.ok(schedules.stream().map(scheduleApiMapper::toResponse).toList());
     }
 }
