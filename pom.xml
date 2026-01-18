@@ -14,12 +14,13 @@
 
     <!-- ==================== 子模块声明 ==================== -->
     <modules>
-        <module>mediask-domain</module>
-        <module>mediask-worker</module>
-        <module>mediask-api</module>
         <module>mediask-common</module>
+        <module>mediask-domain</module>
         <module>mediask-dal</module>
+        <module>mediask-infra</module>
         <module>mediask-service</module>
+        <module>mediask-api</module>
+        <module>mediask-worker</module>
     </modules>
 
     <!-- ==================== 版本统一管理 ==================== -->
@@ -118,6 +119,11 @@
             <dependency>
                 <groupId>me.jianwen</groupId>
                 <artifactId>mediask-dal</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>me.jianwen</groupId>
+                <artifactId>mediask-infra</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

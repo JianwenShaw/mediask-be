@@ -1,24 +1,22 @@
 package me.jianwen.mediask.api.model.user;
 
 import lombok.Builder;
-import lombok.Value;
+import lombok.Data;
 
 import java.time.LocalDate;
 
 /**
- * 当前登录用户信息（脱敏）
+ * 当前用户信息响应（API层）
  */
-@Value
+@Data
 @Builder
 public class CurrentUserResponse {
-    Long userId;
-    String username;
-    String phone;
-    Integer userType;
-    String realName;
-    Integer gender;
-    LocalDate birthDate;
-    String avatarUrl;
+    private Long userId;
+    private String username;
+    private String phone;
+    private Integer userType;
+    private String realName;
+    private Integer gender;
+    private LocalDate birthDate;
+    private String avatarUrl;
 }
-
-

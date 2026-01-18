@@ -18,7 +18,7 @@
         <!-- ==================== 内部模块 ==================== -->
         <dependency>
             <groupId>me.jianwen</groupId>
-            <artifactId>mediask-dal</artifactId>
+            <artifactId>mediask-service</artifactId>
         </dependency>
         <dependency>
             <groupId>me.jianwen</groupId>
@@ -38,27 +38,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-        <dependency>
-            <groupId>me.jianwen</groupId>
-            <artifactId>mediask-service</artifactId>
-        </dependency>
+
+        <!-- ==================== API 文档 ==================== -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
+
+        <!-- ==================== 对象映射 ==================== -->
         <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <scope>runtime</scope>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

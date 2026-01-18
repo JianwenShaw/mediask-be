@@ -1,15 +1,19 @@
 package me.jianwen.mediask.api.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import me.jianwen.mediask.api.model.auth.LoginRequest;
+import me.jianwen.mediask.api.mapper.AuthApiMapper;
 import me.jianwen.mediask.api.model.auth.LoginResponse;
+import me.jianwen.mediask.api.model.auth.LoginRequest;
+import me.jianwen.mediask.api.model.auth.LogoutRequest;
 import me.jianwen.mediask.api.model.auth.RefreshTokenRequest;
 import me.jianwen.mediask.api.model.auth.RegisterRequest;
-import me.jianwen.mediask.api.service.AuthService;
+import me.jianwen.mediask.api.security.CurrentUserProvider;
 import me.jianwen.mediask.common.result.Result;
+import me.jianwen.mediask.service.application.service.AuthApplicationService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,27 +28,56 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "认证与注册", description = "登录、注册基础接口")
 public class AuthController {
 
-    private final AuthService authService;
+    private final AuthApplicationService authApplicationService;
+    private final CurrentUserProvider currentUserProvider;
+    private final AuthApiMapper authApiMapper;
 
     @PostMapping("/register")
     @Operation(summary = "用户注册")
-    public Result<Long> register(@Valid @RequestBody RegisterRequest request) {
-        Long userId = authService.register(request);
+    public Result<Long> register(@Valid @RequestBody RegisterRequest apiRequest) {
+        var serviceRequest = authApiMapper.toService(apiRequest);
+        Long userId = authApplicationService.register(serviceRequest);
         return Result.ok(userId);
     }
 
     @PostMapping("/login")
     @Operation(summary = "用户登录", description = "支持用户名或手机号登录")
-    public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponse response = authService.login(request);
-        return Result.ok(response);
+    public Result<LoginResponse> login(@Valid @RequestBody LoginRequest apiRequest) {
+        var serviceRequest = authApiMapper.toService(apiRequest);
+        me.jianwen.mediask.service.application.response.LoginResponse dto =
+            authApplicationService.login(serviceRequest);
+        return Result.ok(authApiMapper.toResponse(dto));
     }
 
     @PostMapping("/refresh")
     @Operation(summary = "刷新令牌", description = "使用 refreshToken 换取新的 access token（并轮换 refresh token）")
     public Result<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-        LoginResponse response = authService.refresh(request);
-        return Result.ok(response);
+        me.jianwen.mediask.service.application.response.LoginResponse dto =
+            authApplicationService.refresh(request.getRefreshToken());
+        return Result.ok(authApiMapper.toResponse(dto));
     }
-}
 
+    @PostMapping("/logout")
+    @Operation(summary = "用户登出", description = "撤销 Refresh Token，使 Token 失效")
+    @SecurityRequirement(name = "bearerAuth")
+    public Result<Void> logout(@RequestBody LogoutRequest request) {
+        Long userId = currentUserId();
+        if (userId == null) {
+            return Result.ok();
+        }
+
+        if (request.getRefreshTokenId() == null || request.getRefreshTokenId().isBlank()) {
+            // 登出所有设备
+            authApplicationService.logoutAll(userId);
+        } else {
+            // 仅登出当前设备
+            authApplicationService.logout(userId, request.getRefreshTokenId());
+        }
+        return Result.ok();
+    }
+
+    private Long currentUserId() {
+        return currentUserProvider.currentUserId();
+    }
+
+}

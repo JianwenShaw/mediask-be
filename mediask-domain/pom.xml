@@ -14,8 +14,24 @@
     <name>MediAsk Domain</name>
     <description>领域模型层 - 实体、值对象、领域服务、仓储接口</description>
 
-    <!-- 依赖继承自父 POM，暂不引入具体依赖 -->
     <dependencies>
+        <!-- ==================== 通用模块 ==================== -->
+        <dependency>
+            <groupId>me.jianwen</groupId>
+            <artifactId>mediask-common</artifactId>
+        </dependency>
+
+        <!-- ==================== Spring Context（仅用于 @Service 注解） ==================== -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+
+        <!-- ==================== 日志 ==================== -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

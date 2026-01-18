@@ -12,5 +12,3 @@ public class RefreshTokenRequest {
     @NotBlank(message = "refreshToken 不能为空")
     private String refreshToken;
 }
-
-
