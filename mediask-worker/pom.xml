@@ -16,6 +16,16 @@
 
     <!-- 依赖继承自父 POM，暂不引入具体依赖 -->
     <dependencies>
+        <dependency>
+            <groupId>me.jianwen</groupId>
+            <artifactId>mediask-domain</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>me.jianwen</groupId>
+            <artifactId>mediask-infra</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
 </project>

@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -154,8 +155,8 @@ public class AppointmentApplicationService {
             errorMessage = "系统繁忙，请稍后重试"
     )
     @Transactional(rollbackFor = Exception.class)
-    public void cancelAppointment(Long patientId, CancelAppointmentCommand request) {
-        log.info("取消预约: patientId={}, appointmentId={}", patientId, request.getAppointmentId());
+    public void cancelAppointment(Long operatorId, CancelAppointmentCommand request) {
+        log.info("取消预约: operatorId={}, appointmentId={}", operatorId, request.getAppointmentId());
 
         AppointmentId appointmentId = AppointmentId.of(request.getAppointmentId());
 
@@ -163,8 +164,11 @@ public class AppointmentApplicationService {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new BizException(ErrorCode.APPT_NOT_FOUND, "预约记录不存在"));
 
-        // 验证预约归属
-        if (!appointment.getPatientId().value().equals(patientId)) {
+        // 验证权限：患者本人或管理员
+        boolean isPatient = appointment.getPatientId().value().equals(operatorId);
+        boolean isAdmin = request.getOperatorId() != null && request.getOperatorId().equals(operatorId);
+
+        if (!isPatient && !isAdmin) {
             throw new BizException(ErrorCode.EMR_ACCESS_DENIED, "无权取消该预约");
         }
 
@@ -175,7 +179,8 @@ public class AppointmentApplicationService {
         }
 
         // 取消预约
-        appointment.cancel(request.getReason());
+        String cancelReason = isAdmin ? request.getReason() : "用户取消";
+        appointment.cancel(cancelReason);
         appointmentRepository.save(appointment);
 
         // 释放号源
@@ -207,7 +212,7 @@ public class AppointmentApplicationService {
         // 发布事件
         publishEvents(appointment);
 
-        log.info("预约取消成功: appointmentId={}", appointmentId.value());
+        log.info("预约取消成功: appointmentId={}, operatorId={}", appointmentId.value(), operatorId);
     }
 
     /**
@@ -310,6 +315,75 @@ public class AppointmentApplicationService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.APPT_NOT_FOUND, "预约记录不存在"));
         return convertToResponse(appointment);
+    }
+
+    /**
+     * 查询医生在指定日期的预约列表
+     */
+    public List<AppointmentResponse> listAppointmentsByDoctor(Long doctorId, LocalDate date) {
+        DoctorId doctorIdVO = DoctorId.of(doctorId);
+        List<Appointment> appointments = appointmentRepository.findByDoctorIdAndDate(doctorIdVO, date);
+
+        return appointments.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 查询医生在日期范围内的预约列表
+     */
+    public List<AppointmentResponse> listAppointmentsByDoctorAndDateRange(
+            Long doctorId, LocalDate startDate, LocalDate endDate) {
+        DoctorId doctorIdVO = DoctorId.of(doctorId);
+        List<Appointment> appointments = appointmentRepository.findByDoctorIdAndDateRange(
+                doctorIdVO, startDate, endDate);
+
+        return appointments.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 标记爽约
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void markAsAbsent(Long appointmentId) {
+        log.info("标记爽约: appointmentId={}", appointmentId);
+
+        AppointmentId id = AppointmentId.of(appointmentId);
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new BizException(ErrorCode.APPT_NOT_FOUND, "预约记录不存在"));
+
+        appointment.markAsAbsent();
+        appointmentRepository.save(appointment);
+
+        publishEvents(appointment);
+
+        log.info("标记爽约成功: appointmentId={}", appointmentId);
+    }
+
+    /**
+      * 验证预约冲突
+      * 业务规则：同一天同一时段只能有一个预约；同一天最多2个号源
+      */
+    public void validateAppointmentConflict(PatientId patientId, LocalDate apptDate, TimePeriod timePeriod) {
+        long dailyAppointmentCount = appointmentRepository.countByPatientIdAndDate(patientId, apptDate);
+        if (dailyAppointmentCount >= 2) {
+            throw new BizException(ErrorCode.APPT_TIME_CONFLICT, "同一天最多预约2个号源");
+        }
+
+        boolean hasTimeConflict = appointmentRepository.existsByPatientIdAndDateAndTimePeriod(
+                patientId, apptDate, timePeriod);
+        if (hasTimeConflict) {
+            throw new BizException(ErrorCode.APPT_TIME_CONFLICT, "该时段您已有预约");
+        }
+    }
+
+    /**
+     * 根据预约单号查询
+     */
+    public Optional<Appointment> findByApptNo(String apptNo) {
+        return appointmentRepository.findByApptNo(apptNo);
     }
 
     // ============ 私有方法 ============

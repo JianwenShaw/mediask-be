@@ -8,8 +8,8 @@
 |------|----------|------|
 | 认证 | 4 | 注册、登录、刷新Token、登出 |
 | 用户 | 1 | 获取用户信息 |
-| 排班 | 7 | 创建/查询排班、停诊/开诊 |
-| 预约 | 8 | 预约挂号、取消、支付 |
+| 排班 | 12 | 创建/查询/删除排班、停诊/开诊、分页查询 |
+| 预约 | 13 | 预约挂号、取消、支付、爽约、医生查询 |
 | 测试 | 5 | 健康检查、MySQL、Redis |
 
 ## 基础信息
@@ -85,30 +85,37 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 |------|------|------|
 | GET | `/api/v1/users/me` | 获取当前用户信息 |
 
-### Schedule 排班模块 (7 接口)
+### Schedule 排班模块 (12 接口)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/api/v1/schedules` | 创建排班 |
-| GET | `/api/v1/schedules` | 查询排班列表 |
+| GET | `/api/v1/schedules` | 分页查询排班列表（新增分页和筛选参数） |
 | POST | `/api/v1/schedules/auto` | 自动排班 |
 | POST | `/api/v1/schedules/{id}/close` | 停诊 |
 | POST | `/api/v1/schedules/{id}/open` | 开诊 |
 | PUT | `/api/v1/schedules/{id}/slots` | 调整号源 |
+| GET | `/api/v1/schedules/{id}` | 查询排班详情 |
+| DELETE | `/api/v1/schedules/{id}` | 删除排班（新增） |
+| GET | `/api/v1/schedules/doctor/{doctorId}` | 医生排班列表 |
 | GET | `/api/v1/schedules/available` | 可预约排班 |
+| DELETE | `/api/v1/schedules/batch` | 批量删除排班（新增） |
 
-### Appointment 预约模块 (8 接口)
+### Appointment 预约模块 (13 接口)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/api/v1/appointments` | 创建预约 |
-| POST | `/api/v1/appointments/cancel` | 取消预约 |
+| POST | `/api/v1/appointments/cancel` | 取消预约（支持管理员） |
 | POST | `/api/v1/appointments/{id}/pay` | 支付预约 |
 | POST | `/api/v1/appointments/{id}/visited` | 标记已就诊 |
+| POST | `/api/v1/appointments/{id}/absent` | 标记爽约（新增） |
 | GET | `/api/v1/appointments/my` | 我的预约 |
 | GET | `/api/v1/appointments/my/unpaid` | 待支付预约 |
 | GET | `/api/v1/appointments/{id}` | 预约详情 |
 | GET | `/api/v1/appointments/slots/available` | 可预约时段 |
+| GET | `/api/v1/appointments/doctor/{doctorId}` | 医生查询预约（按日期）（新增） |
+| GET | `/api/v1/appointments/doctor/{doctorId}/range` | 医生查询预约（日期范围）（新增） |
 
 ## 文件说明
 

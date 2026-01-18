@@ -51,6 +51,11 @@ public interface AppointmentRepository {
     List<Appointment> findByDoctorIdAndDate(DoctorId doctorId, LocalDate apptDate);
 
     /**
+     * 查询医生在日期范围内的预约列表
+     */
+    List<Appointment> findByDoctorIdAndDateRange(DoctorId doctorId, LocalDate startDate, LocalDate endDate);
+
+    /**
      * 查询医生在某时段的预约
      */
     List<Appointment> findByDoctorIdAndDateAndTimePeriod(

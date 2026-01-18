@@ -11,4 +11,8 @@ public class CancelAppointmentCommand {
     private Long appointmentId;
 
     private String reason;
+
+    private Long operatorId;
+
+    private Integer operatorType;
 }

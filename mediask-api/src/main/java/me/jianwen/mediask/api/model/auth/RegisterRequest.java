@@ -30,6 +30,7 @@ public class RegisterRequest {
     @Size(max = 64, message = "真实姓名长度不能超过64")
     private String realName;
 
+    @NotNull(message = "性别不能为空")
     private Integer gender;
 
     private LocalDate birthDate;

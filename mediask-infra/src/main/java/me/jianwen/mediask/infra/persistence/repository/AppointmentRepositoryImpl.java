@@ -121,6 +121,19 @@ public class AppointmentRepositoryImpl implements AppointmentRepository {
     }
 
     @Override
+    public List<Appointment> findByDoctorIdAndDateRange(DoctorId doctorId, LocalDate startDate, LocalDate endDate) {
+        LambdaQueryWrapper<AppointmentDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AppointmentDO::getDoctorId, doctorId.getValue())
+                .ge(AppointmentDO::getApptDate, startDate)
+                .le(AppointmentDO::getApptDate, endDate)
+                .orderByAsc(AppointmentDO::getApptDate, AppointmentDO::getApptTime);
+
+        return appointmentMapper.selectList(wrapper).stream()
+                .map(appointmentConverter::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<Appointment> findByDoctorIdAndDateAndTimePeriod(
             DoctorId doctorId, LocalDate apptDate, TimePeriod timePeriod) {
 

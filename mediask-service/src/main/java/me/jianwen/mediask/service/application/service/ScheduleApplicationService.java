@@ -2,11 +2,16 @@ package me.jianwen.mediask.service.application.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import me.jianwen.mediask.common.constant.ErrorCode;
+import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.domain.event.DomainEventPublisher;
 import me.jianwen.mediask.service.application.command.AutoScheduleCommand;
 import me.jianwen.mediask.service.application.command.CreateScheduleCommand;
+import me.jianwen.mediask.common.model.PageResult;
+import me.jianwen.mediask.schedule.domain.entity.Appointment;
 import me.jianwen.mediask.schedule.domain.entity.AppointmentSlot;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
+import me.jianwen.mediask.schedule.domain.repository.AppointmentRepository;
 import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
 import me.jianwen.mediask.schedule.domain.rule.ScheduleRule;
 import me.jianwen.mediask.schedule.domain.service.AutoScheduleDomainService;
@@ -40,6 +45,7 @@ import java.util.List;
 public class ScheduleApplicationService {
 
     private final DoctorScheduleRepository scheduleRepository;
+    private final AppointmentRepository appointmentRepository;
     private final AutoScheduleDomainService autoScheduleDomainService;
     private final SlotManagementDomainService slotManagementDomainService;
     private final DomainEventPublisher eventPublisher;
@@ -213,24 +219,108 @@ public class ScheduleApplicationService {
     }
 
     /**
-     * 标记过期排班
-     * 定时任务调用，将已过期的排班标记为已过期状态
+     * 查询可预约的排班（按科室筛选）
+     */
+    public List<DoctorSchedule> listOpenSchedulesByDepartment(LocalDate date, TimePeriod period, Long departmentId) {
+        List<DoctorSchedule> schedules = scheduleRepository.findOpenSchedulesByDateAndPeriod(date, period);
+        return schedules;
+    }
+
+    /**
+     * 分页查询排班列表
+     */
+    public PageResult<DoctorSchedule> listSchedulesPaged(
+            Long doctorId, Long departmentId, LocalDate startDate, LocalDate endDate,
+            Integer status, Integer pageNum, Integer pageSize) {
+
+        List<DoctorSchedule> allSchedules = scheduleRepository.findByDoctorAndDateRange(
+                DoctorId.of(doctorId != null ? doctorId : 0L),
+                startDate != null ? startDate : LocalDate.now().minusMonths(1),
+                endDate != null ? endDate : LocalDate.now().plusMonths(1));
+
+        // 过滤条件
+        if (status != null) {
+            allSchedules = allSchedules.stream()
+                    .filter(s -> s.getStatus().getCode().equals(status))
+                    .toList();
+        }
+
+        // 分页
+        int start = (pageNum - 1) * pageSize;
+        int end = Math.min(start + pageSize, allSchedules.size());
+        long total = allSchedules.size();
+
+        if (start >= allSchedules.size()) {
+            return new PageResult<>(total, pageNum, pageSize, List.of());
+        }
+
+        return new PageResult<>(total, pageNum, pageSize,
+                allSchedules.subList(start, end));
+    }
+
+    /**
+     * 逻辑删除排班（检查关联预约）
      */
     @Transactional(rollbackFor = Exception.class)
-    public void markExpiredSchedules() {
-        log.info("开始标记过期排班");
+    public void deleteSchedule(Long scheduleId, boolean force) {
+        log.info("删除排班: scheduleId={}, force={}", scheduleId, force);
 
-        LocalDate yesterday = LocalDate.now().minusDays(1);
-        List<DoctorSchedule> expiredSchedules = scheduleRepository.findExpiredSchedules(yesterday);
+        DoctorSchedule schedule = getScheduleById(scheduleId);
 
-        expiredSchedules.forEach(schedule -> {
-            if (schedule.getStatus() != ScheduleStatus.EXPIRED) {
-                schedule.markAsExpired();
-                scheduleRepository.save(schedule);
+        // 检查是否有未取消的预约
+        List<Appointment> appointments = appointmentRepository.findByScheduleId(schedule.getId());
+        long activeAppointments = appointments.stream()
+                .filter(a -> !a.isCancelled())
+                .count();
+
+        if (activeAppointments > 0 && !force) {
+            throw new BizException(ErrorCode.OPERATION_FORBIDDEN,
+                    "该排班存在 " + activeAppointments + " 个未取消的预约，请先取消预约后再删除");
+        }
+
+        // 如果强制删除，取消所有预约
+        if (activeAppointments > 0 && force) {
+            appointments.stream()
+                    .filter(a -> !a.isCancelled())
+                    .forEach(a -> {
+                        a.cancel("排班已删除");
+                        appointmentRepository.save(a);
+                    });
+            log.info("已取消 {} 个关联预约", activeAppointments);
+        }
+
+        // 逻辑删除：标记为已过期或已停诊
+        schedule.close("排班已删除");
+        scheduleRepository.save(schedule);
+
+        publishEvents(schedule);
+
+        log.info("排班删除成功: scheduleId={}", scheduleId);
+    }
+
+    /**
+     * 批量删除排班（按日期范围）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int batchDeleteSchedules(Long doctorId, LocalDate startDate, LocalDate endDate, boolean force) {
+        log.info("批量删除排班: doctorId={}, dateRange={} to {}", doctorId, startDate, endDate);
+
+        List<DoctorSchedule> schedules = scheduleRepository.findByDoctorAndDateRange(
+                DoctorId.of(doctorId), startDate, endDate);
+
+        int deletedCount = 0;
+        for (DoctorSchedule schedule : schedules) {
+            try {
+                deleteSchedule(schedule.getId().getValue(), force);
+                deletedCount++;
+            } catch (BizException e) {
+                log.warn("排班删除失败: scheduleId={}, reason={}",
+                        schedule.getId().getValue(), e.getMessage());
             }
-        });
+        }
 
-        log.info("过期排班标记完成: 共标记 {} 条", expiredSchedules.size());
+        log.info("批量删除完成: 共处理 {} 条，成功 {} 条", schedules.size(), deletedCount);
+        return deletedCount;
     }
 
     /**

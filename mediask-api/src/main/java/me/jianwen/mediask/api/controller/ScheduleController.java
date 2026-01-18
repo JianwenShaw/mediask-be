@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.mapper.ScheduleApiMapper;
+import me.jianwen.mediask.common.model.PageResult;
 import me.jianwen.mediask.api.model.schedule.AutoScheduleRequest;
 import me.jianwen.mediask.api.model.schedule.CreateScheduleRequest;
 import me.jianwen.mediask.api.model.schedule.ScheduleResponse;
@@ -134,5 +135,58 @@ public class ScheduleController {
         TimePeriod period = TimePeriod.fromCode(periodCode);
         List<DoctorSchedule> schedules = scheduleApplicationService.listOpenSchedules(date, period);
         return Result.ok(schedules.stream().map(scheduleApiMapper::toResponse).toList());
+    }
+
+    /**
+     * 分页查询排班列表
+     */
+    @GetMapping
+    @Operation(summary = "分页查询排班列表", description = "支持多条件筛选和分页")
+    @PreAuthorize("hasAuthority('schedule:query')")
+    public Result<PageResult<ScheduleResponse>> listSchedulesPaged(
+            @Parameter(description = "医生ID") @RequestParam(required = false) Long doctorId,
+            @Parameter(description = "科室ID") @RequestParam(required = false) Long departmentId,
+            @Parameter(description = "开始日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @Parameter(description = "状态：0停诊 1开放 2约满 3过期") @RequestParam(required = false) Integer status,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer pageSize) {
+
+        me.jianwen.mediask.common.model.PageResult<DoctorSchedule> result = scheduleApplicationService.listSchedulesPaged(
+                doctorId, departmentId, startDate, endDate, status, pageNum, pageSize);
+
+        List<ScheduleResponse> responses = result.getList().stream()
+                .map(scheduleApiMapper::toResponse)
+                .toList();
+
+        return Result.ok(new PageResult<>(result.getTotal(), pageNum, pageSize, responses));
+    }
+
+    /**
+     * 删除排班
+     */
+    @DeleteMapping("/{scheduleId}")
+    @Operation(summary = "删除排班", description = "逻辑删除排班，会检查关联预约")
+    @PreAuthorize("hasAuthority('schedule:delete')")
+    public Result<Void> deleteSchedule(
+            @Parameter(description = "排班ID") @PathVariable Long scheduleId,
+            @Parameter(description = "是否强制删除（取消关联预约）") @RequestParam(defaultValue = "false") Boolean force) {
+        scheduleApplicationService.deleteSchedule(scheduleId, force);
+        return Result.ok();
+    }
+
+    /**
+     * 批量删除排班
+     */
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除排班", description = "按日期范围批量删除排班")
+    @PreAuthorize("hasAuthority('schedule:delete')")
+    public Result<Integer> batchDeleteSchedules(
+            @Parameter(description = "医生ID") @RequestParam Long doctorId,
+            @Parameter(description = "开始日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "结束日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @Parameter(description = "是否强制删除") @RequestParam(defaultValue = "false") Boolean force) {
+        int count = scheduleApplicationService.batchDeleteSchedules(doctorId, startDate, endDate, force);
+        return Result.ok(count);
     }
 }
