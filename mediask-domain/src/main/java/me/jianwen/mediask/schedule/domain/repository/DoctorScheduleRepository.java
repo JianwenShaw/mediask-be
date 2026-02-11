@@ -53,6 +53,11 @@ public interface DoctorScheduleRepository {
             LocalDate endDate);
 
     /**
+     * 查询日期范围内的所有排班
+     */
+    List<DoctorSchedule> findByDateRange(LocalDate startDate, LocalDate endDate);
+
+    /**
      * 查询指定日期和时段的所有开放排班
      */
     List<DoctorSchedule> findOpenSchedulesByDateAndPeriod(

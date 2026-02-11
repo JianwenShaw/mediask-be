@@ -79,6 +79,10 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 {}
 ```
 
+**注册说明**：
+- `POST /api/v1/auth/register` 注册成功后会直接返回登录态（含 `token`、`refreshToken`、`expiresIn`），无需再调用一次登录接口。
+- `gender` 为必填字段；`realName`、`birthDate`、`avatarUrl`、`phone` 为可选字段。
+
 ### User 用户模块 (1 接口)
 
 | 方法 | 路径 | 说明 |

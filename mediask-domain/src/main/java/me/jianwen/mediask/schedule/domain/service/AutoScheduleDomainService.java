@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
 import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -17,7 +16,6 @@ import java.util.stream.Collectors;
  *
  * @author jianwen
  */
-@Service
 @Slf4j
 @RequiredArgsConstructor
 public class AutoScheduleDomainService {
@@ -117,4 +115,3 @@ public class AutoScheduleDomainService {
         log.info("已保存 {} 条排班记录", schedules.size());
     }
 }
-

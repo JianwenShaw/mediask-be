@@ -1,4 +1,4 @@
-package me.jianwen.mediask.service.application.response;
+package me.jianwen.mediask.common.dto.appointment;
 
 import lombok.Builder;
 import lombok.Data;
@@ -9,11 +9,11 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 /**
- * 预约结果响应（应用层）
+ * 预约结果DTO（Service层与API层共享）
  */
 @Data
 @Builder
-public class AppointmentResultResponse {
+public class AppointmentResultDTO {
 
     private Long appointmentId;
 

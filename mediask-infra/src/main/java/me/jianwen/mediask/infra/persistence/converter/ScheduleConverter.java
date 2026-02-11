@@ -4,7 +4,11 @@ import me.jianwen.mediask.dal.entity.DoctorScheduleDO;
 import me.jianwen.mediask.dal.enums.StatusEnum;
 import me.jianwen.mediask.dal.enums.TimePeriodEnum;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
-import me.jianwen.mediask.schedule.domain.valueobject.*;
+import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
+import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
+import me.jianwen.mediask.schedule.domain.valueobject.ScheduleStatus;
+import me.jianwen.mediask.schedule.domain.valueobject.SlotCapacity;
+import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 
@@ -80,4 +84,3 @@ public interface ScheduleConverter {
         return statusEnum == StatusEnum.ENABLED ? ScheduleStatus.OPEN : ScheduleStatus.CLOSED;
     }
 }
-

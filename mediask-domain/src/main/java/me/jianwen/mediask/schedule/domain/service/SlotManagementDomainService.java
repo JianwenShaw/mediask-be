@@ -6,7 +6,6 @@ import me.jianwen.mediask.schedule.domain.entity.AppointmentSlot;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
 import me.jianwen.mediask.schedule.domain.repository.AppointmentSlotRepository;
 import me.jianwen.mediask.schedule.domain.valueobject.TimeSlot;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -17,7 +16,6 @@ import java.util.stream.Collectors;
  *
  * @author jianwen
  */
-@Service
 @Slf4j
 @RequiredArgsConstructor
 public class SlotManagementDomainService {
@@ -89,4 +87,3 @@ public class SlotManagementDomainService {
         log.info("时段 {} 已释放", slotId);
     }
 }
-

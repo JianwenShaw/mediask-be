@@ -105,6 +105,18 @@ public class DoctorScheduleRepositoryImpl implements DoctorScheduleRepository {
     }
 
     @Override
+    public List<DoctorSchedule> findByDateRange(LocalDate startDate, LocalDate endDate) {
+        LambdaQueryWrapper<DoctorScheduleDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.ge(DoctorScheduleDO::getScheduleDate, startDate)
+                .le(DoctorScheduleDO::getScheduleDate, endDate)
+                .orderByAsc(DoctorScheduleDO::getScheduleDate, DoctorScheduleDO::getTimePeriod);
+
+        return scheduleMapper.selectList(wrapper).stream()
+                .map(scheduleConverter::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<DoctorSchedule> findOpenSchedulesByDateAndPeriod(
             LocalDate scheduleDate,
             TimePeriod timePeriod) {
@@ -145,4 +157,3 @@ public class DoctorScheduleRepositoryImpl implements DoctorScheduleRepository {
         scheduleMapper.deleteById(scheduleId.getValue());
     }
 }
-

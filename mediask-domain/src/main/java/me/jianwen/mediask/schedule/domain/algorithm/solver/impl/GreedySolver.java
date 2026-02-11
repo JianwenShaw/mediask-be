@@ -1,18 +1,20 @@
 package me.jianwen.mediask.schedule.domain.algorithm.solver.impl;
 
 import lombok.extern.slf4j.Slf4j;
-import me.jianwen.mediask.schedule.domain.algorithm.problem.*;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.DateRange;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.Doctor;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.ScheduleContext;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.ScheduleProblem;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.TimeSlotConfig;
 import me.jianwen.mediask.schedule.domain.algorithm.result.ScheduleSolution;
 import me.jianwen.mediask.schedule.domain.algorithm.result.SolutionEvaluator;
+import me.jianwen.mediask.schedule.domain.algorithm.constraint.ScheduleConstraint;
 import me.jianwen.mediask.schedule.domain.algorithm.solver.ScheduleSolver;
 import me.jianwen.mediask.schedule.domain.algorithm.solver.SolverMetadata;
-import me.jianwen.mediask.schedule.domain.algorithm.constraint.ConstraintType;
-import me.jianwen.mediask.schedule.domain.algorithm.constraint.ScheduleConstraint;
-import me.jianwen.mediask.schedule.domain.algorithm.constraint.ConstraintResult;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 贪婪算法求解器
@@ -27,7 +29,6 @@ import java.util.*;
  * @author MediAsk
  */
 @Slf4j
-@Component
 public class GreedySolver implements ScheduleSolver {
 
     private static final List<ScheduleConstraint> CONSTRAINTS = List.of(

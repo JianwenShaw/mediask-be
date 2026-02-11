@@ -1,4 +1,4 @@
-package me.jianwen.mediask.service.application.response;
+package me.jianwen.mediask.common.dto.user;
 
 import lombok.Builder;
 import lombok.Value;
@@ -6,11 +6,11 @@ import lombok.Value;
 import java.time.LocalDate;
 
 /**
- * 当前用户信息响应（应用层）
+ * 用户信息DTO（Service层与API层共享）
  */
 @Value
 @Builder
-public class CurrentUserResponse {
+public class UserDTO {
     Long userId;
     String username;
     String phone;

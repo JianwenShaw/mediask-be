@@ -4,7 +4,12 @@ import me.jianwen.mediask.dal.entity.AppointmentDO;
 import me.jianwen.mediask.dal.enums.ApptStatusEnum;
 import me.jianwen.mediask.dal.enums.TimePeriodEnum;
 import me.jianwen.mediask.schedule.domain.entity.Appointment;
-import me.jianwen.mediask.schedule.domain.valueobject.*;
+import me.jianwen.mediask.schedule.domain.valueobject.AppointmentId;
+import me.jianwen.mediask.schedule.domain.valueobject.AppointmentStatus;
+import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
+import me.jianwen.mediask.schedule.domain.valueobject.PatientId;
+import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
+import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 

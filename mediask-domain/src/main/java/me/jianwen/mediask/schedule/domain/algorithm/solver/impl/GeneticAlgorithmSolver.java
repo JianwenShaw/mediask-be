@@ -1,15 +1,21 @@
 package me.jianwen.mediask.schedule.domain.algorithm.solver.impl;
 
 import lombok.extern.slf4j.Slf4j;
-import me.jianwen.mediask.schedule.domain.algorithm.problem.*;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.DateRange;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.Doctor;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.ScheduleContext;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.ScheduleProblem;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.TimeSlotConfig;
 import me.jianwen.mediask.schedule.domain.algorithm.result.ScheduleSolution;
 import me.jianwen.mediask.schedule.domain.algorithm.result.SolutionEvaluator;
 import me.jianwen.mediask.schedule.domain.algorithm.solver.ScheduleSolver;
 import me.jianwen.mediask.schedule.domain.algorithm.solver.SolverMetadata;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Random;
 
 /**
  * 遗传算法求解器
@@ -24,7 +30,6 @@ import java.util.*;
  * @author MediAsk
  */
 @Slf4j
-@Component
 public class GeneticAlgorithmSolver implements ScheduleSolver {
 
     // 遗传算法参数

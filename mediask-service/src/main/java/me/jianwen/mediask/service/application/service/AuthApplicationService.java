@@ -8,9 +8,9 @@ import me.jianwen.mediask.common.util.AssertUtil;
 import me.jianwen.mediask.domain.repository.UserRepository;
 import me.jianwen.mediask.infra.security.JwtService;
 import me.jianwen.mediask.infra.security.RefreshTokenStore;
+import me.jianwen.mediask.common.dto.auth.LoginDTO;
 import me.jianwen.mediask.service.application.command.LoginCommand;
 import me.jianwen.mediask.service.application.command.RegisterCommand;
-import me.jianwen.mediask.service.application.response.LoginResponse;
 import me.jianwen.mediask.user.domain.entity.User;
 import me.jianwen.mediask.user.domain.enums.Gender;
 import me.jianwen.mediask.user.domain.enums.UserType;
@@ -43,7 +43,7 @@ public class AuthApplicationService {
      * 用户注册
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long register(RegisterCommand request) {
+    public LoginDTO register(RegisterCommand request) {
         AssertUtil.notNull(request, ErrorCode.PARAM_MISSING);
 
         // 唯一性校验
@@ -76,14 +76,35 @@ public class AuthApplicationService {
             throw new BizException(ErrorCode.USER_REGISTER_FAILED);
         }
 
-        log.info("用户注册成功: userId={}, username={}", userId, user.getUsername());
-        return userId;
+        // 注册成功后自动生成 Token
+        var authorities = deriveAuthorities(userType);
+        Integer userTypeCode = userType != null ? userType.code() : null;
+        JwtService.JwtToken access = jwtService.generateAccessToken(userId, request.getUsername(), userTypeCode, authorities);
+        JwtService.JwtToken refresh = jwtService.generateRefreshToken(userId, request.getUsername(), userTypeCode, authorities);
+
+        // 存储 Refresh Token 到 Redis
+        refreshTokenStore.store(userId, refresh.tokenId(), jwtService.getRefreshExpireSeconds());
+
+        long nowSec = Instant.now().getEpochSecond();
+        log.info("用户注册成功: userId={}, username={}", userId, request.getUsername());
+        return LoginDTO.builder()
+                .userId(userId)
+                .username(request.getUsername())
+                .userType(userTypeCode)
+                .authorities(authorities)
+                .tokenType("Bearer")
+                .token(access.token())
+                .expireAt(access.expireAt())
+                .expiresIn(Math.max(0, access.expireAt() - nowSec))
+                .refreshToken(refresh.token())
+                .refreshTokenId(refresh.tokenId())
+                .build();
     }
 
     /**
      * 用户登录
      */
-    public LoginResponse login(LoginCommand request) {
+    public LoginDTO login(LoginCommand request) {
         AssertUtil.notNull(request, ErrorCode.PARAM_MISSING);
 
         User user = userRepository.findByUsernameOrPhone(request.getAccount()).orElse(null);
@@ -101,7 +122,7 @@ public class AuthApplicationService {
         refreshTokenStore.store(user.getId(), refresh.tokenId(), jwtService.getRefreshExpireSeconds());
 
         long nowSec = Instant.now().getEpochSecond();
-        return LoginResponse.builder()
+        return LoginDTO.builder()
                 .userId(user.getId())
                 .username(user.getUsername())
                 .userType(user.getUserType() != null ? user.getUserType().code() : null)
@@ -118,7 +139,7 @@ public class AuthApplicationService {
     /**
      * 刷新 token：使用 refreshToken 换取新的 access token（并轮换 refresh token）
      */
-    public LoginResponse refresh(String refreshToken) {
+    public LoginDTO refresh(String refreshToken) {
         AssertUtil.notBlank(refreshToken, ErrorCode.PARAM_MISSING);
 
         JwtService.JwtPayload payload;
@@ -151,7 +172,7 @@ public class AuthApplicationService {
         refreshTokenStore.store(payload.userId(), newRefresh.tokenId(), jwtService.getRefreshExpireSeconds());
 
         long nowSec = Instant.now().getEpochSecond();
-        return LoginResponse.builder()
+        return LoginDTO.builder()
                 .userId(payload.userId())
                 .username(payload.username())
                 .userType(payload.userType())
