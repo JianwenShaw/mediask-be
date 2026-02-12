@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 
@@ -22,11 +23,16 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException {
-        log.warn("未认证访问: {}", request.getRequestURI());
+        boolean hasAuthorizationHeader = StringUtils.hasText(request.getHeader("Authorization"));
+        log.warn("未认证访问(401): method={}, path={}, ip={}, hasAuthorizationHeader={}, reason={}",
+                request.getMethod(),
+                SecurityAuditUtil.requestPath(request),
+                SecurityAuditUtil.clientIp(request),
+                hasAuthorizationHeader,
+                authException.getMessage());
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         Result<Void> body = Result.fail(ErrorCode.UNAUTHORIZED);
         response.getWriter().write(JsonUtil.toJson(body));
     }
 }
-

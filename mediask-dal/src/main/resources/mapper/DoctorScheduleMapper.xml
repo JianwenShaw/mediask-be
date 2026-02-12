@@ -22,7 +22,7 @@
             version = version + 1,
             updated_at = NOW()
         WHERE id = #{scheduleId}
-          AND available_slots < total_slots
+          AND available_slots &lt; total_slots
           AND deleted_at IS NULL
     </update>
     

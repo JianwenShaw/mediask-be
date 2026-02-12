@@ -11,12 +11,18 @@ import me.jianwen.mediask.dal.mapper.RoleMapper;
 import me.jianwen.mediask.dal.mapper.RolePermissionMapper;
 import me.jianwen.mediask.dal.mapper.UserRoleMapper;
 import me.jianwen.mediask.domain.repository.AuthzRepository;
+import me.jianwen.mediask.user.domain.entity.PermissionInfo;
+import me.jianwen.mediask.user.domain.entity.RoleInfo;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -96,6 +102,126 @@ public class AuthzRepositoryImpl implements AuthzRepository {
                 .forEach(authorities::add);
 
         return new ArrayList<>(authorities);
+    }
+
+    @Override
+    public List<RoleInfo> listRoles() {
+        List<RoleDO> roles = roleMapper.selectList(new LambdaQueryWrapper<RoleDO>()
+                .orderByAsc(RoleDO::getRoleCode));
+        if (roles == null || roles.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> roleIds = roles.stream().map(RoleDO::getId).toList();
+        List<RolePermissionDO> rolePermissions = rolePermissionMapper.selectList(new LambdaQueryWrapper<RolePermissionDO>()
+                .in(RolePermissionDO::getRoleId, roleIds));
+
+        Set<Long> permissionIds = rolePermissions.stream()
+                .map(RolePermissionDO::getPermissionId)
+                .collect(Collectors.toSet());
+        Map<Long, PermissionDO> permissionMap = permissionIds.isEmpty()
+                ? Map.of()
+                : permissionMapper.selectBatchIds(permissionIds).stream()
+                        .collect(Collectors.toMap(PermissionDO::getId, p -> p));
+
+        Map<Long, List<String>> rolePermissionCodeMap = new HashMap<>();
+        for (RolePermissionDO rolePermission : rolePermissions) {
+            PermissionDO permission = permissionMap.get(rolePermission.getPermissionId());
+            if (permission == null || !StringUtils.hasText(permission.getPermCode())) {
+                continue;
+            }
+            rolePermissionCodeMap.computeIfAbsent(rolePermission.getRoleId(), k -> new ArrayList<>())
+                    .add(permission.getPermCode());
+        }
+
+        return roles.stream()
+                .map(role -> {
+                    List<String> permissionCodes = rolePermissionCodeMap.getOrDefault(role.getId(), List.of()).stream()
+                            .distinct()
+                            .sorted()
+                            .toList();
+                    return new RoleInfo(
+                            role.getId(),
+                            role.getRoleCode(),
+                            role.getRoleName(),
+                            role.getDescription(),
+                            permissionCodes);
+                })
+                .toList();
+    }
+
+    @Override
+    public List<PermissionInfo> listPermissions() {
+        List<PermissionDO> permissions = permissionMapper.selectList(new LambdaQueryWrapper<PermissionDO>()
+                .orderByAsc(PermissionDO::getPermCode));
+        if (permissions == null || permissions.isEmpty()) {
+            return List.of();
+        }
+        return permissions.stream()
+                .map(permission -> new PermissionInfo(
+                        permission.getId(),
+                        permission.getPermCode(),
+                        permission.getPermName(),
+                        permission.getDescription()))
+                .toList();
+    }
+
+    @Override
+    public List<String> listRoleCodesByUserId(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        List<UserRoleDO> userRoles = userRoleMapper.selectList(new LambdaQueryWrapper<UserRoleDO>()
+                .eq(UserRoleDO::getUserId, userId));
+        if (userRoles == null || userRoles.isEmpty()) {
+            return List.of();
+        }
+        List<Long> roleIds = userRoles.stream().map(UserRoleDO::getRoleId).toList();
+        List<RoleDO> roles = roleMapper.selectBatchIds(roleIds);
+        if (roles == null || roles.isEmpty()) {
+            return List.of();
+        }
+        return roles.stream()
+                .map(RoleDO::getRoleCode)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
+    @Override
+    public void replaceUserRolesByCodes(Long userId, List<String> roleCodes) {
+        if (userId == null) {
+            return;
+        }
+        List<String> normalizedCodes = roleCodes == null ? List.of() : roleCodes.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (normalizedCodes.isEmpty()) {
+            throw new IllegalArgumentException("角色编码不能为空");
+        }
+
+        List<RoleDO> roles = normalizedCodes.stream()
+                .map(this::findRoleByCode)
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted(Comparator.comparing(RoleDO::getId))
+                .toList();
+        if (roles.size() != normalizedCodes.size()) {
+            throw new IllegalArgumentException("存在无效角色编码");
+        }
+
+        userRoleMapper.delete(new LambdaQueryWrapper<UserRoleDO>().eq(UserRoleDO::getUserId, userId));
+
+        for (RoleDO role : roles) {
+            UserRoleDO userRole = new UserRoleDO();
+            userRole.setUserId(userId);
+            userRole.setRoleId(role.getId());
+            userRoleMapper.insert(userRole);
+        }
     }
 
     private RoleDO findRoleByCode(String roleCode) {

@@ -35,9 +35,6 @@
         <!-- Spring Boot -->
         <spring-boot.version>3.5.8</spring-boot.version>
 
-        <!-- LangChain4j -->
-        <langchain4j.version>1.9.1</langchain4j.version>
-
         <!-- 数据库 & ORM -->
         <mysql-connector.version>8.3.0</mysql-connector.version>
         <mybatis-plus.version>3.5.15</mybatis-plus.version>
@@ -48,9 +45,6 @@
 
         <!-- 消息队列 -->
         <rocketmq-spring.version>2.3.1</rocketmq-spring.version>
-
-        <!-- 向量数据库 -->
-        <milvus-sdk.version>2.4.8</milvus-sdk.version>
 
         <!-- RAG 文档处理 -->
         <tika.version>2.9.2</tika.version>
@@ -92,15 +86,6 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
                 <version>${spring-boot.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <!-- LangChain4j BOM -->
-            <dependency>
-                <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j-bom</artifactId>
-                <version>${langchain4j.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -176,44 +161,6 @@
                 <groupId>org.apache.rocketmq</groupId>
                 <artifactId>rocketmq-spring-boot-starter</artifactId>
                 <version>${rocketmq-spring.version}</version>
-            </dependency>
-
-            <!-- ==================== LangChain4j 核心 ==================== -->
-            <!-- LangChain4j 核心库 -->
-            <dependency>
-                <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j</artifactId>
-            </dependency>
-            <!-- LangChain4j Spring Boot 集成 -->
-            <dependency>
-                <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j-spring-boot-starter</artifactId>
-            </dependency>
-            <!-- LangChain4j OpenAI (DeepSeek 兼容) -->
-            <dependency>
-                <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j-open-ai</artifactId>
-            </dependency>
-            <dependency>
-                <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
-            </dependency>
-            <!-- LangChain4j Milvus 向量存储 -->
-            <dependency>
-                <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j-milvus</artifactId>
-            </dependency>
-            <!-- LangChain4j 本地 Embedding (可选，用于离线) -->
-            <!-- <dependency>
-                <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
-            </dependency> -->
-
-            <!-- ==================== 向量数据库 ==================== -->
-            <dependency>
-                <groupId>io.milvus</groupId>
-                <artifactId>milvus-sdk-java</artifactId>
-                <version>${milvus-sdk.version}</version>
             </dependency>
 
             <!-- ==================== RAG 文档处理 ==================== -->

@@ -48,6 +48,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             AccessTokenPrincipalDTO principal = tokenApplicationService.parseAccessToken(token).orElse(null);
             if (principal == null) {
                 // refresh token 不允许作为 API 访问凭证
+                log.warn("JWT 解析为空，拒绝建立认证上下文: method={}, path={}, ip={}",
+                        request.getMethod(),
+                        SecurityAuditUtil.requestPath(request),
+                        SecurityAuditUtil.clientIp(request));
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);
                 return;
@@ -61,7 +65,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             authentication.setDetails(principal);
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (Exception ex) {
-            log.warn("JWT 校验失败: {}", ex.getMessage());
+            log.warn("JWT 校验失败: method={}, path={}, ip={}, reason={}",
+                    request.getMethod(),
+                    SecurityAuditUtil.requestPath(request),
+                    SecurityAuditUtil.clientIp(request),
+                    ex.getMessage());
             SecurityContextHolder.clearContext();
         }
 
