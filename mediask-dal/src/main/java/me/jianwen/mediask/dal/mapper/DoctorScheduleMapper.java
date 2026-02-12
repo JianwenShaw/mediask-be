@@ -21,4 +21,12 @@ public interface DoctorScheduleMapper extends BaseMapper<DoctorScheduleDO> {
      * @return 更新行数
      */
     int decreaseSlots(@Param("scheduleId") Long scheduleId);
+
+    /**
+     * 回补号源（available_slots + 1）
+     *
+     * @param scheduleId 排班ID
+     * @return 更新行数
+     */
+    int increaseSlots(@Param("scheduleId") Long scheduleId);
 }

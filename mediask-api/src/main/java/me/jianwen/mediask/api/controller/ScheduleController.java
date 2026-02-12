@@ -5,13 +5,16 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.mapper.ScheduleApiMapper;
+import me.jianwen.mediask.api.mapper.ScheduleTemplateApiMapper;
 import me.jianwen.mediask.api.model.schedule.AutoScheduleRequest;
 import me.jianwen.mediask.api.model.schedule.CreateScheduleRequest;
+import me.jianwen.mediask.api.model.schedule.GenerateScheduleFromTemplateRequest;
 import me.jianwen.mediask.api.model.schedule.ScheduleResponse;
 import me.jianwen.mediask.common.dto.schedule.ScheduleDTO;
 import me.jianwen.mediask.common.model.PageResult;
 import me.jianwen.mediask.common.result.Result;
 import me.jianwen.mediask.service.application.service.ScheduleApplicationService;
+import me.jianwen.mediask.service.application.service.ScheduleTemplateApplicationService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -40,7 +43,9 @@ import java.util.List;
 public class ScheduleController {
 
     private final ScheduleApplicationService scheduleApplicationService;
+    private final ScheduleTemplateApplicationService scheduleTemplateApplicationService;
     private final ScheduleApiMapper scheduleApiMapper;
+    private final ScheduleTemplateApiMapper scheduleTemplateApiMapper;
 
     /**
      * 创建排班
@@ -64,6 +69,17 @@ public class ScheduleController {
         var serviceRequest = scheduleApiMapper.toService(request);
         List<Long> scheduleIds = scheduleApplicationService.autoSchedule(serviceRequest);
         return Result.ok(scheduleIds);
+    }
+
+    /**
+     * 根据模板生成排班实例
+     */
+    @PostMapping("/generate")
+    @Operation(summary = "根据模板生成排班", description = "按模板和日期范围生成排班实例")
+    @PreAuthorize("hasAuthority('schedule:create')")
+    public Result<List<Long>> generateSchedules(@Validated @RequestBody GenerateScheduleFromTemplateRequest request) {
+        var serviceRequest = scheduleTemplateApiMapper.toService(request);
+        return Result.ok(scheduleTemplateApplicationService.generateSchedules(serviceRequest));
     }
 
     /**

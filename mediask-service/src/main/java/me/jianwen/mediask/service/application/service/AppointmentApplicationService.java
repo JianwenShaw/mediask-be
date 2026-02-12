@@ -27,7 +27,6 @@ import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -83,8 +82,8 @@ public class AppointmentApplicationService {
         }
 
         // 检查是否可预约（时段冲突）
-        if (appointmentRepository.existsByPatientIdAndDateAndTime(
-                patientIdVO, request.getApptDate(), request.getApptTime())) {
+        validateAppointmentConflict(patientIdVO, request.getApptDate(), timePeriod);
+        if (appointmentRepository.existsByPatientIdAndDateAndTime(patientIdVO, request.getApptDate(), request.getApptTime())) {
             throw new BizException(ErrorCode.APPT_TIME_CONFLICT, "该时间段您已有挂号记录");
         }
 
@@ -115,19 +114,21 @@ public class AppointmentApplicationService {
                 request.getApptDate(),
                 timePeriod,
                 request.getApptTime(),
-                BigDecimal.valueOf(50), // TODO: 从排班配置获取挂号费
+                schedule.getFee(), // 从排班配置获取挂号费
                 request.getChiefComplaint(),
                 apptNo);
 
         // 保存预约
         appointmentRepository.save(appointment);
 
-        // 占用号源
+        // 原子占用号源
         slotManagementDomainService.occupySlot(slot.getId(), appointment.getId().value());
 
-        // 扣减排班号源
-        schedule.decreaseSlot();
-        scheduleRepository.save(schedule);
+        // 原子扣减排班可用号源
+        boolean decreased = scheduleRepository.decreaseAvailableSlots(scheduleId);
+        if (!decreased) {
+            throw new BizException(ErrorCode.APPT_NO_SLOTS, "号源不足，请重试");
+        }
 
         // 发布领域事件
         publishEvents(appointment);
@@ -144,7 +145,7 @@ public class AppointmentApplicationService {
                 .timePeriodDesc(timePeriod.getDescription())
                 .apptTime(request.getApptTime())
                 .status("待支付")
-                .apptFee(BigDecimal.valueOf(50)) // TODO: 从排班配置获取挂号费
+                .apptFee(schedule.getFee())
                 .payDeadline(LocalDateTime.now().plusMinutes(30)) // 30分钟支付时限
                 .build();
     }
@@ -187,31 +188,16 @@ public class AppointmentApplicationService {
         appointment.cancel(cancelReason);
         appointmentRepository.save(appointment);
 
-        // 释放号源
-        List<Appointment> appointments = appointmentRepository.findByScheduleId(appointment.getScheduleId());
-        appointments.stream()
-                .filter(a -> a.getApptTime().equals(appointment.getApptTime()) && !a.isCancelled())
-                .findFirst()
-                .ifPresentOrElse(
-                        a -> slotManagementDomainService.occupySlot(
-                                slotRepository.findByScheduleAndTime(appointment.getScheduleId(), appointment.getApptTime())
-                                        .map(AppointmentSlot::getId)
-                                        .orElse(null),
-                                a.getId().value()),
-                        () -> {
-                            // 没有其他预约占用该时段，释放号源
-                            slotRepository.findByScheduleAndTime(appointment.getScheduleId(), appointment.getApptTime())
-                                    .ifPresent(slot -> {
-                                        slot.release();
-                                        slotRepository.save(slot);
-                                    });
-                        });
+        // 释放号源（强校验 appointment 归属）
+        AppointmentSlot slot = slotRepository.findByScheduleAndTime(appointment.getScheduleId(), appointment.getApptTime())
+                .orElseThrow(() -> new BizException(ErrorCode.DATA_NOT_FOUND, "号源不存在"));
+        slotManagementDomainService.releaseSlot(slot.getId(), appointment.getId().value());
 
-        // 恢复排班号源
-        DoctorSchedule schedule = scheduleRepository.findById(appointment.getScheduleId())
-                .orElseThrow(() -> new BizException(ErrorCode.SCHEDULE_NOT_FOUND));
-        schedule.increaseSlot();
-        scheduleRepository.save(schedule);
+        // 恢复排班号源（原子）
+        boolean increased = scheduleRepository.increaseAvailableSlots(appointment.getScheduleId());
+        if (!increased) {
+            throw new BizException(ErrorCode.OPERATION_FORBIDDEN, "号源回补失败");
+        }
 
         // 发布事件
         publishEvents(appointment);

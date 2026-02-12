@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.common.util.AssertUtil;
+import me.jianwen.mediask.domain.repository.AuthzRepository;
 import me.jianwen.mediask.domain.repository.UserRepository;
 import me.jianwen.mediask.infra.security.JwtService;
 import me.jianwen.mediask.infra.security.RefreshTokenStore;
@@ -20,8 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * 认证应用服务
@@ -35,6 +34,7 @@ import java.util.List;
 public class AuthApplicationService {
 
     private final UserRepository userRepository;
+    private final AuthzRepository authzRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenStore refreshTokenStore;
@@ -76,8 +76,11 @@ public class AuthApplicationService {
             throw new BizException(ErrorCode.USER_REGISTER_FAILED);
         }
 
+        // 绑定默认角色
+        authzRepository.bindUserRoleByCode(userId, resolveDefaultRoleCode(request.getUserType()));
+
         // 注册成功后自动生成 Token
-        var authorities = deriveAuthorities(userType);
+        var authorities = authzRepository.listAuthoritiesByUserId(userId);
         Integer userTypeCode = userType != null ? userType.code() : null;
         JwtService.JwtToken access = jwtService.generateAccessToken(userId, request.getUsername(), userTypeCode, authorities);
         JwtService.JwtToken refresh = jwtService.generateRefreshToken(userId, request.getUsername(), userTypeCode, authorities);
@@ -113,7 +116,7 @@ public class AuthApplicationService {
             throw new BizException(ErrorCode.USER_PASSWORD_ERROR);
         }
 
-        var authorities = deriveAuthorities(user.getUserType());
+        var authorities = authzRepository.listAuthoritiesByUserId(user.getId());
         Integer userTypeCode = user.getUserType() != null ? user.getUserType().code() : null;
         JwtService.JwtToken access = jwtService.generateAccessToken(user.getId(), user.getUsername(), userTypeCode, authorities);
         JwtService.JwtToken refresh = jwtService.generateRefreshToken(user.getId(), user.getUsername(), userTypeCode, authorities);
@@ -163,7 +166,7 @@ public class AuthApplicationService {
             throw new BizException(ErrorCode.TOKEN_INVALID, "refreshToken 已失效");
         }
 
-        var authorities = payload.authorities() != null ? payload.authorities() : Collections.<String>emptyList();
+        var authorities = authzRepository.listAuthoritiesByUserId(payload.userId());
 
         // 轮换 Refresh Token：删除旧的，存储新的
         refreshTokenStore.remove(payload.userId(), payload.tokenId());
@@ -226,19 +229,17 @@ public class AuthApplicationService {
     }
 
     /**
-     * 简单的权限派发：基于用户类型，预置一些接口权限
-     * 后续可替换为基于角色/权限表的查询
+     * 用户类型约定：1-患者 2-医生 3-管理员
      */
-    private List<String> deriveAuthorities(UserType userType) {
-        if (userType == null) {
-            return Collections.emptyList();
+    private String resolveDefaultRoleCode(Integer userTypeCode) {
+        if (userTypeCode == null) {
+            return "patient";
         }
-        return switch (userType.code()) {
-            case 1 -> List.of(
-                    "schedule:create", "schedule:auto", "schedule:update");
-            case 2 -> List.of("schedule:update");
-            case 3 -> Collections.emptyList();
-            default -> Collections.emptyList();
+        return switch (userTypeCode) {
+            case 1 -> "patient";
+            case 2 -> "doctor";
+            case 3 -> "admin";
+            default -> "patient";
         };
     }
 }

@@ -8,8 +8,10 @@
 |------|----------|------|
 | 认证 | 4 | 注册、登录、刷新Token、登出 |
 | 用户 | 1 | 获取用户信息 |
-| 排班 | 12 | 创建/查询/删除排班、停诊/开诊、分页查询 |
-| 预约 | 13 | 预约挂号、取消、支付、爽约、医生查询 |
+| 排班 | 12 | 创建/查询/删除排班、按模板生成排班 |
+| 排班模板 | 4 | 创建/更新/查询/发布模板 |
+| 预约 | 11 | 预约挂号、取消、支付、爽约、医生查询 |
+| AI指标 | 3 | 医生复核、管理员总览、分科室统计 |
 | 测试 | 5 | 健康检查、MySQL、Redis |
 
 ## 基础信息
@@ -35,14 +37,18 @@
 ## 认证流程
 
 ```typescript
-// 1. 登录获取 Token
+// 1. 登录获取 Token（注意：认证字段在 data 内）
 POST /api/v1/auth/login
 Body: { account: string, password: string }
 Response: {
-  token: string,           // Access Token (30分钟有效)
-  refreshToken: string,    // Refresh Token (30天有效)
-  refreshTokenId: string,  // Refresh Token ID（登出时使用）
-  expiresIn: number        // Access Token 剩余秒数
+  code: 0,
+  msg: "success",
+  data: {
+    token: string,           // Access Token (30分钟有效)
+    refreshToken: string,    // Refresh Token (30天有效)
+    refreshTokenId: string,  // Refresh Token ID（登出时使用）
+    expiresIn: number        // Access Token 剩余秒数
+  }
 }
 
 // 2. 后续请求携带 Access Token
@@ -51,7 +57,7 @@ Headers: { Authorization: "Bearer {token}" }
 // 3. Access Token 过期后，使用 Refresh Token 刷新
 POST /api/v1/auth/refresh
 Body: { refreshToken: string }
-Response: { token, refreshToken, refreshTokenId, expiresIn }
+Response: { code, msg, data: { token, refreshToken, refreshTokenId, expiresIn } }
 
 // 4. 登出（撤销 Refresh Token）
 POST /api/v1/auth/logout
@@ -80,7 +86,7 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 ```
 
 **注册说明**：
-- `POST /api/v1/auth/register` 注册成功后会直接返回登录态（含 `token`、`refreshToken`、`expiresIn`），无需再调用一次登录接口。
+- `POST /api/v1/auth/register` 注册成功后会直接返回登录态（`data` 内含 `token`、`refreshToken`、`refreshTokenId`、`expiresIn`），无需再调用一次登录接口。
 - `gender` 为必填字段；`realName`、`birthDate`、`avatarUrl`、`phone` 为可选字段。
 
 ### User 用户模块 (1 接口)
@@ -96,30 +102,48 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 | POST | `/api/v1/schedules` | 创建排班 |
 | GET | `/api/v1/schedules` | 分页查询排班列表（新增分页和筛选参数） |
 | POST | `/api/v1/schedules/auto` | 自动排班 |
-| POST | `/api/v1/schedules/{id}/close` | 停诊 |
-| POST | `/api/v1/schedules/{id}/open` | 开诊 |
-| PUT | `/api/v1/schedules/{id}/slots` | 调整号源 |
-| GET | `/api/v1/schedules/{id}` | 查询排班详情 |
-| DELETE | `/api/v1/schedules/{id}` | 删除排班（新增） |
+| POST | `/api/v1/schedules/generate` | 按模板生成排班实例（新增） |
+| POST | `/api/v1/schedules/{scheduleId}/close` | 停诊 |
+| POST | `/api/v1/schedules/{scheduleId}/open` | 开诊 |
+| PUT | `/api/v1/schedules/{scheduleId}/slots` | 调整号源 |
+| GET | `/api/v1/schedules/{scheduleId}` | 查询排班详情 |
+| DELETE | `/api/v1/schedules/{scheduleId}` | 删除排班（新增） |
 | GET | `/api/v1/schedules/doctor/{doctorId}` | 医生排班列表 |
 | GET | `/api/v1/schedules/available` | 可预约排班 |
 | DELETE | `/api/v1/schedules/batch` | 批量删除排班（新增） |
 
-### Appointment 预约模块 (13 接口)
+### ScheduleTemplate 排班模板模块 (4 接口)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/schedule-templates` | 创建排班模板（新增） |
+| PUT | `/api/v1/schedule-templates/{templateId}` | 更新排班模板（新增） |
+| GET | `/api/v1/schedule-templates/{templateId}` | 查询排班模板详情（新增） |
+| POST | `/api/v1/schedule-templates/{templateId}/publish` | 发布排班模板（新增） |
+
+### Appointment 预约模块 (11 接口)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/api/v1/appointments` | 创建预约 |
 | POST | `/api/v1/appointments/cancel` | 取消预约（支持管理员） |
-| POST | `/api/v1/appointments/{id}/pay` | 支付预约 |
-| POST | `/api/v1/appointments/{id}/visited` | 标记已就诊 |
-| POST | `/api/v1/appointments/{id}/absent` | 标记爽约（新增） |
+| POST | `/api/v1/appointments/{appointmentId}/pay` | 支付预约 |
+| POST | `/api/v1/appointments/{appointmentId}/visited` | 标记已就诊 |
+| POST | `/api/v1/appointments/{appointmentId}/absent` | 标记爽约（新增） |
 | GET | `/api/v1/appointments/my` | 我的预约 |
 | GET | `/api/v1/appointments/my/unpaid` | 待支付预约 |
-| GET | `/api/v1/appointments/{id}` | 预约详情 |
+| GET | `/api/v1/appointments/{appointmentId}` | 预约详情 |
 | GET | `/api/v1/appointments/slots/available` | 可预约时段 |
 | GET | `/api/v1/appointments/doctor/{doctorId}` | 医生查询预约（按日期）（新增） |
 | GET | `/api/v1/appointments/doctor/{doctorId}/range` | 医生查询预约（日期范围）（新增） |
+
+### AI 指标模块 (3 接口)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/ai/reviews` | 医生提交AI问诊复核 |
+| GET | `/api/v1/ai/metrics/overview` | 管理员查看AI总览指标 |
+| GET | `/api/v1/ai/metrics/departments` | 管理员查看AI分科室指标 |
 
 ## 文件说明
 

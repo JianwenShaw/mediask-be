@@ -46,6 +46,16 @@ public interface AppointmentSlotRepository {
     Optional<AppointmentSlot> findByScheduleAndTime(ScheduleId scheduleId, LocalTime startTime);
 
     /**
+     * 原子占用时段
+     */
+    boolean occupySlot(Long slotId, Long appointmentId);
+
+    /**
+     * 原子释放时段
+     */
+    boolean releaseSlot(Long slotId, Long appointmentId);
+
+    /**
      * 统计排班的可用时段数
      */
     long countAvailableBySchedule(ScheduleId scheduleId);

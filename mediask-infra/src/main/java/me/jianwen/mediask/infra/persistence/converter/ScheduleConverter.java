@@ -1,7 +1,7 @@
 package me.jianwen.mediask.infra.persistence.converter;
 
 import me.jianwen.mediask.dal.entity.DoctorScheduleDO;
-import me.jianwen.mediask.dal.enums.StatusEnum;
+import me.jianwen.mediask.dal.enums.ScheduleStatusEnum;
 import me.jianwen.mediask.dal.enums.TimePeriodEnum;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
@@ -40,6 +40,10 @@ public interface ScheduleConverter {
         dataObject.setTotalSlots(schedule.getCapacity().getTotalSlots());
         dataObject.setAvailableSlots(schedule.getCapacity().getAvailableSlots());
         dataObject.setStatus(mapToStatusEnum(schedule.getStatus()));
+        dataObject.setPeriodStartTime(schedule.getTimePeriod().getStartTime());
+        dataObject.setPeriodEndTime(schedule.getTimePeriod().getEndTime());
+        dataObject.setSlotDurationMinutes(schedule.getSlotDurationMinutes());
+        dataObject.setFee(schedule.getFee());
         dataObject.setCreatedAt(schedule.getCreatedAt());
         dataObject.setUpdatedAt(schedule.getUpdatedAt());
 
@@ -63,24 +67,36 @@ public interface ScheduleConverter {
                 dataObject.getTotalSlots(),
                 dataObject.getAvailableSlots()));
         schedule.setStatus(mapToScheduleStatus(dataObject.getStatus()));
-        schedule.setSlotDurationMinutes(15); // TODO: 从数据库读取
+        schedule.setSlotDurationMinutes(
+                dataObject.getSlotDurationMinutes() != null ? dataObject.getSlotDurationMinutes() : 15);
+        schedule.setFee(dataObject.getFee());
         schedule.setCreatedAt(dataObject.getCreatedAt());
         schedule.setUpdatedAt(dataObject.getUpdatedAt());
 
         return schedule;
     }
 
-    private StatusEnum mapToStatusEnum(ScheduleStatus status) {
+    private ScheduleStatusEnum mapToStatusEnum(ScheduleStatus status) {
         if (status == null) {
-            return StatusEnum.ENABLED;
+            return ScheduleStatusEnum.OPEN;
         }
-        return status == ScheduleStatus.OPEN ? StatusEnum.ENABLED : StatusEnum.DISABLED;
+        return switch (status) {
+            case OPEN -> ScheduleStatusEnum.OPEN;
+            case CLOSED -> ScheduleStatusEnum.CLOSED;
+            case FULL -> ScheduleStatusEnum.FULL;
+            case EXPIRED -> ScheduleStatusEnum.EXPIRED;
+        };
     }
 
-    private ScheduleStatus mapToScheduleStatus(StatusEnum statusEnum) {
+    private ScheduleStatus mapToScheduleStatus(ScheduleStatusEnum statusEnum) {
         if (statusEnum == null) {
             return ScheduleStatus.OPEN;
         }
-        return statusEnum == StatusEnum.ENABLED ? ScheduleStatus.OPEN : ScheduleStatus.CLOSED;
+        return switch (statusEnum) {
+            case OPEN -> ScheduleStatus.OPEN;
+            case CLOSED -> ScheduleStatus.CLOSED;
+            case FULL -> ScheduleStatus.FULL;
+            case EXPIRED -> ScheduleStatus.EXPIRED;
+        };
     }
 }

@@ -7,9 +7,9 @@ import me.jianwen.mediask.schedule.domain.event.ScheduleSlotIncreasedEvent;
 import me.jianwen.mediask.schedule.domain.event.ScheduleStatusChangedEvent;
 import me.jianwen.mediask.schedule.domain.valueobject.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,6 +64,11 @@ public class DoctorSchedule {
     private int slotDurationMinutes;
 
     /**
+     * 挂号费
+     */
+    private BigDecimal fee;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createdAt;
@@ -97,6 +102,7 @@ public class DoctorSchedule {
         schedule.setCapacity(SlotCapacity.initial(totalSlots));
         schedule.setStatus(ScheduleStatus.OPEN);
         schedule.setSlotDurationMinutes(slotDurationMinutes);
+        schedule.setFee(BigDecimal.valueOf(50));
         schedule.setCreatedAt(LocalDateTime.now());
         schedule.setUpdatedAt(LocalDateTime.now());
 

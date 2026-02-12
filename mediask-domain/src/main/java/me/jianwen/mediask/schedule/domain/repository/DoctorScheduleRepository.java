@@ -70,6 +70,16 @@ public interface DoctorScheduleRepository {
     boolean exists(DoctorId doctorId, LocalDate scheduleDate, TimePeriod timePeriod);
 
     /**
+     * 原子扣减可用号源
+     */
+    boolean decreaseAvailableSlots(ScheduleId scheduleId);
+
+    /**
+     * 原子回补可用号源
+     */
+    boolean increaseAvailableSlots(ScheduleId scheduleId);
+
+    /**
      * 查询已过期的排班
      */
     List<DoctorSchedule> findExpiredSchedules(LocalDate beforeDate);

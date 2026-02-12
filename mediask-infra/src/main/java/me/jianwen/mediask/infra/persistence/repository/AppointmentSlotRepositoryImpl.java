@@ -96,6 +96,16 @@ public class AppointmentSlotRepositoryImpl implements AppointmentSlotRepository 
     }
 
     @Override
+    public boolean occupySlot(Long slotId, Long appointmentId) {
+        return slotMapper.occupySlot(slotId, appointmentId) > 0;
+    }
+
+    @Override
+    public boolean releaseSlot(Long slotId, Long appointmentId) {
+        return slotMapper.releaseSlot(slotId, appointmentId) > 0;
+    }
+
+    @Override
     public long countAvailableBySchedule(ScheduleId scheduleId) {
         LambdaQueryWrapper<AppointmentSlotDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AppointmentSlotDO::getScheduleId, scheduleId.getValue())
@@ -110,4 +120,3 @@ public class AppointmentSlotRepositoryImpl implements AppointmentSlotRepository 
         slotMapper.delete(wrapper);
     }
 }
-

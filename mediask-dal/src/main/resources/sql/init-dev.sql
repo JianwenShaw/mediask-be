@@ -81,6 +81,145 @@ CREATE TABLE IF NOT EXISTS `role_permissions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色权限关联表';
 
 -- =========================
+-- 医院组织与医生档案
+-- =========================
+
+CREATE TABLE IF NOT EXISTS `hospitals` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `hospital_name` VARCHAR(128) NOT NULL COMMENT '医院名称',
+  `hospital_code` VARCHAR(64) NOT NULL COMMENT '医院编码',
+  `hospital_level` VARCHAR(32) DEFAULT NULL COMMENT '医院等级',
+  `address` VARCHAR(255) DEFAULT NULL COMMENT '地址',
+  `contact_phone` VARCHAR(20) DEFAULT NULL COMMENT '联系电话',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-停用 1-启用',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_hospital_code` (`hospital_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='医院表';
+
+CREATE TABLE IF NOT EXISTS `departments` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `hospital_id` BIGINT NOT NULL COMMENT '医院ID',
+  `dept_code` VARCHAR(64) NOT NULL COMMENT '科室编码',
+  `dept_name` VARCHAR(128) NOT NULL COMMENT '科室名称',
+  `dept_intro` VARCHAR(1000) DEFAULT NULL COMMENT '科室简介',
+  `display_order` INT NOT NULL DEFAULT 0 COMMENT '显示顺序',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-停用 1-启用',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_hospital_dept_code` (`hospital_id`, `dept_code`),
+  KEY `idx_department_hospital` (`hospital_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='科室表';
+
+CREATE TABLE IF NOT EXISTS `doctors` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `user_id` BIGINT NOT NULL COMMENT '关联用户ID',
+  `hospital_id` BIGINT NOT NULL COMMENT '所属医院ID',
+  `dept_id` BIGINT NOT NULL COMMENT '所属科室ID',
+  `doctor_code` VARCHAR(64) NOT NULL COMMENT '医生编码',
+  `title` VARCHAR(64) DEFAULT NULL COMMENT '职称',
+  `specialty` VARCHAR(1000) DEFAULT NULL COMMENT '擅长领域(JSON)',
+  `introduction` VARCHAR(2000) DEFAULT NULL COMMENT '个人简介',
+  `consultation_fee` DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '诊疗费用',
+  `license_number` VARCHAR(128) DEFAULT NULL COMMENT '执业证书号',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-停用 1-启用',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_doctor_user` (`user_id`),
+  UNIQUE KEY `uk_doctor_code` (`doctor_code`),
+  KEY `idx_doctor_dept` (`dept_id`),
+  KEY `idx_doctor_hospital` (`hospital_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='医生档案表';
+
+-- =========================
+-- AI问诊会话与指标
+-- =========================
+
+CREATE TABLE IF NOT EXISTS `ai_conversations` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `conversation_uuid` VARCHAR(64) NOT NULL COMMENT '业务会话UUID',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `scene_type` VARCHAR(32) NOT NULL COMMENT '场景类型',
+  `summary` VARCHAR(2000) DEFAULT NULL COMMENT '会话摘要',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态 1-进行中 2-已结束',
+  `started_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '开始时间',
+  `ended_at` DATETIME DEFAULT NULL COMMENT '结束时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_conversation_uuid` (`conversation_uuid`),
+  KEY `idx_ai_conv_user` (`user_id`),
+  KEY `idx_ai_conv_started` (`started_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI会话表';
+
+CREATE TABLE IF NOT EXISTS `ai_messages` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `conversation_id` BIGINT NOT NULL COMMENT '会话ID',
+  `role` TINYINT NOT NULL COMMENT '消息角色 1-user 2-assistant 3-system',
+  `content` TEXT NOT NULL COMMENT '消息内容',
+  `context` TEXT DEFAULT NULL COMMENT 'RAG上下文(JSON)',
+  `tokens_used` INT DEFAULT NULL COMMENT '消耗Token数',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_ai_msg_conv` (`conversation_id`),
+  KEY `idx_ai_msg_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI消息表';
+
+CREATE TABLE IF NOT EXISTS `ai_feedback_reviews` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `conversation_id` BIGINT NOT NULL COMMENT '会话ID',
+  `doctor_id` BIGINT NOT NULL COMMENT '复核医生ID',
+  `department_id` BIGINT NOT NULL COMMENT '科室ID',
+  `review_score` TINYINT NOT NULL COMMENT '复核评分 1-5',
+  `is_adopted` TINYINT NOT NULL COMMENT '是否采纳 0-否 1-是',
+  `review_comment` VARCHAR(1000) DEFAULT NULL COMMENT '复核意见',
+  `reviewed_at` DATETIME NOT NULL COMMENT '复核时间',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_ai_review_date` (`reviewed_at`),
+  KEY `idx_ai_review_dept` (`department_id`, `reviewed_at`),
+  KEY `idx_ai_review_doctor` (`doctor_id`, `reviewed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI复核记录表';
+
+CREATE TABLE IF NOT EXISTS `ai_metrics_daily` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `metric_date` DATE NOT NULL COMMENT '统计日期',
+  `total_conversations` BIGINT NOT NULL DEFAULT 0 COMMENT '总会话数',
+  `active_users` BIGINT NOT NULL DEFAULT 0 COMMENT '活跃用户数',
+  `total_messages` BIGINT NOT NULL DEFAULT 0 COMMENT '总消息数',
+  `total_reviews` BIGINT NOT NULL DEFAULT 0 COMMENT '总复核数',
+  `avg_review_score` DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT '平均评分',
+  `accuracy_rate` DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT '准确率',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_metrics_daily_date` (`metric_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI日指标汇总表';
+
+CREATE TABLE IF NOT EXISTS `ai_metrics_dept_daily` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `metric_date` DATE NOT NULL COMMENT '统计日期',
+  `department_id` BIGINT NOT NULL COMMENT '科室ID',
+  `total_conversations` BIGINT NOT NULL DEFAULT 0 COMMENT '会话数',
+  `total_reviews` BIGINT NOT NULL DEFAULT 0 COMMENT '复核数',
+  `avg_review_score` DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT '平均评分',
+  `accuracy_rate` DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT '准确率',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_metrics_dept_date` (`metric_date`, `department_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI分科室日指标表';
+
+-- =========================
 -- 排班管理表
 -- =========================
 
@@ -89,28 +228,43 @@ CREATE TABLE IF NOT EXISTS `doctor_schedules` (
   `doctor_id` BIGINT NOT NULL COMMENT '医生ID',
   `schedule_date` DATE NOT NULL COMMENT '排班日期',
   `time_period` TINYINT NOT NULL COMMENT '时段 1-上午 2-下午 3-晚上',
+  `period_start_time` TIME NOT NULL COMMENT '时段开始时间',
+  `period_end_time` TIME NOT NULL COMMENT '时段结束时间',
+  `slot_duration_minutes` INT NOT NULL DEFAULT 15 COMMENT '号源时长(分钟)',
   `total_slots` INT NOT NULL DEFAULT 0 COMMENT '总号源数',
   `available_slots` INT NOT NULL DEFAULT 0 COMMENT '剩余号源',
-  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-停用 1-正常',
+  `fee` DECIMAL(10,2) NOT NULL DEFAULT 50.00 COMMENT '挂号费',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-停诊 1-开放 2-约满 3-过期',
+  `source_type` VARCHAR(16) NOT NULL DEFAULT 'MANUAL' COMMENT '来源类型 TEMPLATE/MANUAL',
+  `source_id` BIGINT DEFAULT NULL COMMENT '来源ID',
+  `version` INT NOT NULL DEFAULT 0 COMMENT '乐观锁版本',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_doctor_date_period` (`doctor_id`, `schedule_date`, `time_period`),
   KEY `idx_schedule_doctor` (`doctor_id`),
   KEY `idx_schedule_date` (`schedule_date`),
-  KEY `idx_schedule_doctor_date` (`doctor_id`, `schedule_date`)
+  KEY `idx_schedule_doctor_date` (`doctor_id`, `schedule_date`),
+  KEY `idx_schedule_date_status` (`schedule_date`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='医生排班表';
 
 CREATE TABLE IF NOT EXISTS `appointment_slots` (
   `id` BIGINT NOT NULL COMMENT '雪花ID',
   `schedule_id` BIGINT NOT NULL COMMENT '排班ID',
-  `slot_time` TIME NOT NULL COMMENT '时段(如09:00)',
+  `slot_time` TIME NOT NULL COMMENT '时段开始(如09:00)',
+  `slot_end_time` TIME NOT NULL COMMENT '时段结束',
   `is_occupied` TINYINT NOT NULL DEFAULT 0 COMMENT '是否占用 0-空闲 1-占用',
   `appt_id` BIGINT DEFAULT NULL COMMENT '关联预约ID',
+  `version` INT NOT NULL DEFAULT 0 COMMENT '乐观锁版本',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_schedule_slot` (`schedule_id`, `slot_time`),
   KEY `idx_slot_schedule` (`schedule_id`),
-  KEY `idx_slot_time` (`slot_time`)
+  KEY `idx_slot_time` (`slot_time`),
+  KEY `idx_slot_schedule_occupied` (`schedule_id`, `is_occupied`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='号源时段表';
 
 -- =========================
@@ -123,25 +277,117 @@ CREATE TABLE IF NOT EXISTS `appointments` (
   `patient_id` BIGINT NOT NULL COMMENT '患者ID',
   `doctor_id` BIGINT NOT NULL COMMENT '医生ID',
   `schedule_id` BIGINT NOT NULL COMMENT '排班ID',
+  `slot_id` BIGINT DEFAULT NULL COMMENT '号源ID',
   `appt_date` DATE NOT NULL COMMENT '就诊日期',
   `time_period` TINYINT NOT NULL COMMENT '时段 1-上午 2-下午 3-晚上',
   `appt_time` TIME NOT NULL COMMENT '具体时间段',
+  `appt_end_time` TIME DEFAULT NULL COMMENT '结束时间',
   `appt_status` TINYINT NOT NULL DEFAULT 1 COMMENT '预约状态 1-待支付 2-已预约 3-已就诊 4-已取消 5-爽约',
   `chief_complaint` VARCHAR(500) DEFAULT NULL COMMENT '主诉(AI生成)',
   `appt_fee` DECIMAL(10,2) DEFAULT 0.00 COMMENT '挂号费',
   `paid_at` DATETIME DEFAULT NULL COMMENT '支付时间',
   `visited_at` DATETIME DEFAULT NULL COMMENT '就诊时间',
+  `cancelled_at` DATETIME DEFAULT NULL COMMENT '取消时间',
+  `cancel_reason` VARCHAR(255) DEFAULT NULL COMMENT '取消原因',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  `version` INT NOT NULL DEFAULT 0 COMMENT '乐观锁版本',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_appt_no` (`appt_no`),
+  UNIQUE KEY `uk_patient_start` (`patient_id`, `appt_date`, `appt_time`),
+  KEY `idx_appt_patient` (`patient_id`),
+  KEY `idx_appt_doctor` (`doctor_id`),
+  KEY `idx_appt_schedule` (`schedule_id`),
+  KEY `idx_appt_date` (`appt_date`),
+  KEY `idx_appt_status` (`appt_status`),
+  KEY `idx_appt_patient_date` (`patient_id`, `appt_date`),
+  KEY `idx_appt_doctor_date_time` (`doctor_id`, `appt_date`, `appt_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='预约挂号表';
+
+CREATE TABLE IF NOT EXISTS `schedule_templates` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `doctor_id` BIGINT NOT NULL COMMENT '医生ID',
+  `template_name` VARCHAR(64) NOT NULL COMMENT '模板名称',
+  `effective_start_date` DATE NOT NULL COMMENT '生效开始日期',
+  `effective_end_date` DATE NOT NULL COMMENT '生效结束日期',
+  `cancel_deadline_minutes` INT NOT NULL DEFAULT 120 COMMENT '取消截止分钟',
+  `default_fee` DECIMAL(10,2) NOT NULL DEFAULT 50.00 COMMENT '默认挂号费',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-停用 1-启用',
+  `version` INT NOT NULL DEFAULT 0 COMMENT '乐观锁版本',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_appt_no` (`appt_no`),
-  KEY `idx_appt_patient` (`patient_id`),
-  KEY `idx_appt_doctor` (`doctor_id`),
-  KEY `idx_appt_date` (`appt_date`),
-  KEY `idx_appt_status` (`appt_status`),
-  KEY `idx_appt_patient_date` (`patient_id`, `appt_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='预约挂号表';
+  KEY `idx_template_doctor_status` (`doctor_id`, `status`),
+  KEY `idx_template_effective` (`effective_start_date`, `effective_end_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班模板表';
+
+CREATE TABLE IF NOT EXISTS `schedule_template_rules` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `template_id` BIGINT NOT NULL COMMENT '模板ID',
+  `weekday` TINYINT NOT NULL COMMENT '周几 1-7',
+  `time_period` TINYINT NOT NULL COMMENT '时段',
+  `period_start_time` TIME NOT NULL COMMENT '开始时间',
+  `period_end_time` TIME NOT NULL COMMENT '结束时间',
+  `slot_duration_minutes` INT NOT NULL DEFAULT 15 COMMENT '号源时长',
+  `slot_capacity` INT NOT NULL DEFAULT 20 COMMENT '号源容量',
+  `fee` DECIMAL(10,2) NOT NULL DEFAULT 50.00 COMMENT '挂号费',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_template_weekday_period` (`template_id`, `weekday`, `time_period`),
+  KEY `idx_rule_template` (`template_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班模板规则表';
+
+CREATE TABLE IF NOT EXISTS `schedule_exceptions` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `doctor_id` BIGINT NOT NULL COMMENT '医生ID',
+  `exception_date` DATE NOT NULL COMMENT '例外日期',
+  `action_type` VARCHAR(16) NOT NULL COMMENT '例外动作 CLOSE/OPEN/ADJUST',
+  `override_start_time` TIME DEFAULT NULL COMMENT '覆盖开始时间',
+  `override_end_time` TIME DEFAULT NULL COMMENT '覆盖结束时间',
+  `override_capacity` INT DEFAULT NULL COMMENT '覆盖容量',
+  `reason` VARCHAR(255) DEFAULT NULL COMMENT '原因',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_exception_doctor_date` (`doctor_id`, `exception_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班例外规则表';
+
+CREATE TABLE IF NOT EXISTS `appointment_events` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `appointment_id` BIGINT NOT NULL COMMENT '预约ID',
+  `event_type` VARCHAR(32) NOT NULL COMMENT '事件类型',
+  `from_status` TINYINT DEFAULT NULL COMMENT '原状态',
+  `to_status` TINYINT DEFAULT NULL COMMENT '新状态',
+  `operator_type` VARCHAR(16) DEFAULT NULL COMMENT '操作者类型',
+  `operator_id` BIGINT DEFAULT NULL COMMENT '操作者ID',
+  `payload_json` JSON DEFAULT NULL COMMENT '事件载荷',
+  `occurred_at` DATETIME NOT NULL COMMENT '发生时间',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_appt_event_time` (`appointment_id`, `occurred_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='预约事件表';
+
+CREATE TABLE IF NOT EXISTS `schedule_events` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `schedule_id` BIGINT NOT NULL COMMENT '排班ID',
+  `event_type` VARCHAR(32) NOT NULL COMMENT '事件类型',
+  `from_status` TINYINT DEFAULT NULL COMMENT '原状态',
+  `to_status` TINYINT DEFAULT NULL COMMENT '新状态',
+  `operator_id` BIGINT DEFAULT NULL COMMENT '操作者ID',
+  `reason` VARCHAR(255) DEFAULT NULL COMMENT '原因',
+  `payload_json` JSON DEFAULT NULL COMMENT '事件载荷',
+  `occurred_at` DATETIME NOT NULL COMMENT '发生时间',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_schedule_event_time` (`schedule_id`, `occurred_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班事件表';
 
 -- =========================
 -- 初始化测试数据
@@ -152,37 +398,92 @@ INSERT INTO `users` (`id`, `username`, `phone`, `password`, `user_type`, `real_n
 (100000000000000001, 'doctor1', '13800138001', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 2, '张医生', 1),
 (100000000000000002, 'doctor2', '13800138002', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 2, '李医生', 1),
 (100000000000000003, 'patient1', '13900139001', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 1, '王患者', 1),
-(100000000000000004, 'patient2', '13900139002', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 1, '赵患者', 2);
+(100000000000000004, 'patient2', '13900139002', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 1, '赵患者', 2),
+(100000000000000005, 'admin', '13700137000', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 3, '系统管理员', 1);
+
+INSERT INTO `roles` (`id`, `role_code`, `role_name`, `description`) VALUES
+(100000000000000001, 'admin', '管理员', '系统管理员'),
+(100000000000000002, 'doctor', '医生', '医生角色'),
+(100000000000000003, 'patient', '患者', '患者角色');
+
+INSERT INTO `permissions` (`id`, `perm_code`, `perm_name`, `description`) VALUES
+(100000000000000001, 'schedule:create', '创建排班', '创建排班和模板'),
+(100000000000000002, 'schedule:update', '更新排班', '停诊开诊和更新模板'),
+(100000000000000003, 'schedule:query', '查询排班', '查询排班和模板'),
+(100000000000000004, 'schedule:delete', '删除排班', '删除排班'),
+(100000000000000005, 'ai:metrics:view', '查看AI指标', '查看AI问诊指标');
+
+INSERT INTO `user_roles` (`id`, `user_id`, `role_id`) VALUES
+(100000000000000001, 100000000000000001, 100000000000000002),
+(100000000000000002, 100000000000000002, 100000000000000002),
+(100000000000000003, 100000000000000003, 100000000000000003),
+(100000000000000004, 100000000000000004, 100000000000000003),
+(100000000000000005, 100000000000000005, 100000000000000001);
+
+INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`) VALUES
+(100000000000000001, 100000000000000001, 100000000000000001),
+(100000000000000002, 100000000000000001, 100000000000000002),
+(100000000000000003, 100000000000000001, 100000000000000003),
+(100000000000000004, 100000000000000001, 100000000000000004),
+(100000000000000005, 100000000000000001, 100000000000000005),
+(100000000000000006, 100000000000000002, 100000000000000003);
+
+INSERT INTO `hospitals` (`id`, `hospital_name`, `hospital_code`, `hospital_level`, `address`, `contact_phone`, `status`) VALUES
+(100000000000000001, 'MediAsk附属医院', 'MDA001', '三级甲等', '示例路100号', '010-88886666', 1);
+
+INSERT INTO `departments` (`id`, `hospital_id`, `dept_code`, `dept_name`, `dept_intro`, `display_order`, `status`) VALUES
+(100000000000000001, 100000000000000001, 'INT', '内科', '内科门诊', 1, 1),
+(100000000000000002, 100000000000000001, 'SUR', '外科', '外科门诊', 2, 1);
+
+INSERT INTO `doctors` (
+  `id`, `user_id`, `hospital_id`, `dept_id`, `doctor_code`, `title`, `specialty`, `introduction`,
+  `consultation_fee`, `license_number`, `status`
+) VALUES
+(100000000000000001, 100000000000000001, 100000000000000001, 100000000000000001, 'D001', '主治医师',
+ '[\"内分泌\",\"高血压\"]', '擅长慢病管理', 50.00, 'LIC-000001', 1),
+(100000000000000002, 100000000000000002, 100000000000000001, 100000000000000002, 'D002', '副主任医师',
+ '[\"普通外科\"]', '擅长普外手术咨询', 60.00, 'LIC-000002', 1);
 
 -- 插入测试排班
-INSERT INTO `doctor_schedules` (`id`, `doctor_id`, `schedule_date`, `time_period`, `total_slots`, `available_slots`, `status`) VALUES
-(100000000000000001, 100000000000000001, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 1, 20, 20, 1),
-(100000000000000002, 100000000000000001, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 2, 15, 15, 1),
-(100000000000000003, 100000000000000002, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 1, 25, 25, 1),
-(100000000000000004, 100000000000000001, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 1, 20, 20, 1);
+INSERT INTO `doctor_schedules` (
+  `id`, `doctor_id`, `schedule_date`, `time_period`, `period_start_time`, `period_end_time`,
+  `slot_duration_minutes`, `total_slots`, `available_slots`, `fee`, `status`
+) VALUES
+(100000000000000001, 100000000000000001, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 1, '08:00:00', '12:00:00', 15, 20, 20, 50.00, 1),
+(100000000000000002, 100000000000000001, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 2, '14:00:00', '18:00:00', 15, 15, 15, 50.00, 1),
+(100000000000000003, 100000000000000002, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 1, '08:00:00', '12:00:00', 20, 25, 25, 60.00, 1),
+(100000000000000004, 100000000000000001, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 1, '08:00:00', '12:00:00', 15, 20, 20, 50.00, 1);
 
 -- 插入测试号源
-INSERT INTO `appointment_slots` (`id`, `schedule_id`, `slot_time`, `is_occupied`) VALUES
+INSERT INTO `appointment_slots` (`id`, `schedule_id`, `slot_time`, `slot_end_time`, `is_occupied`) VALUES
 -- 医生1 上午号源
-(100000000000000001, 100000000000000001, '09:00:00', 0),
-(100000000000000002, 100000000000000001, '09:15:00', 0),
-(100000000000000003, 100000000000000001, '09:30:00', 0),
-(100000000000000004, 100000000000000001, '09:45:00', 0),
-(100000000000000005, 100000000000000001, '10:00:00', 0),
-(100000000000000006, 100000000000000001, '10:15:00', 0),
-(100000000000000007, 100000000000000001, '10:30:00', 0),
-(100000000000000008, 100000000000000001, '10:45:00', 0),
-(100000000000000009, 100000000000000001, '11:00:00', 0),
-(100000000000000010, 100000000000000001, '11:15:00', 0),
+(100000000000000001, 100000000000000001, '09:00:00', '09:15:00', 0),
+(100000000000000002, 100000000000000001, '09:15:00', '09:30:00', 0),
+(100000000000000003, 100000000000000001, '09:30:00', '09:45:00', 0),
+(100000000000000004, 100000000000000001, '09:45:00', '10:00:00', 0),
+(100000000000000005, 100000000000000001, '10:00:00', '10:15:00', 0),
+(100000000000000006, 100000000000000001, '10:15:00', '10:30:00', 0),
+(100000000000000007, 100000000000000001, '10:30:00', '10:45:00', 0),
+(100000000000000008, 100000000000000001, '10:45:00', '11:00:00', 0),
+(100000000000000009, 100000000000000001, '11:00:00', '11:15:00', 0),
+(100000000000000010, 100000000000000001, '11:15:00', '11:30:00', 0),
 -- 医生1 下午号源
-(100000000000000011, 100000000000000002, '14:00:00', 0),
-(100000000000000012, 100000000000000002, '14:15:00', 0),
-(100000000000000013, 100000000000000002, '14:30:00', 0),
-(100000000000000014, 100000000000000002, '14:45:00', 0),
-(100000000000000015, 100000000000000002, '15:00:00', 0),
+(100000000000000011, 100000000000000002, '14:00:00', '14:15:00', 0),
+(100000000000000012, 100000000000000002, '14:15:00', '14:30:00', 0),
+(100000000000000013, 100000000000000002, '14:30:00', '14:45:00', 0),
+(100000000000000014, 100000000000000002, '14:45:00', '15:00:00', 0),
+(100000000000000015, 100000000000000002, '15:00:00', '15:15:00', 0),
 -- 医生2 上午号源
-(100000000000000016, 100000000000000003, '09:00:00', 0),
-(100000000000000017, 100000000000000003, '09:20:00', 0),
-(100000000000000018, 100000000000000003, '09:40:00', 0),
-(100000000000000019, 100000000000000003, '10:00:00', 0),
-(100000000000000020, 100000000000000003, '10:20:00', 0);
+(100000000000000016, 100000000000000003, '09:00:00', '09:20:00', 0),
+(100000000000000017, 100000000000000003, '09:20:00', '09:40:00', 0),
+(100000000000000018, 100000000000000003, '09:40:00', '10:00:00', 0),
+(100000000000000019, 100000000000000003, '10:00:00', '10:20:00', 0),
+(100000000000000020, 100000000000000003, '10:20:00', '10:40:00', 0);
+
+-- 插入AI会话与消息示例
+INSERT INTO `ai_conversations` (`id`, `conversation_uuid`, `user_id`, `scene_type`, `summary`, `status`, `started_at`) VALUES
+(100000000000000001, 'conv-demo-0001', 100000000000000003, 'pre_diagnosis', '头痛三天，伴随低热', 2, NOW());
+
+INSERT INTO `ai_messages` (`id`, `conversation_id`, `role`, `content`, `context`, `tokens_used`, `created_at`) VALUES
+(100000000000000001, 100000000000000001, 1, '我最近三天头痛，还有点发烧', NULL, 120, NOW()),
+(100000000000000002, 100000000000000001, 2, '建议先做体温和血常规检查，必要时就诊神经内科。', '{\"rag\":[\"发热头痛鉴别诊断\"]}', 260, NOW());

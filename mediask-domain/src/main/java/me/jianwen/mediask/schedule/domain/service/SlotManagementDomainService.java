@@ -65,11 +65,10 @@ public class SlotManagementDomainService {
      * 占用时段
      */
     public void occupySlot(Long slotId, Long appointmentId) {
-        AppointmentSlot slot = slotRepository.findById(slotId)
-                .orElseThrow(() -> new IllegalArgumentException("时段不存在: " + slotId));
-
-        slot.occupy(appointmentId);
-        slotRepository.save(slot);
+        boolean updated = slotRepository.occupySlot(slotId, appointmentId);
+        if (!updated) {
+            throw new IllegalStateException("时段已被占用或不存在: " + slotId);
+        }
 
         log.info("时段 {} 已被预约 {} 占用", slotId, appointmentId);
     }
@@ -85,5 +84,16 @@ public class SlotManagementDomainService {
         slotRepository.save(slot);
 
         log.info("时段 {} 已释放", slotId);
+    }
+
+    /**
+     * 释放时段（校验预约归属）
+     */
+    public void releaseSlot(Long slotId, Long appointmentId) {
+        boolean updated = slotRepository.releaseSlot(slotId, appointmentId);
+        if (!updated) {
+            throw new IllegalStateException("时段释放失败，可能已被释放或预约不匹配: " + slotId);
+        }
+        log.info("时段 {} 已由预约 {} 释放", slotId, appointmentId);
     }
 }

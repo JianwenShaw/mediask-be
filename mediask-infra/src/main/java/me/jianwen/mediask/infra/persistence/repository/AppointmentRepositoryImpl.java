@@ -37,14 +37,12 @@ public class AppointmentRepositoryImpl implements AppointmentRepository {
         if (dataObject.getId() == null) {
             appointmentMapper.insert(dataObject);
             // 回填ID
-            if (appointment.getId() != null) {
-                try {
-                    java.lang.reflect.Field field = Appointment.class.getDeclaredField("id");
-                    field.setAccessible(true);
-                    field.set(appointment, AppointmentId.of(dataObject.getId()));
-                } catch (Exception e) {
-                    // 忽略
-                }
+            try {
+                java.lang.reflect.Field field = Appointment.class.getDeclaredField("id");
+                field.setAccessible(true);
+                field.set(appointment, AppointmentId.of(dataObject.getId()));
+            } catch (Exception e) {
+                // 忽略
             }
         } else {
             appointmentMapper.updateById(dataObject);

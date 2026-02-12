@@ -3,6 +3,7 @@ package me.jianwen.mediask.infra.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.dal.entity.DoctorScheduleDO;
+import me.jianwen.mediask.dal.enums.ScheduleStatusEnum;
 import me.jianwen.mediask.dal.mapper.DoctorScheduleMapper;
 import me.jianwen.mediask.infra.persistence.converter.ScheduleConverter;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
@@ -124,7 +125,7 @@ public class DoctorScheduleRepositoryImpl implements DoctorScheduleRepository {
         LambdaQueryWrapper<DoctorScheduleDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(DoctorScheduleDO::getScheduleDate, scheduleDate)
                 .eq(DoctorScheduleDO::getTimePeriod, timePeriod.getCode())
-                .eq(DoctorScheduleDO::getStatus, ScheduleStatus.OPEN.getCode());
+                .eq(DoctorScheduleDO::getStatus, ScheduleStatusEnum.OPEN);
 
         return scheduleMapper.selectList(wrapper).stream()
                 .map(scheduleConverter::toDomain)
@@ -142,10 +143,20 @@ public class DoctorScheduleRepositoryImpl implements DoctorScheduleRepository {
     }
 
     @Override
+    public boolean decreaseAvailableSlots(ScheduleId scheduleId) {
+        return scheduleMapper.decreaseSlots(scheduleId.getValue()) > 0;
+    }
+
+    @Override
+    public boolean increaseAvailableSlots(ScheduleId scheduleId) {
+        return scheduleMapper.increaseSlots(scheduleId.getValue()) > 0;
+    }
+
+    @Override
     public List<DoctorSchedule> findExpiredSchedules(LocalDate beforeDate) {
         LambdaQueryWrapper<DoctorScheduleDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.lt(DoctorScheduleDO::getScheduleDate, beforeDate)
-                .ne(DoctorScheduleDO::getStatus, ScheduleStatus.EXPIRED.getCode());
+                .ne(DoctorScheduleDO::getStatus, ScheduleStatusEnum.EXPIRED);
 
         return scheduleMapper.selectList(wrapper).stream()
                 .map(scheduleConverter::toDomain)
