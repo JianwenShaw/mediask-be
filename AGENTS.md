@@ -4,8 +4,8 @@
 
 ### Platform-Aware Rule (IMPORTANT)
 
-- Detect platform via: `python3 scripts/platform.py`
-- If output is `macOS`, you **MUST** use `m21` instead of `mvn` for all build/test/verify commands.
+- Detect platform via: `python3 scripts/os_detect.py`
+- If output is `macOS`, you **MUST** use `./scripts/m21.sh` instead of `mvn` for all build/test/verify commands.
 - On non-macOS platforms, use `mvn`.
 
 ```bash

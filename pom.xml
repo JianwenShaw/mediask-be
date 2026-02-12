@@ -360,6 +360,7 @@
                         <target>${java.version}</target>
                         <compilerArgs>
                             <arg>--enable-preview</arg>
+                            <arg>-parameters</arg>
                         </compilerArgs>
                         <annotationProcessorPaths>
                             <path>
