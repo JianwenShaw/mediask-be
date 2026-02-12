@@ -4,8 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
+import me.jianwen.mediask.common.dto.user.UserDTO;
 import me.jianwen.mediask.domain.repository.UserRepository;
-import me.jianwen.mediask.service.application.response.CurrentUserResponse;
 import me.jianwen.mediask.user.domain.entity.User;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +25,7 @@ public class UserApplicationService {
     /**
      * 获取当前用户信息
      */
-    public CurrentUserResponse getCurrentUser(Long userId) {
+    public UserDTO getCurrentUser(Long userId) {
         if (userId == null) {
             throw new BizException(ErrorCode.UNAUTHORIZED);
         }
@@ -33,7 +33,7 @@ public class UserApplicationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BizException(ErrorCode.USER_NOT_FOUND));
 
-        return CurrentUserResponse.builder()
+        return UserDTO.builder()
                 .userId(user.getId())
                 .username(user.getUsername())
                 .phone(user.getPhone())

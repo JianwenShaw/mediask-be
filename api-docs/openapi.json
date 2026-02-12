@@ -5,332 +5,1713 @@
     "version": "1.0.0",
     "description": "智能医疗辅助问诊系统 - 按模块组织"
   },
-  "servers": [{ "url": "http://localhost:8989", "description": "开发环境" }],
+  "servers": [
+    {
+      "url": "http://localhost:8989",
+      "description": "开发环境"
+    }
+  ],
   "tags": [
-    { "name": "auth", "description": "认证模块：注册、登录、刷新Token" },
-    { "name": "user", "description": "用户模块" },
-    { "name": "schedule", "description": "排班模块" },
-    { "name": "appointment", "description": "预约模块" },
-    { "name": "test", "description": "测试模块" }
+    {
+      "name": "auth",
+      "description": "认证模块：注册、登录、刷新Token"
+    },
+    {
+      "name": "user",
+      "description": "用户模块"
+    },
+    {
+      "name": "schedule",
+      "description": "排班模块"
+    },
+    {
+      "name": "appointment",
+      "description": "预约模块"
+    },
+    {
+      "name": "test",
+      "description": "测试模块"
+    },
+    {
+      "name": "ai",
+      "description": "AI问诊指标模块"
+    }
   ],
   "paths": {
-    "## Auth 模块 ##": { "description": "认证相关接口" },
+    "## Auth 模块 ##": {
+      "description": "认证相关接口"
+    },
     "/api/v1/auth/register": {
       "post": {
-        "tags": ["auth"], "summary": "用户注册",
-        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequest" } } } },
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "auth"
+        ],
+        "summary": "用户注册",
+        "description": "注册成功后自动登录，响应 data 内含 token、refreshToken、refreshTokenId、expiresIn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "注册成功，响应 data 为登录信息（含 token/refreshToken/refreshTokenId/expiresIn）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResultResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/auth/login": {
       "post": {
-        "tags": ["auth"], "summary": "用户登录",
-        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } } },
-        "responses": { "200": { "description": "登录成功，返回 Token", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } } } }
+        "tags": [
+          "auth"
+        ],
+        "summary": "用户登录",
+        "description": "支持用户名或手机号登录，响应 data 内含 token、refreshToken、refreshTokenId、expiresIn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功，响应 data 为登录信息（含 token/refreshToken/refreshTokenId/expiresIn）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResultResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/auth/refresh": {
       "post": {
-        "tags": ["auth"], "summary": "刷新Token",
-        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshTokenRequest" } } } },
-        "responses": { "200": { "description": "刷新成功，返回新的 Token", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } } } }
+        "tags": [
+          "auth"
+        ],
+        "summary": "刷新Token",
+        "description": "使用 refreshToken 换取新的 access token，并轮换 refreshToken",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "刷新成功，响应 data 为新的登录信息（含 token/refreshToken/refreshTokenId/expiresIn）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResultResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/auth/logout": {
       "post": {
-        "tags": ["auth"], "summary": "用户登出",
+        "tags": [
+          "auth"
+        ],
+        "summary": "用户登出",
         "description": "撤销 Refresh Token，使 Token 失效。可选择登出当前设备或所有设备。",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LogoutRequest" } } } },
-        "responses": { "200": { "description": "登出成功", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登出成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
-    "## User 模块 ##": { "description": "用户相关接口" },
+    "## User 模块 ##": {
+      "description": "用户相关接口"
+    },
     "/api/v1/users/me": {
       "get": {
-        "tags": ["user"], "summary": "获取当前用户信息",
-        "security": [{ "bearerAuth": [] }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "user"
+        ],
+        "summary": "获取当前用户信息",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
-    "## Schedule 模块 ##": { "description": "排班管理接口" },
+    "## Schedule 模块 ##": {
+      "description": "排班管理接口"
+    },
     "/api/v1/schedules": {
       "post": {
-        "tags": ["schedule"], "summary": "创建排班",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateScheduleRequest" } } } },
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "schedule"
+        ],
+        "summary": "创建排班",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScheduleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       },
       "get": {
-        "tags": ["schedule"], "summary": "分页查询排班列表",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "doctorId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" }, "description": "医生ID" },
-          { "name": "departmentId", "in": "query", "required": false, "schema": { "type": "integer", "format": "int64" }, "description": "科室ID" },
-          { "name": "startDate", "in": "query", "required": false, "schema": { "type": "string", "format": "date" }, "description": "开始日期" },
-          { "name": "endDate", "in": "query", "required": false, "schema": { "type": "string", "format": "date" }, "description": "结束日期" },
-          { "name": "status", "in": "query", "required": false, "schema": { "type": "integer", "format": "int32" }, "description": "状态：0停诊 1开放 2约满 3过期" },
-          { "name": "pageNum", "in": "query", "required": false, "schema": { "type": "integer", "format": "int32" }, "description": "页码", "example": 1 },
-          { "name": "pageSize", "in": "query", "required": false, "schema": { "type": "integer", "format": "int32" }, "description": "每页数量", "example": 10 }
+        "tags": [
+          "schedule"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PageResultResponse" } } } } }
+        "summary": "分页查询排班列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "doctorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "医生ID"
+          },
+          {
+            "name": "departmentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "科室ID"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "开始日期"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "结束日期"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": "状态：0停诊 1开放 2约满 3过期"
+          },
+          {
+            "name": "pageNum",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": "页码",
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": "每页数量",
+            "example": 10
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResultResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/schedules/auto": {
       "post": {
-        "tags": ["schedule"], "summary": "自动排班",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AutoScheduleRequest" } } } },
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "schedule"
+        ],
+        "summary": "自动排班",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoScheduleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/schedules/{scheduleId}/close": {
       "post": {
-        "tags": ["schedule"], "summary": "停诊",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "scheduleId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
-          { "name": "reason", "in": "query", "required": false, "schema": { "type": "string" }, "description": "停诊原因" }
+        "tags": [
+          "schedule"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "summary": "停诊",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "停诊原因"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/schedules/{scheduleId}/open": {
       "post": {
-        "tags": ["schedule"], "summary": "开诊",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "scheduleId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "schedule"
+        ],
+        "summary": "开诊",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/schedules/{scheduleId}/slots": {
       "put": {
-        "tags": ["schedule"], "summary": "调整号源",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "scheduleId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
-          { "name": "totalSlots", "in": "query", "required": true, "schema": { "type": "integer", "format": "int32" } }
+        "tags": [
+          "schedule"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "summary": "调整号源",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "totalSlots",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/schedules/{scheduleId}": {
       "get": {
-        "tags": ["schedule"], "summary": "查询排班详情",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "scheduleId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "schedule"
+        ],
+        "summary": "查询排班详情",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       },
       "delete": {
-        "tags": ["schedule"], "summary": "删除排班",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "scheduleId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
-          { "name": "force", "in": "query", "required": false, "schema": { "type": "boolean" }, "description": "是否强制删除（取消关联预约）", "example": false }
+        "tags": [
+          "schedule"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "summary": "删除排班",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "是否强制删除（取消关联预约）",
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/schedules/doctor/{doctorId}": {
       "get": {
-        "tags": ["schedule"], "summary": "医生排班列表",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "doctorId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
-          { "name": "startDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
-          { "name": "endDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } }
+        "tags": [
+          "schedule"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "summary": "医生排班列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "doctorId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/schedules/available": {
       "get": {
-        "tags": ["schedule"], "summary": "可预约排班",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "date", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
-          { "name": "periodCode", "in": "query", "required": true, "schema": { "type": "integer", "format": "int32" }, "description": "1=上午, 2=下午, 3=晚上" }
+        "tags": [
+          "schedule"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "summary": "可预约排班",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "periodCode",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": "1=上午, 2=下午, 3=晚上"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/schedules/batch": {
       "delete": {
-        "tags": ["schedule"], "summary": "批量删除排班",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "doctorId", "in": "query", "required": true, "schema": { "type": "integer", "format": "int64" }, "description": "医生ID" },
-          { "name": "startDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" }, "description": "开始日期" },
-          { "name": "endDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" }, "description": "结束日期" },
-          { "name": "force", "in": "query", "required": false, "schema": { "type": "boolean" }, "description": "是否强制删除", "example": false }
+        "tags": [
+          "schedule"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BatchDeleteResponse" } } } } }
+        "summary": "批量删除排班",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "doctorId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "医生ID"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "开始日期"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "结束日期"
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "是否强制删除",
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchDeleteResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
-    "## Appointment 模块 ##": { "description": "预约管理接口" },
+    "## Appointment 模块 ##": {
+      "description": "预约管理接口"
+    },
     "/api/v1/appointments": {
       "post": {
-        "tags": ["appointment"], "summary": "创建预约",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateAppointmentRequest" } } } },
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "appointment"
+        ],
+        "summary": "创建预约",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAppointmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/appointments/cancel": {
       "post": {
-        "tags": ["appointment"], "summary": "取消预约",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CancelAppointmentRequest" } } } },
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "appointment"
+        ],
+        "summary": "取消预约",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelAppointmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/appointments/{appointmentId}/pay": {
       "post": {
-        "tags": ["appointment"], "summary": "支付预约",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "appointmentId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "appointment"
+        ],
+        "summary": "支付预约",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appointmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/appointments/{appointmentId}/visited": {
       "post": {
-        "tags": ["appointment"], "summary": "标记已就诊",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "appointmentId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "appointment"
+        ],
+        "summary": "标记已就诊",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appointmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/appointments/{appointmentId}/absent": {
       "post": {
-        "tags": ["appointment"], "summary": "标记爽约",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "appointmentId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "appointment"
+        ],
+        "summary": "标记爽约",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appointmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/appointments/my": {
       "get": {
-        "tags": ["appointment"], "summary": "我的预约列表",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "startDate", "in": "query", "required": false, "schema": { "type": "string", "format": "date" }, "description": "开始日期" },
-          { "name": "endDate", "in": "query", "required": false, "schema": { "type": "string", "format": "date" }, "description": "结束日期" }
+        "tags": [
+          "appointment"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "summary": "我的预约列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "开始日期"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "结束日期"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/appointments/my/unpaid": {
       "get": {
-        "tags": ["appointment"], "summary": "待支付预约",
-        "security": [{ "bearerAuth": [] }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "appointment"
+        ],
+        "summary": "待支付预约",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/appointments/{appointmentId}": {
       "get": {
-        "tags": ["appointment"], "summary": "预约详情",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "appointmentId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "appointment"
+        ],
+        "summary": "预约详情",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appointmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/appointments/slots/available": {
       "get": {
-        "tags": ["appointment"], "summary": "可预约时段",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "scheduleId", "in": "query", "required": true, "schema": { "type": "integer", "format": "int64" } }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "appointment"
+        ],
+        "summary": "可预约时段",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/appointments/doctor/{doctorId}": {
       "get": {
-        "tags": ["appointment"], "summary": "医生查询预约列表",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "doctorId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
-          { "name": "date", "in": "query", "required": true, "schema": { "type": "string", "format": "date" }, "description": "查询日期" }
+        "tags": [
+          "appointment"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "summary": "医生查询预约列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "doctorId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "查询日期"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/appointments/doctor/{doctorId}/range": {
       "get": {
-        "tags": ["appointment"], "summary": "医生查询预约列表",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "doctorId", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } },
-          { "name": "startDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" }, "description": "开始日期" },
-          { "name": "endDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" }, "description": "结束日期" }
+        "tags": [
+          "appointment"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "summary": "医生查询预约列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "doctorId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "开始日期"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "结束日期"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
-    "## Test 模块 ##": { "description": "测试接口" },
+    "## Test 模块 ##": {
+      "description": "测试接口"
+    },
     "/api/test/health": {
       "get": {
-        "tags": ["test"], "summary": "健康检查",
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "test"
+        ],
+        "summary": "健康检查",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/test/mysql": {
       "get": {
-        "tags": ["test"], "summary": "MySQL 读取测试",
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "test"
+        ],
+        "summary": "MySQL 读取测试",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       },
       "post": {
-        "tags": ["test"], "summary": "MySQL 写入测试",
-        "parameters": [{ "name": "message", "in": "query", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "test"
+        ],
+        "summary": "MySQL 写入测试",
+        "parameters": [
+          {
+            "name": "message",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/test/redis": {
       "get": {
-        "tags": ["test"], "summary": "Redis 读取测试",
-        "parameters": [{ "name": "key", "in": "query", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "test"
+        ],
+        "summary": "Redis 读取测试",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       },
       "post": {
-        "tags": ["test"], "summary": "Redis 写入测试",
-        "parameters": [
-          { "name": "key", "in": "query", "required": true, "schema": { "type": "string" } },
-          { "name": "value", "in": "query", "required": true, "schema": { "type": "string" } }
+        "tags": [
+          "test"
         ],
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "summary": "Redis 写入测试",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "value",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/test/all": {
       "get": {
-        "tags": ["test"], "summary": "综合测试",
-        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseWrapper" } } } } }
+        "tags": [
+          "test"
+        ],
+        "summary": "综合测试",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedules/generate": {
+      "post": {
+        "tags": [
+          "schedule"
+        ],
+        "summary": "根据模板生成排班",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateScheduleFromTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-templates": {
+      "post": {
+        "tags": [
+          "schedule"
+        ],
+        "summary": "创建排班模板",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScheduleTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-templates/{templateId}": {
+      "get": {
+        "tags": [
+          "schedule"
+        ],
+        "summary": "查询排班模板详情",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "schedule"
+        ],
+        "summary": "更新排班模板",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScheduleTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-templates/{templateId}/publish": {
+      "post": {
+        "tags": [
+          "schedule"
+        ],
+        "summary": "发布排班模板",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/reviews": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "提交AI问诊复核",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitAiReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/metrics/overview": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "AI指标总览",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "统计日期"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/metrics/departments": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "AI指标分科室统计",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "统计日期"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseWrapper"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
   "components": {
     "securitySchemes": {
-      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
     },
     "schemas": {
       "ResponseWrapper": {
         "type": "object",
         "properties": {
-          "code": { "type": "integer", "format": "int32", "description": "状态码，0表示成功" },
-          "msg": { "type": "string", "description": "提示信息" },
-          "data": { "type": "object", "description": "响应数据" }
+          "code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "状态码，0表示成功"
+          },
+          "msg": {
+            "type": "string",
+            "description": "提示信息"
+          },
+          "data": {
+            "type": "object",
+            "description": "响应数据"
+          }
         },
-        "example": { "code": 0, "msg": "success", "data": {} }
+        "example": {
+          "code": 0,
+          "msg": "success",
+          "data": {}
+        }
+      },
+      "LoginResultResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "状态码，0表示成功"
+          },
+          "msg": {
+            "type": "string",
+            "description": "提示信息"
+          },
+          "data": {
+            "$ref": "#/components/schemas/LoginResponse"
+          }
+        },
+        "example": {
+          "code": 0,
+          "msg": "success",
+          "data": {
+            "userId": 1,
+            "username": "admin",
+            "userType": 3,
+            "authorities": [
+              "schedule:create",
+              "schedule:auto",
+              "schedule:update"
+            ],
+            "tokenType": "Bearer",
+            "token": "eyJhbGciOiJIUzI1NiJ9...",
+            "expireAt": 1700000000,
+            "expiresIn": 1800,
+            "refreshToken": "eyJhbGciOiJIUzI1NiJ9...",
+            "refreshTokenId": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        }
       },
       "PageResultResponse": {
         "type": "object",
         "properties": {
-          "code": { "type": "integer", "format": "int32", "description": "状态码" },
-          "msg": { "type": "string", "description": "提示信息" },
+          "code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "状态码"
+          },
+          "msg": {
+            "type": "string",
+            "description": "提示信息"
+          },
           "data": {
             "type": "object",
             "properties": {
-              "total": { "type": "integer", "format": "int64", "description": "总记录数" },
-              "pageNum": { "type": "integer", "format": "int32", "description": "页码" },
-              "pageSize": { "type": "integer", "format": "int32", "description": "每页数量" },
-              "list": { "type": "array", "description": "数据列表" }
+              "total": {
+                "type": "integer",
+                "format": "int64",
+                "description": "总记录数"
+              },
+              "pageNum": {
+                "type": "integer",
+                "format": "int32",
+                "description": "页码"
+              },
+              "pageSize": {
+                "type": "integer",
+                "format": "int32",
+                "description": "每页数量"
+              },
+              "list": {
+                "type": "array",
+                "description": "数据列表"
+              }
             }
           }
         }
@@ -338,39 +1719,103 @@
       "BatchDeleteResponse": {
         "type": "object",
         "properties": {
-          "code": { "type": "integer", "format": "int32", "description": "状态码" },
-          "msg": { "type": "string", "description": "提示信息" },
-          "data": { "type": "integer", "description": "成功删除的数量" }
+          "code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "状态码"
+          },
+          "msg": {
+            "type": "string",
+            "description": "提示信息"
+          },
+          "data": {
+            "type": "integer",
+            "description": "成功删除的数量"
+          }
         }
       },
       "LoginRequest": {
         "type": "object",
-        "required": ["account", "password"],
+        "required": [
+          "account",
+          "password"
+        ],
         "properties": {
-          "account": { "type": "string", "description": "用户名或手机号" },
-          "password": { "type": "string", "description": "密码" }
+          "account": {
+            "type": "string",
+            "description": "用户名或手机号"
+          },
+          "password": {
+            "type": "string",
+            "description": "密码"
+          }
         },
-        "example": { "account": "test_user", "password": "password123" }
+        "example": {
+          "account": "test_user",
+          "password": "password123"
+        }
       },
       "LoginResponse": {
         "type": "object",
         "properties": {
-          "userId": { "type": "integer", "format": "int64", "description": "用户ID" },
-          "username": { "type": "string", "description": "用户名" },
-          "userType": { "type": "integer", "format": "int32", "description": "用户类型" },
-          "authorities": { "type": "array", "items": { "type": "string" }, "description": "权限列表" },
-          "tokenType": { "type": "string", "description": "Token 类型", "example": "Bearer" },
-          "token": { "type": "string", "description": "Access Token (30分钟有效)" },
-          "expireAt": { "type": "integer", "format": "int64", "description": "Access Token 过期时间（秒级时间戳）" },
-          "expiresIn": { "type": "integer", "format": "int64", "description": "Access Token 剩余有效期（秒）" },
-          "refreshToken": { "type": "string", "description": "Refresh Token (30天有效)" },
-          "refreshTokenId": { "type": "string", "description": "Refresh Token ID（用于登出时撤销）" }
+          "userId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "用户ID"
+          },
+          "username": {
+            "type": "string",
+            "description": "用户名"
+          },
+          "userType": {
+            "type": "integer",
+            "format": "int32",
+            "description": "用户类型"
+          },
+          "authorities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "权限列表"
+          },
+          "tokenType": {
+            "type": "string",
+            "description": "Token 类型",
+            "example": "Bearer"
+          },
+          "token": {
+            "type": "string",
+            "description": "Access Token (30分钟有效)"
+          },
+          "expireAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Access Token 过期时间（秒级时间戳）"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Access Token 剩余有效期（秒）"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Refresh Token (30天有效)"
+          },
+          "refreshTokenId": {
+            "type": "string",
+            "description": "Refresh Token ID（用于登出时撤销）"
+          }
         },
         "example": {
           "userId": 1,
           "username": "admin",
           "userType": 3,
-          "authorities": ["schedule:create", "schedule:auto", "schedule:update"],
+          "authorities": [
+            "schedule:create",
+            "schedule:auto",
+            "schedule:update"
+          ],
           "tokenType": "Bearer",
           "token": "eyJhbGciOiJIUzI1NiJ9...",
           "expireAt": 1700000000,
@@ -381,21 +1826,74 @@
       },
       "RegisterRequest": {
         "type": "object",
-        "required": ["username", "password", "phone", "userType"],
+        "required": [
+          "username",
+          "password",
+          "userType",
+          "gender"
+        ],
         "properties": {
-          "username": { "type": "string", "description": "用户名" },
-          "password": { "type": "string", "description": "密码" },
-          "phone": { "type": "string", "description": "手机号" },
-          "userType": { "type": "integer", "format": "int32", "description": "用户类型" },
-          "realName": { "type": "string", "description": "真实姓名" }
+          "username": {
+            "type": "string",
+            "description": "用户名"
+          },
+          "password": {
+            "type": "string",
+            "description": "密码（6-64位）"
+          },
+          "phone": {
+            "type": "string",
+            "description": "手机号（可选）"
+          },
+          "userType": {
+            "type": "integer",
+            "format": "int32",
+            "description": "用户类型：1=管理员 2=医生 3=患者"
+          },
+          "realName": {
+            "type": "string",
+            "description": "真实姓名（可选）"
+          },
+          "gender": {
+            "type": "integer",
+            "format": "int32",
+            "description": "性别：0=未知 1=男 2=女"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "description": "出生日期（可选）"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "description": "头像地址（可选）"
+          }
         },
-        "example": { "username": "test_user", "password": "password123", "phone": "13800138000", "userType": 1, "realName": "张三" }
+        "example": {
+          "username": "test_user",
+          "password": "password123",
+          "phone": "13800138000",
+          "userType": 3,
+          "realName": "张三",
+          "gender": 1,
+          "birthDate": "1998-01-01",
+          "avatarUrl": "https://example.com/avatar.png"
+        }
       },
       "RefreshTokenRequest": {
         "type": "object",
-        "required": ["refreshToken"],
-        "properties": { "refreshToken": { "type": "string", "description": "刷新令牌" } },
-        "example": { "refreshToken": "eyJhbGciOiJIUzI1NiJ9..." }
+        "required": [
+          "refreshToken"
+        ],
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "刷新令牌"
+          }
+        },
+        "example": {
+          "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+        }
       },
       "LogoutRequest": {
         "type": "object",
@@ -405,123 +1903,610 @@
             "description": "Refresh Token ID。为空时登出所有设备，指定时仅登出当前设备"
           }
         },
-        "example": { "refreshTokenId": "550e8400-e29b-41d4-a716-446655440000" }
+        "example": {
+          "refreshTokenId": "550e8400-e29b-41d4-a716-446655440000"
+        }
       },
       "CreateScheduleRequest": {
         "type": "object",
-        "required": ["doctorId", "date", "periodCode", "totalSlots", "slotDurationMinutes"],
+        "required": [
+          "doctorId",
+          "date",
+          "periodCode",
+          "totalSlots",
+          "slotDurationMinutes"
+        ],
         "properties": {
-          "doctorId": { "type": "integer", "format": "int64", "description": "医生ID" },
-          "date": { "type": "string", "format": "date", "description": "排班日期" },
-          "periodCode": { "type": "integer", "format": "int32", "description": "1=上午, 2=下午, 3=晚上" },
-          "totalSlots": { "type": "integer", "format": "int32", "description": "总号源数" },
-          "slotDurationMinutes": { "type": "integer", "format": "int32", "description": "每个号源时长（分钟）" }
+          "doctorId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "医生ID"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "排班日期"
+          },
+          "periodCode": {
+            "type": "integer",
+            "format": "int32",
+            "description": "1=上午, 2=下午, 3=晚上"
+          },
+          "totalSlots": {
+            "type": "integer",
+            "format": "int32",
+            "description": "总号源数"
+          },
+          "slotDurationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "每个号源时长（分钟）"
+          }
         },
-        "example": { "doctorId": 1, "date": "2024-01-15", "periodCode": 1, "totalSlots": 20, "slotDurationMinutes": 15 }
+        "example": {
+          "doctorId": 1,
+          "date": "2024-01-15",
+          "periodCode": 1,
+          "totalSlots": 20,
+          "slotDurationMinutes": 15
+        }
       },
       "AutoScheduleRequest": {
         "type": "object",
         "properties": {
-          "doctorId": { "type": "integer", "format": "int64", "description": "医生ID" },
-          "startDate": { "type": "string", "format": "date", "description": "开始日期" },
-          "endDate": { "type": "string", "format": "date", "description": "结束日期" },
-          "strategyName": { "type": "string", "description": "排班策略名称" },
-          "workDays": { "type": "array", "items": { "type": "integer" }, "description": "工作日（1=周一 7=周日）" },
-          "timePeriodCodes": { "type": "array", "items": { "type": "integer" }, "description": "时段编码列表" },
-          "slotsPerPeriod": { "type": "integer", "format": "int32", "description": "每个时段号源数" },
-          "slotDurationMinutes": { "type": "integer", "format": "int32", "description": "号源时长（分钟）" },
-          "excludeHolidays": { "type": "boolean", "description": "是否排除节假日" }
+          "doctorId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "医生ID"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "开始日期"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "结束日期"
+          },
+          "strategyName": {
+            "type": "string",
+            "description": "排班策略名称"
+          },
+          "workDays": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "工作日（1=周一 7=周日）"
+          },
+          "timePeriodCodes": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "时段编码列表"
+          },
+          "slotsPerPeriod": {
+            "type": "integer",
+            "format": "int32",
+            "description": "每个时段号源数"
+          },
+          "slotDurationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "号源时长（分钟）"
+          },
+          "excludeHolidays": {
+            "type": "boolean",
+            "description": "是否排除节假日"
+          }
         },
-        "example": { "doctorId": 1, "startDate": "2024-01-15", "endDate": "2024-01-21", "strategyName": "periodic", "workDays": [1, 2, 3, 4, 5], "timePeriodCodes": [1, 2], "slotsPerPeriod": 20, "slotDurationMinutes": 15, "excludeHolidays": true }
+        "example": {
+          "doctorId": 1,
+          "startDate": "2024-01-15",
+          "endDate": "2024-01-21",
+          "strategyName": "periodic",
+          "workDays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "timePeriodCodes": [
+            1,
+            2
+          ],
+          "slotsPerPeriod": 20,
+          "slotDurationMinutes": 15,
+          "excludeHolidays": true
+        }
       },
       "CreateAppointmentRequest": {
         "type": "object",
-        "required": ["scheduleId", "apptDate", "timePeriodCode", "apptTime"],
+        "required": [
+          "scheduleId",
+          "apptDate",
+          "timePeriodCode",
+          "apptTime"
+        ],
         "properties": {
-          "scheduleId": { "type": "integer", "format": "int64", "description": "排班ID" },
-          "apptDate": { "type": "string", "format": "date", "description": "就诊日期" },
-          "timePeriodCode": { "type": "integer", "format": "int32", "description": "时段代码：1=上午 2=下午 3=晚上" },
-          "apptTime": { "type": "string", "format": "time", "description": "具体就诊时间" },
-          "chiefComplaint": { "type": "string", "description": "主诉/症状描述（AI生成）" }
+          "scheduleId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "排班ID"
+          },
+          "apptDate": {
+            "type": "string",
+            "format": "date",
+            "description": "就诊日期"
+          },
+          "timePeriodCode": {
+            "type": "integer",
+            "format": "int32",
+            "description": "时段代码：1=上午 2=下午 3=晚上"
+          },
+          "apptTime": {
+            "type": "string",
+            "format": "time",
+            "description": "具体就诊时间"
+          },
+          "chiefComplaint": {
+            "type": "string",
+            "description": "主诉/症状描述（AI生成）"
+          }
         },
-        "example": { "scheduleId": 1, "apptDate": "2024-01-15", "timePeriodCode": 1, "apptTime": "09:00", "chiefComplaint": "头痛发热两天" }
+        "example": {
+          "scheduleId": 1,
+          "apptDate": "2024-01-15",
+          "timePeriodCode": 1,
+          "apptTime": "09:00",
+          "chiefComplaint": "头痛发热两天"
+        }
       },
       "AppointmentResponse": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer", "format": "int64", "description": "预约ID" },
-          "apptNo": { "type": "string", "description": "预约单号" },
-          "patientId": { "type": "integer", "format": "int64", "description": "患者ID" },
-          "patientName": { "type": "string", "description": "患者姓名" },
-          "doctorId": { "type": "integer", "format": "int64", "description": "医生ID" },
-          "doctorName": { "type": "string", "description": "医生姓名" },
-          "departmentId": { "type": "integer", "format": "int64", "description": "科室ID" },
-          "departmentName": { "type": "string", "description": "科室名称" },
-          "scheduleId": { "type": "integer", "format": "int64", "description": "排班ID" },
-          "apptDate": { "type": "string", "format": "date", "description": "就诊日期" },
-          "timePeriodDesc": { "type": "string", "description": "时段描述" },
-          "apptTime": { "type": "string", "format": "time", "description": "具体时间" },
-          "statusCode": { "type": "integer", "format": "int32", "description": "状态码：1=待支付 2=已确认 3=已就诊 4=已取消 5=爽约" },
-          "statusDesc": { "type": "string", "description": "状态描述" },
-          "chiefComplaint": { "type": "string", "description": "主诉" },
-          "apptFee": { "type": "number", "format": "decimal", "description": "挂号费" },
-          "paidAt": { "type": "string", "format": "date-time", "description": "支付时间" },
-          "visitedAt": { "type": "string", "format": "date-time", "description": "就诊时间" },
-          "createdAt": { "type": "string", "format": "date-time", "description": "创建时间" }
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "预约ID"
+          },
+          "apptNo": {
+            "type": "string",
+            "description": "预约单号"
+          },
+          "patientId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "患者ID"
+          },
+          "patientName": {
+            "type": "string",
+            "description": "患者姓名"
+          },
+          "doctorId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "医生ID"
+          },
+          "doctorName": {
+            "type": "string",
+            "description": "医生姓名"
+          },
+          "departmentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "科室ID"
+          },
+          "departmentName": {
+            "type": "string",
+            "description": "科室名称"
+          },
+          "scheduleId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "排班ID"
+          },
+          "apptDate": {
+            "type": "string",
+            "format": "date",
+            "description": "就诊日期"
+          },
+          "timePeriodDesc": {
+            "type": "string",
+            "description": "时段描述"
+          },
+          "apptTime": {
+            "type": "string",
+            "format": "time",
+            "description": "具体时间"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32",
+            "description": "状态码：1=待支付 2=已确认 3=已就诊 4=已取消 5=爽约"
+          },
+          "statusDesc": {
+            "type": "string",
+            "description": "状态描述"
+          },
+          "chiefComplaint": {
+            "type": "string",
+            "description": "主诉"
+          },
+          "apptFee": {
+            "type": "number",
+            "format": "decimal",
+            "description": "挂号费"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "支付时间"
+          },
+          "visitedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "就诊时间"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          }
         }
       },
       "AppointmentResultResponse": {
         "type": "object",
         "properties": {
-          "appointmentId": { "type": "integer", "format": "int64", "description": "预约ID" },
-          "apptNo": { "type": "string", "description": "预约单号" },
-          "doctorId": { "type": "integer", "format": "int64", "description": "医生ID" },
-          "doctorName": { "type": "string", "description": "医生姓名" },
-          "departmentName": { "type": "string", "description": "科室名称" },
-          "apptDate": { "type": "string", "format": "date", "description": "就诊日期" },
-          "timePeriodDesc": { "type": "string", "description": "时段描述" },
-          "apptTime": { "type": "string", "format": "time", "description": "具体时间" },
-          "status": { "type": "string", "description": "状态描述" },
-          "apptFee": { "type": "number", "format": "decimal", "description": "挂号费" },
-          "payDeadline": { "type": "string", "format": "date-time", "description": "支付截止时间" }
+          "appointmentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "预约ID"
+          },
+          "apptNo": {
+            "type": "string",
+            "description": "预约单号"
+          },
+          "doctorId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "医生ID"
+          },
+          "doctorName": {
+            "type": "string",
+            "description": "医生姓名"
+          },
+          "departmentName": {
+            "type": "string",
+            "description": "科室名称"
+          },
+          "apptDate": {
+            "type": "string",
+            "format": "date",
+            "description": "就诊日期"
+          },
+          "timePeriodDesc": {
+            "type": "string",
+            "description": "时段描述"
+          },
+          "apptTime": {
+            "type": "string",
+            "format": "time",
+            "description": "具体时间"
+          },
+          "status": {
+            "type": "string",
+            "description": "状态描述"
+          },
+          "apptFee": {
+            "type": "number",
+            "format": "decimal",
+            "description": "挂号费"
+          },
+          "payDeadline": {
+            "type": "string",
+            "format": "date-time",
+            "description": "支付截止时间"
+          }
         }
       },
       "AvailableSlotResponse": {
         "type": "object",
         "properties": {
-          "slotId": { "type": "integer", "format": "int64", "description": "时段ID" },
-          "scheduleId": { "type": "integer", "format": "int64", "description": "排班ID" },
-          "time": { "type": "string", "format": "time", "description": "时段开始时间" },
-          "available": { "type": "boolean", "description": "是否可用" }
+          "slotId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "时段ID"
+          },
+          "scheduleId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "排班ID"
+          },
+          "time": {
+            "type": "string",
+            "format": "time",
+            "description": "时段开始时间"
+          },
+          "available": {
+            "type": "boolean",
+            "description": "是否可用"
+          }
         }
       },
       "ScheduleResponse": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer", "format": "int64", "description": "排班ID" },
-          "doctorId": { "type": "integer", "format": "int64", "description": "医生ID" },
-          "doctorName": { "type": "string", "description": "医生姓名" },
-          "scheduleDate": { "type": "string", "format": "date", "description": "排班日期" },
-          "timePeriodDesc": { "type": "string", "description": "时段描述" },
-          "totalSlots": { "type": "integer", "format": "int32", "description": "总号源数" },
-          "availableSlots": { "type": "integer", "format": "int32", "description": "剩余号源数" },
-          "statusCode": { "type": "integer", "format": "int32", "description": "状态码：0停诊 1开放 2约满 3过期" },
-          "statusDesc": { "type": "string", "description": "状态描述" },
-          "slotDurationMinutes": { "type": "integer", "format": "int32", "description": "号源时长（分钟）" }
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "排班ID"
+          },
+          "doctorId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "医生ID"
+          },
+          "doctorName": {
+            "type": "string",
+            "description": "医生姓名"
+          },
+          "scheduleDate": {
+            "type": "string",
+            "format": "date",
+            "description": "排班日期"
+          },
+          "timePeriodDesc": {
+            "type": "string",
+            "description": "时段描述"
+          },
+          "totalSlots": {
+            "type": "integer",
+            "format": "int32",
+            "description": "总号源数"
+          },
+          "availableSlots": {
+            "type": "integer",
+            "format": "int32",
+            "description": "剩余号源数"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32",
+            "description": "状态码：0停诊 1开放 2约满 3过期"
+          },
+          "statusDesc": {
+            "type": "string",
+            "description": "状态描述"
+          },
+          "slotDurationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "号源时长（分钟）"
+          }
         }
       },
       "CancelAppointmentRequest": {
         "type": "object",
-        "required": ["appointmentId"],
+        "required": [
+          "appointmentId"
+        ],
         "properties": {
-          "appointmentId": { "type": "integer", "format": "int64", "description": "预约ID" },
-          "reason": { "type": "string", "description": "取消原因" },
-          "operatorId": { "type": "integer", "format": "int64", "description": "操作人ID（管理员取消时使用）" },
-          "operatorType": { "type": "integer", "format": "int32", "description": "操作人类型：1=患者 2=管理员" }
+          "appointmentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "预约ID"
+          },
+          "reason": {
+            "type": "string",
+            "description": "取消原因"
+          },
+          "operatorId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "操作人ID（管理员取消时使用）"
+          },
+          "operatorType": {
+            "type": "integer",
+            "format": "int32",
+            "description": "操作人类型：1=患者 2=管理员"
+          }
         },
-        "example": { "appointmentId": 1, "reason": "时间冲突", "operatorId": 100, "operatorType": 2 }
+        "example": {
+          "appointmentId": 1,
+          "reason": "时间冲突",
+          "operatorId": 100,
+          "operatorType": 2
+        }
+      },
+      "ScheduleTemplateRuleRequest": {
+        "type": "object",
+        "required": [
+          "weekday",
+          "timePeriodCode",
+          "periodStartTime",
+          "periodEndTime",
+          "slotDurationMinutes",
+          "slotCapacity"
+        ],
+        "properties": {
+          "weekday": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 7
+          },
+          "timePeriodCode": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 3
+          },
+          "periodStartTime": {
+            "type": "string",
+            "format": "time"
+          },
+          "periodEndTime": {
+            "type": "string",
+            "format": "time"
+          },
+          "slotDurationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 5
+          },
+          "slotCapacity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "fee": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "CreateScheduleTemplateRequest": {
+        "type": "object",
+        "required": [
+          "doctorId",
+          "templateName",
+          "effectiveStartDate",
+          "effectiveEndDate",
+          "cancelDeadlineMinutes",
+          "defaultFee",
+          "rules"
+        ],
+        "properties": {
+          "doctorId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "templateName": {
+            "type": "string"
+          },
+          "effectiveStartDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveEndDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "cancelDeadlineMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "defaultFee": {
+            "type": "number",
+            "format": "double"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleTemplateRuleRequest"
+            }
+          }
+        }
+      },
+      "UpdateScheduleTemplateRequest": {
+        "type": "object",
+        "required": [
+          "templateName",
+          "effectiveStartDate",
+          "effectiveEndDate",
+          "cancelDeadlineMinutes",
+          "defaultFee",
+          "rules"
+        ],
+        "properties": {
+          "templateName": {
+            "type": "string"
+          },
+          "effectiveStartDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveEndDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "cancelDeadlineMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "defaultFee": {
+            "type": "number",
+            "format": "double"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleTemplateRuleRequest"
+            }
+          }
+        }
+      },
+      "GenerateScheduleFromTemplateRequest": {
+        "type": "object",
+        "required": [
+          "templateId",
+          "startDate",
+          "endDate"
+        ],
+        "properties": {
+          "templateId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "SubmitAiReviewRequest": {
+        "type": "object",
+        "required": [
+          "conversationId",
+          "reviewScore",
+          "adopted"
+        ],
+        "properties": {
+          "conversationId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reviewScore": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "adopted": {
+            "type": "boolean"
+          },
+          "reviewComment": {
+            "type": "string"
+          }
+        }
       }
     }
   },
-  "security": [{ "bearerAuth": [] }]
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
 }

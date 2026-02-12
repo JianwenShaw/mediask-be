@@ -1,10 +1,11 @@
 package me.jianwen.mediask.schedule.domain.algorithm.solver;
 
 import me.jianwen.mediask.schedule.domain.algorithm.problem.ScheduleProblem;
-import me.jianwen.mediask.schedule.domain.algorithm.solver.impl.*;
+import me.jianwen.mediask.schedule.domain.algorithm.solver.impl.GeneticAlgorithmSolver;
+import me.jianwen.mediask.schedule.domain.algorithm.solver.impl.GreedyLocalSearchSolver;
+import me.jianwen.mediask.schedule.domain.algorithm.solver.impl.GreedySolver;
+import me.jianwen.mediask.schedule.domain.algorithm.solver.impl.HybridSolver;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.List;
@@ -22,20 +23,19 @@ import java.util.Map;
  * @author MediAsk
  */
 @Slf4j
-@Component
 public class SolverFactory {
 
     private final Map<String, ScheduleSolver> solvers = new HashMap<>();
 
     /**
      * 构造函数 - 注册所有求解器
-     * HybridSolver 使用 @Lazy 避免循环依赖
+     * HybridSolver 由调用方注入
      */
     public SolverFactory(
             GreedySolver greedySolver,
             GreedyLocalSearchSolver greedyLocalSearchSolver,
             GeneticAlgorithmSolver geneticAlgorithmSolver,
-            @Lazy HybridSolver hybridSolver) {
+            HybridSolver hybridSolver) {
 
         register(greedySolver);
         register(greedyLocalSearchSolver);

@@ -36,6 +36,11 @@ public class AppointmentSlotDO implements Serializable {
     private LocalTime slotTime;
 
     /**
+     * 时段结束时间
+     */
+    private LocalTime slotEndTime;
+
+    /**
      * 是否占用(0空闲 1占用)
      */
     private Integer isOccupied;
@@ -44,6 +49,11 @@ public class AppointmentSlotDO implements Serializable {
      * 关联预约ID
      */
     private Long apptId;
+
+    /**
+     * 乐观锁版本号
+     */
+    private Integer version;
 
     /**
      * 创建时间
@@ -56,4 +66,10 @@ public class AppointmentSlotDO implements Serializable {
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
+
+    /**
+     * 软删除时间
+     */
+    @TableLogic
+    private LocalDateTime deletedAt;
 }

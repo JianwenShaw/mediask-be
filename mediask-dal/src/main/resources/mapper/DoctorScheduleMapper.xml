@@ -6,9 +6,24 @@
     <update id="decreaseSlots">
         UPDATE doctor_schedules
         SET available_slots = available_slots - 1,
+            status = CASE WHEN available_slots - 1 = 0 THEN 2 ELSE status END,
+            version = version + 1,
             updated_at = NOW()
         WHERE id = #{scheduleId}
           AND available_slots > 0
+          AND deleted_at IS NULL
+    </update>
+
+    <!-- 回补号源 -->
+    <update id="increaseSlots">
+        UPDATE doctor_schedules
+        SET available_slots = available_slots + 1,
+            status = CASE WHEN status = 2 THEN 1 ELSE status END,
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = #{scheduleId}
+          AND available_slots < total_slots
+          AND deleted_at IS NULL
     </update>
     
 </mapper>

@@ -3,14 +3,14 @@ package me.jianwen.mediask.service.application.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.common.constant.ErrorCode;
+import me.jianwen.mediask.common.dto.appointment.AppointmentDTO;
+import me.jianwen.mediask.common.dto.appointment.AppointmentResultDTO;
+import me.jianwen.mediask.common.dto.appointment.AvailableSlotDTO;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.domain.event.DomainEventPublisher;
 import me.jianwen.mediask.infra.lock.annotation.DistributedLockable;
 import me.jianwen.mediask.service.application.command.CancelAppointmentCommand;
 import me.jianwen.mediask.service.application.command.CreateAppointmentCommand;
-import me.jianwen.mediask.service.application.response.AppointmentResponse;
-import me.jianwen.mediask.service.application.response.AppointmentResultResponse;
-import me.jianwen.mediask.service.application.response.AvailableSlotResponse;
 import me.jianwen.mediask.schedule.domain.entity.Appointment;
 import me.jianwen.mediask.schedule.domain.entity.AppointmentSlot;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
@@ -18,15 +18,18 @@ import me.jianwen.mediask.schedule.domain.repository.AppointmentRepository;
 import me.jianwen.mediask.schedule.domain.repository.AppointmentSlotRepository;
 import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
 import me.jianwen.mediask.schedule.domain.service.SlotManagementDomainService;
-import me.jianwen.mediask.schedule.domain.valueobject.*;
+import me.jianwen.mediask.schedule.domain.valueobject.AppointmentId;
+import me.jianwen.mediask.schedule.domain.valueobject.AppointmentStatus;
+import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
+import me.jianwen.mediask.schedule.domain.valueobject.PatientId;
+import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
+import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -61,7 +64,7 @@ public class AppointmentApplicationService {
             errorMessage = "号源正在被锁定，请稍后重试"
     )
     @Transactional(rollbackFor = Exception.class)
-    public AppointmentResultResponse createAppointment(Long patientId, CreateAppointmentCommand request) {
+    public AppointmentResultDTO createAppointment(Long patientId, CreateAppointmentCommand request) {
         log.info("创建预约: patientId={}, scheduleId={}, date={}, time={}",
                 patientId, request.getScheduleId(), request.getApptDate(), request.getApptTime());
 
@@ -79,8 +82,8 @@ public class AppointmentApplicationService {
         }
 
         // 检查是否可预约（时段冲突）
-        if (appointmentRepository.existsByPatientIdAndDateAndTime(
-                patientIdVO, request.getApptDate(), request.getApptTime())) {
+        validateAppointmentConflict(patientIdVO, request.getApptDate(), timePeriod);
+        if (appointmentRepository.existsByPatientIdAndDateAndTime(patientIdVO, request.getApptDate(), request.getApptTime())) {
             throw new BizException(ErrorCode.APPT_TIME_CONFLICT, "该时间段您已有挂号记录");
         }
 
@@ -111,26 +114,28 @@ public class AppointmentApplicationService {
                 request.getApptDate(),
                 timePeriod,
                 request.getApptTime(),
-                BigDecimal.valueOf(50), // TODO: 从排班配置获取挂号费
+                schedule.getFee(), // 从排班配置获取挂号费
                 request.getChiefComplaint(),
                 apptNo);
 
         // 保存预约
         appointmentRepository.save(appointment);
 
-        // 占用号源
+        // 原子占用号源
         slotManagementDomainService.occupySlot(slot.getId(), appointment.getId().value());
 
-        // 扣减排班号源
-        schedule.decreaseSlot();
-        scheduleRepository.save(schedule);
+        // 原子扣减排班可用号源
+        boolean decreased = scheduleRepository.decreaseAvailableSlots(scheduleId);
+        if (!decreased) {
+            throw new BizException(ErrorCode.APPT_NO_SLOTS, "号源不足，请重试");
+        }
 
         // 发布领域事件
         publishEvents(appointment);
 
         log.info("预约创建成功: appointmentId={}, apptNo={}", appointment.getId(), apptNo);
 
-        return AppointmentResultResponse.builder()
+        return AppointmentResultDTO.builder()
                 .appointmentId(appointment.getId().value())
                 .apptNo(apptNo)
                 .doctorId(schedule.getDoctorId().getValue())
@@ -140,7 +145,7 @@ public class AppointmentApplicationService {
                 .timePeriodDesc(timePeriod.getDescription())
                 .apptTime(request.getApptTime())
                 .status("待支付")
-                .apptFee(BigDecimal.valueOf(50)) // TODO: 从排班配置获取挂号费
+                .apptFee(schedule.getFee())
                 .payDeadline(LocalDateTime.now().plusMinutes(30)) // 30分钟支付时限
                 .build();
     }
@@ -183,31 +188,16 @@ public class AppointmentApplicationService {
         appointment.cancel(cancelReason);
         appointmentRepository.save(appointment);
 
-        // 释放号源
-        List<Appointment> appointments = appointmentRepository.findByScheduleId(appointment.getScheduleId());
-        appointments.stream()
-                .filter(a -> a.getApptTime().equals(appointment.getApptTime()) && !a.isCancelled())
-                .findFirst()
-                .ifPresentOrElse(
-                        a -> slotManagementDomainService.occupySlot(
-                                slotRepository.findByScheduleAndTime(appointment.getScheduleId(), appointment.getApptTime())
-                                        .map(AppointmentSlot::getId)
-                                        .orElse(null),
-                                a.getId().value()),
-                        () -> {
-                            // 没有其他预约占用该时段，释放号源
-                            slotRepository.findByScheduleAndTime(appointment.getScheduleId(), appointment.getApptTime())
-                                    .ifPresent(slot -> {
-                                        slot.release();
-                                        slotRepository.save(slot);
-                                    });
-                        });
+        // 释放号源（强校验 appointment 归属）
+        AppointmentSlot slot = slotRepository.findByScheduleAndTime(appointment.getScheduleId(), appointment.getApptTime())
+                .orElseThrow(() -> new BizException(ErrorCode.DATA_NOT_FOUND, "号源不存在"));
+        slotManagementDomainService.releaseSlot(slot.getId(), appointment.getId().value());
 
-        // 恢复排班号源
-        DoctorSchedule schedule = scheduleRepository.findById(appointment.getScheduleId())
-                .orElseThrow(() -> new BizException(ErrorCode.SCHEDULE_NOT_FOUND));
-        schedule.increaseSlot();
-        scheduleRepository.save(schedule);
+        // 恢复排班号源（原子）
+        boolean increased = scheduleRepository.increaseAvailableSlots(appointment.getScheduleId());
+        if (!increased) {
+            throw new BizException(ErrorCode.OPERATION_FORBIDDEN, "号源回补失败");
+        }
 
         // 发布事件
         publishEvents(appointment);
@@ -262,7 +252,7 @@ public class AppointmentApplicationService {
     /**
      * 查询患者预约列表
      */
-    public List<AppointmentResponse> listPatientAppointments(Long patientId, LocalDate startDate, LocalDate endDate) {
+    public List<AppointmentDTO> listPatientAppointments(Long patientId, LocalDate startDate, LocalDate endDate) {
         PatientId patientIdVO = PatientId.of(patientId);
         List<Appointment> appointments;
 
@@ -280,7 +270,7 @@ public class AppointmentApplicationService {
     /**
      * 查询患者待支付预约
      */
-    public List<AppointmentResponse> listUnpaidAppointments(Long patientId) {
+    public List<AppointmentDTO> listUnpaidAppointments(Long patientId) {
         PatientId patientIdVO = PatientId.of(patientId);
         List<Appointment> appointments = appointmentRepository.findByPatientIdAndStatus(
                 patientIdVO, AppointmentStatus.UNPAID);
@@ -292,13 +282,13 @@ public class AppointmentApplicationService {
     /**
      * 查询可预约时段
      */
-    public List<AvailableSlotResponse> listAvailableSlots(Long scheduleId) {
+    public List<AvailableSlotDTO> listAvailableSlots(Long scheduleId) {
         ScheduleId id = ScheduleId.of(scheduleId);
         List<AppointmentSlot> slots = slotRepository.findBySchedule(id);
 
         return slots.stream()
                 .filter(AppointmentSlot::isAvailable)
-                .map(slot -> AvailableSlotResponse.builder()
+                .map(slot -> AvailableSlotDTO.builder()
                         .slotId(slot.getId())
                         .scheduleId(scheduleId)
                         .time(slot.getTimeSlot().getStartTime())
@@ -310,7 +300,7 @@ public class AppointmentApplicationService {
     /**
      * 查询预约详情
      */
-    public AppointmentResponse getAppointment(Long appointmentId) {
+    public AppointmentDTO getAppointment(Long appointmentId) {
         AppointmentId id = AppointmentId.of(appointmentId);
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.APPT_NOT_FOUND, "预约记录不存在"));
@@ -320,7 +310,7 @@ public class AppointmentApplicationService {
     /**
      * 查询医生在指定日期的预约列表
      */
-    public List<AppointmentResponse> listAppointmentsByDoctor(Long doctorId, LocalDate date) {
+    public List<AppointmentDTO> listAppointmentsByDoctor(Long doctorId, LocalDate date) {
         DoctorId doctorIdVO = DoctorId.of(doctorId);
         List<Appointment> appointments = appointmentRepository.findByDoctorIdAndDate(doctorIdVO, date);
 
@@ -332,7 +322,7 @@ public class AppointmentApplicationService {
     /**
      * 查询医生在日期范围内的预约列表
      */
-    public List<AppointmentResponse> listAppointmentsByDoctorAndDateRange(
+    public List<AppointmentDTO> listAppointmentsByDoctorAndDateRange(
             Long doctorId, LocalDate startDate, LocalDate endDate) {
         DoctorId doctorIdVO = DoctorId.of(doctorId);
         List<Appointment> appointments = appointmentRepository.findByDoctorIdAndDateRange(
@@ -366,7 +356,7 @@ public class AppointmentApplicationService {
       * 验证预约冲突
       * 业务规则：同一天同一时段只能有一个预约；同一天最多2个号源
       */
-    public void validateAppointmentConflict(PatientId patientId, LocalDate apptDate, TimePeriod timePeriod) {
+    private void validateAppointmentConflict(PatientId patientId, LocalDate apptDate, TimePeriod timePeriod) {
         long dailyAppointmentCount = appointmentRepository.countByPatientIdAndDate(patientId, apptDate);
         if (dailyAppointmentCount >= 2) {
             throw new BizException(ErrorCode.APPT_TIME_CONFLICT, "同一天最多预约2个号源");
@@ -377,13 +367,6 @@ public class AppointmentApplicationService {
         if (hasTimeConflict) {
             throw new BizException(ErrorCode.APPT_TIME_CONFLICT, "该时段您已有预约");
         }
-    }
-
-    /**
-     * 根据预约单号查询
-     */
-    public Optional<Appointment> findByApptNo(String apptNo) {
-        return appointmentRepository.findByApptNo(apptNo);
     }
 
     // ============ 私有方法 ============
@@ -421,13 +404,13 @@ public class AppointmentApplicationService {
         return "APPT" + System.currentTimeMillis() + String.format("%04d", random);
     }
 
-    private AppointmentResponse convertToResponse(Appointment appointment) {
+    private AppointmentDTO convertToResponse(Appointment appointment) {
         DoctorSchedule schedule = null;
         if (appointment.getScheduleId() != null) {
             schedule = scheduleRepository.findById(appointment.getScheduleId()).orElse(null);
         }
 
-        return AppointmentResponse.builder()
+        return AppointmentDTO.builder()
                 .id(appointment.getId() != null ? appointment.getId().value() : null)
                 .apptNo(appointment.getApptNo())
                 .patientId(appointment.getPatientId().value())

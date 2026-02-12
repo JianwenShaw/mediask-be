@@ -6,12 +6,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.mapper.AuthApiMapper;
-import me.jianwen.mediask.api.model.auth.LoginResponse;
 import me.jianwen.mediask.api.model.auth.LoginRequest;
 import me.jianwen.mediask.api.model.auth.LogoutRequest;
 import me.jianwen.mediask.api.model.auth.RefreshTokenRequest;
 import me.jianwen.mediask.api.model.auth.RegisterRequest;
 import me.jianwen.mediask.api.security.CurrentUserProvider;
+import me.jianwen.mediask.common.dto.auth.LoginDTO;
 import me.jianwen.mediask.common.result.Result;
 import me.jianwen.mediask.service.application.service.AuthApplicationService;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,28 +33,26 @@ public class AuthController {
     private final AuthApiMapper authApiMapper;
 
     @PostMapping("/register")
-    @Operation(summary = "用户注册")
-    public Result<Long> register(@Valid @RequestBody RegisterRequest apiRequest) {
+    @Operation(summary = "用户注册", description = "注册成功后自动登录，返回完整的认证信息")
+    public Result<LoginDTO> register(@Valid @RequestBody RegisterRequest apiRequest) {
         var serviceRequest = authApiMapper.toService(apiRequest);
-        Long userId = authApplicationService.register(serviceRequest);
-        return Result.ok(userId);
+        LoginDTO dto = authApplicationService.register(serviceRequest);
+        return Result.ok(dto);
     }
 
     @PostMapping("/login")
     @Operation(summary = "用户登录", description = "支持用户名或手机号登录")
-    public Result<LoginResponse> login(@Valid @RequestBody LoginRequest apiRequest) {
+    public Result<LoginDTO> login(@Valid @RequestBody LoginRequest apiRequest) {
         var serviceRequest = authApiMapper.toService(apiRequest);
-        me.jianwen.mediask.service.application.response.LoginResponse dto =
-            authApplicationService.login(serviceRequest);
-        return Result.ok(authApiMapper.toResponse(dto));
+        LoginDTO dto = authApplicationService.login(serviceRequest);
+        return Result.ok(dto);
     }
 
     @PostMapping("/refresh")
     @Operation(summary = "刷新令牌", description = "使用 refreshToken 换取新的 access token（并轮换 refresh token）")
-    public Result<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-        me.jianwen.mediask.service.application.response.LoginResponse dto =
-            authApplicationService.refresh(request.getRefreshToken());
-        return Result.ok(authApiMapper.toResponse(dto));
+    public Result<LoginDTO> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        LoginDTO dto = authApplicationService.refresh(request.getRefreshToken());
+        return Result.ok(dto);
     }
 
     @PostMapping("/logout")

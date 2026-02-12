@@ -5,12 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.common.util.AssertUtil;
+import me.jianwen.mediask.domain.repository.AuthzRepository;
 import me.jianwen.mediask.domain.repository.UserRepository;
 import me.jianwen.mediask.infra.security.JwtService;
 import me.jianwen.mediask.infra.security.RefreshTokenStore;
+import me.jianwen.mediask.common.dto.auth.LoginDTO;
 import me.jianwen.mediask.service.application.command.LoginCommand;
 import me.jianwen.mediask.service.application.command.RegisterCommand;
-import me.jianwen.mediask.service.application.response.LoginResponse;
 import me.jianwen.mediask.user.domain.entity.User;
 import me.jianwen.mediask.user.domain.enums.Gender;
 import me.jianwen.mediask.user.domain.enums.UserType;
@@ -20,8 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * 认证应用服务
@@ -35,6 +34,7 @@ import java.util.List;
 public class AuthApplicationService {
 
     private final UserRepository userRepository;
+    private final AuthzRepository authzRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenStore refreshTokenStore;
@@ -43,7 +43,7 @@ public class AuthApplicationService {
      * 用户注册
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long register(RegisterCommand request) {
+    public LoginDTO register(RegisterCommand request) {
         AssertUtil.notNull(request, ErrorCode.PARAM_MISSING);
 
         // 唯一性校验
@@ -76,14 +76,38 @@ public class AuthApplicationService {
             throw new BizException(ErrorCode.USER_REGISTER_FAILED);
         }
 
-        log.info("用户注册成功: userId={}, username={}", userId, user.getUsername());
-        return userId;
+        // 绑定默认角色
+        authzRepository.bindUserRoleByCode(userId, resolveDefaultRoleCode(request.getUserType()));
+
+        // 注册成功后自动生成 Token
+        var authorities = authzRepository.listAuthoritiesByUserId(userId);
+        Integer userTypeCode = userType != null ? userType.code() : null;
+        JwtService.JwtToken access = jwtService.generateAccessToken(userId, request.getUsername(), userTypeCode, authorities);
+        JwtService.JwtToken refresh = jwtService.generateRefreshToken(userId, request.getUsername(), userTypeCode, authorities);
+
+        // 存储 Refresh Token 到 Redis
+        refreshTokenStore.store(userId, refresh.tokenId(), jwtService.getRefreshExpireSeconds());
+
+        long nowSec = Instant.now().getEpochSecond();
+        log.info("用户注册成功: userId={}, username={}", userId, request.getUsername());
+        return LoginDTO.builder()
+                .userId(userId)
+                .username(request.getUsername())
+                .userType(userTypeCode)
+                .authorities(authorities)
+                .tokenType("Bearer")
+                .token(access.token())
+                .expireAt(access.expireAt())
+                .expiresIn(Math.max(0, access.expireAt() - nowSec))
+                .refreshToken(refresh.token())
+                .refreshTokenId(refresh.tokenId())
+                .build();
     }
 
     /**
      * 用户登录
      */
-    public LoginResponse login(LoginCommand request) {
+    public LoginDTO login(LoginCommand request) {
         AssertUtil.notNull(request, ErrorCode.PARAM_MISSING);
 
         User user = userRepository.findByUsernameOrPhone(request.getAccount()).orElse(null);
@@ -92,7 +116,7 @@ public class AuthApplicationService {
             throw new BizException(ErrorCode.USER_PASSWORD_ERROR);
         }
 
-        var authorities = deriveAuthorities(user.getUserType());
+        var authorities = authzRepository.listAuthoritiesByUserId(user.getId());
         Integer userTypeCode = user.getUserType() != null ? user.getUserType().code() : null;
         JwtService.JwtToken access = jwtService.generateAccessToken(user.getId(), user.getUsername(), userTypeCode, authorities);
         JwtService.JwtToken refresh = jwtService.generateRefreshToken(user.getId(), user.getUsername(), userTypeCode, authorities);
@@ -101,7 +125,7 @@ public class AuthApplicationService {
         refreshTokenStore.store(user.getId(), refresh.tokenId(), jwtService.getRefreshExpireSeconds());
 
         long nowSec = Instant.now().getEpochSecond();
-        return LoginResponse.builder()
+        return LoginDTO.builder()
                 .userId(user.getId())
                 .username(user.getUsername())
                 .userType(user.getUserType() != null ? user.getUserType().code() : null)
@@ -118,7 +142,7 @@ public class AuthApplicationService {
     /**
      * 刷新 token：使用 refreshToken 换取新的 access token（并轮换 refresh token）
      */
-    public LoginResponse refresh(String refreshToken) {
+    public LoginDTO refresh(String refreshToken) {
         AssertUtil.notBlank(refreshToken, ErrorCode.PARAM_MISSING);
 
         JwtService.JwtPayload payload;
@@ -142,7 +166,7 @@ public class AuthApplicationService {
             throw new BizException(ErrorCode.TOKEN_INVALID, "refreshToken 已失效");
         }
 
-        var authorities = payload.authorities() != null ? payload.authorities() : Collections.<String>emptyList();
+        var authorities = authzRepository.listAuthoritiesByUserId(payload.userId());
 
         // 轮换 Refresh Token：删除旧的，存储新的
         refreshTokenStore.remove(payload.userId(), payload.tokenId());
@@ -151,7 +175,7 @@ public class AuthApplicationService {
         refreshTokenStore.store(payload.userId(), newRefresh.tokenId(), jwtService.getRefreshExpireSeconds());
 
         long nowSec = Instant.now().getEpochSecond();
-        return LoginResponse.builder()
+        return LoginDTO.builder()
                 .userId(payload.userId())
                 .username(payload.username())
                 .userType(payload.userType())
@@ -205,19 +229,17 @@ public class AuthApplicationService {
     }
 
     /**
-     * 简单的权限派发：基于用户类型，预置一些接口权限
-     * 后续可替换为基于角色/权限表的查询
+     * 用户类型约定：1-患者 2-医生 3-管理员
      */
-    private List<String> deriveAuthorities(UserType userType) {
-        if (userType == null) {
-            return Collections.emptyList();
+    private String resolveDefaultRoleCode(Integer userTypeCode) {
+        if (userTypeCode == null) {
+            return "patient";
         }
-        return switch (userType.code()) {
-            case 1 -> List.of(
-                    "schedule:create", "schedule:auto", "schedule:update");
-            case 2 -> List.of("schedule:update");
-            case 3 -> Collections.emptyList();
-            default -> Collections.emptyList();
+        return switch (userTypeCode) {
+            case 1 -> "patient";
+            case 2 -> "doctor";
+            case 3 -> "admin";
+            default -> "patient";
         };
     }
 }

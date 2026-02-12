@@ -3,11 +3,10 @@ package me.jianwen.mediask.service.application.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.common.constant.ErrorCode;
+import me.jianwen.mediask.common.dto.schedule.ScheduleDTO;
 import me.jianwen.mediask.common.exception.BizException;
-import me.jianwen.mediask.domain.event.DomainEventPublisher;
-import me.jianwen.mediask.service.application.command.AutoScheduleCommand;
-import me.jianwen.mediask.service.application.command.CreateScheduleCommand;
 import me.jianwen.mediask.common.model.PageResult;
+import me.jianwen.mediask.domain.event.DomainEventPublisher;
 import me.jianwen.mediask.schedule.domain.entity.Appointment;
 import me.jianwen.mediask.schedule.domain.entity.AppointmentSlot;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
@@ -19,8 +18,9 @@ import me.jianwen.mediask.schedule.domain.service.ScheduleContext;
 import me.jianwen.mediask.schedule.domain.service.SlotManagementDomainService;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
 import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
-import me.jianwen.mediask.schedule.domain.valueobject.ScheduleStatus;
 import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
+import me.jianwen.mediask.service.application.command.AutoScheduleCommand;
+import me.jianwen.mediask.service.application.command.CreateScheduleCommand;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +30,7 @@ import java.util.List;
 
 /**
  * 排班应用服务
- * 
+ *
  * 职责：
  * 1. 协调多个聚合和领域服务完成业务用例
  * 2. 管理事务边界
@@ -59,11 +59,11 @@ public class ScheduleApplicationService {
                 request.getDoctorId(), request.getScheduleDate(), request.getTimePeriodCode());
 
         DoctorId doctorId = DoctorId.of(request.getDoctorId());
-        TimePeriod timePeriod = TimePeriod.fromCode(request.getTimePeriodCode());
+        TimePeriod timePeriod = resolveTimePeriod(request.getTimePeriodCode());
 
         // 1. 检查是否已存在排班
         if (scheduleRepository.exists(doctorId, request.getScheduleDate(), timePeriod)) {
-            throw new IllegalArgumentException("该时段的排班已存在");
+            throw new BizException(ErrorCode.OPERATION_FORBIDDEN, "该时段的排班已存在");
         }
 
         // 2. 创建排班聚合
@@ -149,7 +149,7 @@ public class ScheduleApplicationService {
     public void closeSchedule(Long scheduleId, String reason) {
         log.info("停诊: scheduleId={}, reason={}", scheduleId, reason);
 
-        DoctorSchedule schedule = getScheduleById(scheduleId);
+        DoctorSchedule schedule = getScheduleEntityById(scheduleId);
         schedule.close(reason);
         scheduleRepository.save(schedule);
 
@@ -165,7 +165,7 @@ public class ScheduleApplicationService {
     public void openSchedule(Long scheduleId) {
         log.info("开诊: scheduleId={}", scheduleId);
 
-        DoctorSchedule schedule = getScheduleById(scheduleId);
+        DoctorSchedule schedule = getScheduleEntityById(scheduleId);
         schedule.open();
         scheduleRepository.save(schedule);
 
@@ -181,7 +181,7 @@ public class ScheduleApplicationService {
     public void adjustTotalSlots(Long scheduleId, int newTotalSlots) {
         log.info("调整号源: scheduleId={}, newTotalSlots={}", scheduleId, newTotalSlots);
 
-        DoctorSchedule schedule = getScheduleById(scheduleId);
+        DoctorSchedule schedule = getScheduleEntityById(scheduleId);
         schedule.adjustTotalSlots(newTotalSlots);
         scheduleRepository.save(schedule);
 
@@ -195,48 +195,46 @@ public class ScheduleApplicationService {
     /**
      * 查询排班详情
      */
-    public DoctorSchedule getScheduleById(Long scheduleId) {
-        return scheduleRepository.findById(ScheduleId.of(scheduleId))
-                .orElseThrow(() -> new IllegalArgumentException("排班不存在: " + scheduleId));
+    public ScheduleDTO getScheduleById(Long scheduleId) {
+        return toScheduleDTO(getScheduleEntityById(scheduleId));
     }
 
     /**
      * 查询医生在日期范围内的排班
      */
-    public List<DoctorSchedule> listSchedulesByDoctorAndDateRange(
-            Long doctorId, LocalDate startDate, LocalDate endDate) {
-        return scheduleRepository.findByDoctorAndDateRange(
-                DoctorId.of(doctorId),
-                startDate,
-                endDate);
+    public List<ScheduleDTO> listSchedulesByDoctorAndDateRange(Long doctorId, LocalDate startDate, LocalDate endDate) {
+        return scheduleRepository.findByDoctorAndDateRange(DoctorId.of(doctorId), startDate, endDate)
+                .stream().map(this::toScheduleDTO).toList();
     }
 
     /**
      * 查询可预约的排班
      */
-    public List<DoctorSchedule> listOpenSchedules(LocalDate date, TimePeriod period) {
-        return scheduleRepository.findOpenSchedulesByDateAndPeriod(date, period);
+    public List<ScheduleDTO> listOpenSchedules(LocalDate date, Integer periodCode) {
+        TimePeriod period = resolveTimePeriod(periodCode);
+        return scheduleRepository.findOpenSchedulesByDateAndPeriod(date, period)
+                .stream().map(this::toScheduleDTO).toList();
     }
 
     /**
      * 查询可预约的排班（按科室筛选）
      */
-    public List<DoctorSchedule> listOpenSchedulesByDepartment(LocalDate date, TimePeriod period, Long departmentId) {
-        List<DoctorSchedule> schedules = scheduleRepository.findOpenSchedulesByDateAndPeriod(date, period);
-        return schedules;
+    public List<ScheduleDTO> listOpenSchedulesByDepartment(LocalDate date, Integer periodCode, Long departmentId) {
+        return listOpenSchedules(date, periodCode);
     }
 
     /**
      * 分页查询排班列表
      */
-    public PageResult<DoctorSchedule> listSchedulesPaged(
+    public PageResult<ScheduleDTO> listSchedulesPaged(
             Long doctorId, Long departmentId, LocalDate startDate, LocalDate endDate,
             Integer status, Integer pageNum, Integer pageSize) {
 
-        List<DoctorSchedule> allSchedules = scheduleRepository.findByDoctorAndDateRange(
-                DoctorId.of(doctorId != null ? doctorId : 0L),
-                startDate != null ? startDate : LocalDate.now().minusMonths(1),
-                endDate != null ? endDate : LocalDate.now().plusMonths(1));
+        LocalDate queryStartDate = startDate != null ? startDate : LocalDate.now().minusMonths(1);
+        LocalDate queryEndDate = endDate != null ? endDate : LocalDate.now().plusMonths(1);
+        List<DoctorSchedule> allSchedules = doctorId != null
+                ? scheduleRepository.findByDoctorAndDateRange(DoctorId.of(doctorId), queryStartDate, queryEndDate)
+                : scheduleRepository.findByDateRange(queryStartDate, queryEndDate);
 
         // 过滤条件
         if (status != null) {
@@ -254,8 +252,10 @@ public class ScheduleApplicationService {
             return new PageResult<>(total, pageNum, pageSize, List.of());
         }
 
-        return new PageResult<>(total, pageNum, pageSize,
-                allSchedules.subList(start, end));
+        List<ScheduleDTO> pageSchedules = allSchedules.subList(start, end).stream()
+                .map(this::toScheduleDTO)
+                .toList();
+        return new PageResult<>(total, pageNum, pageSize, pageSchedules);
     }
 
     /**
@@ -265,7 +265,7 @@ public class ScheduleApplicationService {
     public void deleteSchedule(Long scheduleId, boolean force) {
         log.info("删除排班: scheduleId={}, force={}", scheduleId, force);
 
-        DoctorSchedule schedule = getScheduleById(scheduleId);
+        DoctorSchedule schedule = getScheduleEntityById(scheduleId);
 
         // 检查是否有未取消的预约
         List<Appointment> appointments = appointmentRepository.findByScheduleId(schedule.getId());
@@ -341,5 +341,35 @@ public class ScheduleApplicationService {
             }
         });
         schedule.clearDomainEvents();
+    }
+
+    private DoctorSchedule getScheduleEntityById(Long scheduleId) {
+        return scheduleRepository.findById(ScheduleId.of(scheduleId))
+                .orElseThrow(() -> new BizException(ErrorCode.SCHEDULE_NOT_FOUND, "排班不存在: " + scheduleId));
+    }
+
+    private TimePeriod resolveTimePeriod(Integer periodCode) {
+        try {
+            return TimePeriod.fromCode(periodCode);
+        } catch (IllegalArgumentException ex) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "非法的时段编码");
+        }
+    }
+
+    private ScheduleDTO toScheduleDTO(DoctorSchedule schedule) {
+        return ScheduleDTO.builder()
+                .scheduleId(schedule.getId() != null ? schedule.getId().getValue() : null)
+                .doctorId(schedule.getDoctorId() != null ? schedule.getDoctorId().getValue() : null)
+                .scheduleDate(schedule.getScheduleDate())
+                .timePeriodCode(schedule.getTimePeriod() != null ? schedule.getTimePeriod().getCode() : null)
+                .timePeriodDesc(schedule.getTimePeriod() != null ? schedule.getTimePeriod().getDescription() : null)
+                .totalSlots(schedule.getCapacity() != null ? schedule.getCapacity().getTotalSlots() : null)
+                .availableSlots(schedule.getCapacity() != null ? schedule.getCapacity().getAvailableSlots() : null)
+                .statusCode(schedule.getStatus() != null ? schedule.getStatus().getCode() : null)
+                .statusDesc(schedule.getStatus() != null ? schedule.getStatus().getDescription() : null)
+                .slotDurationMinutes(schedule.getSlotDurationMinutes())
+                .createdAt(schedule.getCreatedAt())
+                .updatedAt(schedule.getUpdatedAt())
+                .build();
     }
 }

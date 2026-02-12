@@ -53,6 +53,11 @@ public interface DoctorScheduleRepository {
             LocalDate endDate);
 
     /**
+     * 查询日期范围内的所有排班
+     */
+    List<DoctorSchedule> findByDateRange(LocalDate startDate, LocalDate endDate);
+
+    /**
      * 查询指定日期和时段的所有开放排班
      */
     List<DoctorSchedule> findOpenSchedulesByDateAndPeriod(
@@ -63,6 +68,16 @@ public interface DoctorScheduleRepository {
      * 检查排班是否存在
      */
     boolean exists(DoctorId doctorId, LocalDate scheduleDate, TimePeriod timePeriod);
+
+    /**
+     * 原子扣减可用号源
+     */
+    boolean decreaseAvailableSlots(ScheduleId scheduleId);
+
+    /**
+     * 原子回补可用号源
+     */
+    boolean increaseAvailableSlots(ScheduleId scheduleId);
 
     /**
      * 查询已过期的排班

@@ -1,0 +1,40 @@
+name: Auto Tag On Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master, test]
+
+jobs:
+  tag:
+    name: Create Environment Tag
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 0
+
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        run: |
+          case "${{ github.event.pull_request.base.ref }}" in
+            master) env_name="prod" ;;
+            test) env_name="test" ;;
+            *)
+              echo "Unsupported base branch: ${{ github.event.pull_request.base.ref }}"
+              exit 1
+              ;;
+          esac
+          ./scripts/mediask_tag.sh "${env_name}" --push
