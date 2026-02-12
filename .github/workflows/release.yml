@@ -1,12 +1,6 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"        # v1.0.0
-      - "v[0-9]+.[0-9]+.[0-9]+-*"      # v1.0.0-beta.1, v1.0.0-rc.1
-      - "test-mediask-be-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9]"
-      - "prod-mediask-be-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9]"
   workflow_dispatch:
     inputs:
       tag:
@@ -30,7 +24,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      attestations: write
       id-token: write
 
     strategy:
@@ -85,8 +78,6 @@ jobs:
             type=raw,value=latest,enable=${{ startsWith(steps.release_tag.outputs.tag_name, 'prod-mediask-be-') || (startsWith(steps.release_tag.outputs.tag_name, 'v') && !contains(steps.release_tag.outputs.tag_name, '-')) }}
             # 测试环境滚动标签
             type=raw,value=test-latest,enable=${{ startsWith(steps.release_tag.outputs.tag_name, 'test-mediask-be-') }}
-            # commit SHA 用于精确追踪
-            type=sha,prefix=sha-,format=short
 
       - name: Build & Push
         id: push
@@ -100,13 +91,6 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.module }}
           cache-to: type=gha,mode=max,scope=${{ matrix.module }}
           platforms: linux/amd64
-
-      - name: Attest provenance
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image_suffix }}
-          subject-digest: ${{ steps.push.outputs.digest }}
-          push-to-registry: true
 
   # Release 成功通知（暂时禁用，需配置邮件 secrets 后启用）
   # notify-success:
