@@ -6,6 +6,7 @@ import me.jianwen.mediask.infra.security.JwtService;
 import me.jianwen.mediask.service.application.service.TokenApplicationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
+@Disabled("Requires external dev MySQL/Redis environment; not suitable for default unit-test pipeline")
 class PermissionIntegrationTest {
 
     @Autowired
