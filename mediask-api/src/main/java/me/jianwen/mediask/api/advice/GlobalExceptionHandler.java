@@ -1,10 +1,14 @@
 package me.jianwen.mediask.api.advice;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import me.jianwen.mediask.api.security.SecurityAuditUtil;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.common.result.Result;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -48,5 +52,16 @@ public class GlobalExceptionHandler {
         log.error("系统异常", ex);
         return Result.fail(ErrorCode.SYSTEM_ERROR);
     }
-}
 
+    @ExceptionHandler({AuthorizationDeniedException.class, AccessDeniedException.class})
+    public Result<Void> handleAccessDenied(Exception ex, HttpServletRequest request) {
+        log.warn("方法权限拒绝(403): method={}, path={}, ip={}, userId={}, authorities={}, reason={}",
+                request.getMethod(),
+                SecurityAuditUtil.requestPath(request),
+                SecurityAuditUtil.clientIp(request),
+                SecurityAuditUtil.currentUserId(),
+                SecurityAuditUtil.currentAuthorities(),
+                ex.getMessage());
+        return Result.fail(ErrorCode.ACCESS_DENIED);
+    }
+}

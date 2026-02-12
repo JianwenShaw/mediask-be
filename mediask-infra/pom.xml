@@ -120,14 +120,6 @@
         </dependency>
         -->
 
-        <!-- ==================== AI 服务（按需启用） ==================== -->
-        <!--
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
-        </dependency>
-        -->
-
         <!-- ==================== 文件存储（按需启用） ==================== -->
         <!--
         <dependency>
@@ -138,4 +130,3 @@
     </dependencies>
 
 </project>
-

@@ -22,11 +22,16 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException {
-        log.warn("权限不足: {}", request.getRequestURI());
+        log.warn("访问拒绝(403): method={}, path={}, ip={}, userId={}, authorities={}, reason={}",
+                request.getMethod(),
+                SecurityAuditUtil.requestPath(request),
+                SecurityAuditUtil.clientIp(request),
+                SecurityAuditUtil.currentUserId(),
+                SecurityAuditUtil.currentAuthorities(),
+                accessDeniedException.getMessage());
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         Result<Void> body = Result.fail(ErrorCode.ACCESS_DENIED);
         response.getWriter().write(JsonUtil.toJson(body));
     }
 }
-

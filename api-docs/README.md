@@ -8,6 +8,8 @@
 |------|----------|------|
 | 认证 | 4 | 注册、登录、刷新Token、登出 |
 | 用户 | 1 | 获取用户信息 |
+| 权限管理 | 4 | 角色查询、权限查询、用户角色查询与更新 |
+| 医生管理 | 5 | 医生档案创建、更新、启停、详情、分页 |
 | 排班 | 12 | 创建/查询/删除排班、按模板生成排班 |
 | 排班模板 | 4 | 创建/更新/查询/发布模板 |
 | 预约 | 11 | 预约挂号、取消、支付、爽约、医生查询 |
@@ -95,6 +97,29 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 |------|------|------|
 | GET | `/api/v1/users/me` | 获取当前用户信息 |
 
+### Authz 权限管理模块 (4 接口)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/admin/authz/roles` | 查询角色列表（含权限编码） |
+| GET | `/api/v1/admin/authz/permissions` | 查询权限列表 |
+| GET | `/api/v1/admin/authz/users/{userId}/roles` | 查询用户角色 |
+| PUT | `/api/v1/admin/authz/users/{userId}/roles` | 覆盖更新用户角色 |
+
+**说明**：
+- 以上接口仅管理员可访问（`hasAuthority('admin')`）。
+- `PUT /api/v1/admin/authz/users/{userId}/roles` 为覆盖式更新，提交的 `roleCodes` 会替换用户当前角色集合。
+
+### Doctor 医生管理模块 (5 接口)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/doctors` | 创建医生档案 |
+| PUT | `/api/v1/doctors/{doctorId}` | 更新医生档案 |
+| PUT | `/api/v1/doctors/{doctorId}/status` | 启停医生档案 |
+| GET | `/api/v1/doctors/{doctorId}` | 查询医生详情 |
+| GET | `/api/v1/doctors` | 分页查询医生档案 |
+
 ### Schedule 排班模块 (12 接口)
 
 | 方法 | 路径 | 说明 |
@@ -157,3 +182,16 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 - AI 读取 `openapi.json` 即可获得完整接口定义
 - 文件按模块分组（注释标记），便于查找
 - 后续新增模块可在 `openapi.json` 中按相同模式扩展
+
+## 接口变更记录（供前端对接跟踪）
+
+说明：
+- 仅记录“新增/修改/删除”的接口变更，按时间倒序追加。
+- 前端完成联调后，可将“对接状态”从 `待对接` 改为 `已对接` 并补充备注。
+
+| 日期 | 变更类型 | 方法 | 路径 | 模块 | 对接状态 | 备注 |
+|------|----------|------|------|------|----------|------|
+| 2026-02-12 | 新增 | GET | `/api/v1/admin/authz/roles` | 权限管理 | 待对接 | 查询角色列表（含权限编码） |
+| 2026-02-12 | 新增 | GET | `/api/v1/admin/authz/permissions` | 权限管理 | 待对接 | 查询权限列表 |
+| 2026-02-12 | 新增 | GET | `/api/v1/admin/authz/users/{userId}/roles` | 权限管理 | 待对接 | 查询用户角色 |
+| 2026-02-12 | 新增 | PUT | `/api/v1/admin/authz/users/{userId}/roles` | 权限管理 | 待对接 | 覆盖更新用户角色 |
