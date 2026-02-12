@@ -6,7 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import me.jianwen.mediask.infra.security.JwtService;
+import me.jianwen.mediask.common.dto.auth.AccessTokenPrincipalDTO;
+import me.jianwen.mediask.service.application.service.TokenApplicationService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -29,7 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final JwtService jwtService;
+    private final TokenApplicationService tokenApplicationService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -44,20 +45,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = header.substring(BEARER_PREFIX.length());
         try {
-            JwtService.JwtPayload payload = jwtService.parseToken(token);
-            if (payload.tokenKind() != JwtService.TokenKind.ACCESS) {
+            AccessTokenPrincipalDTO principal = tokenApplicationService.parseAccessToken(token).orElse(null);
+            if (principal == null) {
                 // refresh token 不允许作为 API 访问凭证
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);
                 return;
             }
-            List<SimpleGrantedAuthority> authorities = payload.authorities().stream()
+            List<SimpleGrantedAuthority> authorities = principal.getAuthorities().stream()
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toList());
 
             UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(payload.userId(), null, authorities);
-            authentication.setDetails(payload);
+                    new UsernamePasswordAuthenticationToken(principal.getUserId(), null, authorities);
+            authentication.setDetails(principal);
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (Exception ex) {
             log.warn("JWT 校验失败: {}", ex.getMessage());
@@ -67,4 +68,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
-

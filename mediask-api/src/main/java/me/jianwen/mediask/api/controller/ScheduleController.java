@@ -5,18 +5,28 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.mapper.ScheduleApiMapper;
-import me.jianwen.mediask.common.model.PageResult;
+import me.jianwen.mediask.api.mapper.ScheduleTemplateApiMapper;
 import me.jianwen.mediask.api.model.schedule.AutoScheduleRequest;
 import me.jianwen.mediask.api.model.schedule.CreateScheduleRequest;
+import me.jianwen.mediask.api.model.schedule.GenerateScheduleFromTemplateRequest;
 import me.jianwen.mediask.api.model.schedule.ScheduleResponse;
+import me.jianwen.mediask.common.dto.schedule.ScheduleDTO;
+import me.jianwen.mediask.common.model.PageResult;
 import me.jianwen.mediask.common.result.Result;
 import me.jianwen.mediask.service.application.service.ScheduleApplicationService;
-import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
-import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
+import me.jianwen.mediask.service.application.service.ScheduleTemplateApplicationService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -33,7 +43,9 @@ import java.util.List;
 public class ScheduleController {
 
     private final ScheduleApplicationService scheduleApplicationService;
+    private final ScheduleTemplateApplicationService scheduleTemplateApplicationService;
     private final ScheduleApiMapper scheduleApiMapper;
+    private final ScheduleTemplateApiMapper scheduleTemplateApiMapper;
 
     /**
      * 创建排班
@@ -57,6 +69,17 @@ public class ScheduleController {
         var serviceRequest = scheduleApiMapper.toService(request);
         List<Long> scheduleIds = scheduleApplicationService.autoSchedule(serviceRequest);
         return Result.ok(scheduleIds);
+    }
+
+    /**
+     * 根据模板生成排班实例
+     */
+    @PostMapping("/generate")
+    @Operation(summary = "根据模板生成排班", description = "按模板和日期范围生成排班实例")
+    @PreAuthorize("hasAuthority('schedule:create')")
+    public Result<List<Long>> generateSchedules(@Validated @RequestBody GenerateScheduleFromTemplateRequest request) {
+        var serviceRequest = scheduleTemplateApiMapper.toService(request);
+        return Result.ok(scheduleTemplateApplicationService.generateSchedules(serviceRequest));
     }
 
     /**
@@ -104,7 +127,7 @@ public class ScheduleController {
     @Operation(summary = "查询排班详情")
     public Result<ScheduleResponse> getSchedule(
             @Parameter(description = "排班ID") @PathVariable Long scheduleId) {
-        DoctorSchedule schedule = scheduleApplicationService.getScheduleById(scheduleId);
+        ScheduleDTO schedule = scheduleApplicationService.getScheduleById(scheduleId);
         return Result.ok(scheduleApiMapper.toResponse(schedule));
     }
 
@@ -118,7 +141,7 @@ public class ScheduleController {
             @Parameter(description = "开始日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "结束日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
-        List<DoctorSchedule> schedules = scheduleApplicationService
+        List<ScheduleDTO> schedules = scheduleApplicationService
                 .listSchedulesByDoctorAndDateRange(doctorId, startDate, endDate);
         return Result.ok(schedules.stream().map(scheduleApiMapper::toResponse).toList());
     }
@@ -132,8 +155,7 @@ public class ScheduleController {
             @Parameter(description = "日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @Parameter(description = "时段代码：1上午 2下午 3晚上") @RequestParam Integer periodCode) {
 
-        TimePeriod period = TimePeriod.fromCode(periodCode);
-        List<DoctorSchedule> schedules = scheduleApplicationService.listOpenSchedules(date, period);
+        List<ScheduleDTO> schedules = scheduleApplicationService.listOpenSchedules(date, periodCode);
         return Result.ok(schedules.stream().map(scheduleApiMapper::toResponse).toList());
     }
 
@@ -152,14 +174,14 @@ public class ScheduleController {
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer pageSize) {
 
-        me.jianwen.mediask.common.model.PageResult<DoctorSchedule> result = scheduleApplicationService.listSchedulesPaged(
+        PageResult<ScheduleDTO> result = scheduleApplicationService.listSchedulesPaged(
                 doctorId, departmentId, startDate, endDate, status, pageNum, pageSize);
 
         List<ScheduleResponse> responses = result.getList().stream()
                 .map(scheduleApiMapper::toResponse)
                 .toList();
 
-        return Result.ok(new PageResult<>(result.getTotal(), pageNum, pageSize, responses));
+        return Result.ok(new PageResult<>(result.getTotal(), result.getPageNum(), result.getPageSize(), responses));
     }
 
     /**

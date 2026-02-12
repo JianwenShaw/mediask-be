@@ -7,16 +7,22 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.model.appointment.CancelAppointmentRequest;
 import me.jianwen.mediask.api.model.appointment.CreateAppointmentRequest;
-import me.jianwen.mediask.api.model.appointment.AppointmentResponse;
-import me.jianwen.mediask.api.model.appointment.AppointmentResultResponse;
-import me.jianwen.mediask.api.model.appointment.AvailableSlotResponse;
 import me.jianwen.mediask.api.mapper.AppointmentApiMapper;
 import me.jianwen.mediask.api.security.CurrentUserProvider;
+import me.jianwen.mediask.common.dto.appointment.AppointmentDTO;
+import me.jianwen.mediask.common.dto.appointment.AppointmentResultDTO;
+import me.jianwen.mediask.common.dto.appointment.AvailableSlotDTO;
 import me.jianwen.mediask.common.result.Result;
 import me.jianwen.mediask.service.application.service.AppointmentApplicationService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -42,13 +48,12 @@ public class AppointmentController {
     @PostMapping
     @Operation(summary = "创建预约", description = "患者选择排班和时段进行挂号")
     @PreAuthorize("hasAuthority('patient')")
-    public Result<AppointmentResultResponse> createAppointment(
+    public Result<AppointmentResultDTO> createAppointment(
             @Valid @RequestBody CreateAppointmentRequest request) {
         Long patientId = currentUserId();
         var serviceRequest = appointmentApiMapper.toService(request);
-        me.jianwen.mediask.service.application.response.AppointmentResultResponse result =
-            appointmentApplicationService.createAppointment(patientId, serviceRequest);
-        return Result.ok(appointmentApiMapper.toResponse(result));
+        AppointmentResultDTO result = appointmentApplicationService.createAppointment(patientId, serviceRequest);
+        return Result.ok(result);
     }
 
     /**
@@ -95,14 +100,13 @@ public class AppointmentController {
     @GetMapping("/my")
     @Operation(summary = "查询我的预约", description = "查询当前登录患者的预约列表")
     @PreAuthorize("hasAuthority('patient')")
-    public Result<List<AppointmentResponse>> listMyAppointments(
+    public Result<List<AppointmentDTO>> listMyAppointments(
             @Parameter(description = "开始日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "结束日期") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
         Long patientId = currentUserId();
-        List<me.jianwen.mediask.service.application.response.AppointmentResponse> appointments =
-            appointmentApplicationService.listPatientAppointments(patientId, startDate, endDate);
-        return Result.ok(appointments.stream().map(appointmentApiMapper::toResponse).toList());
+        List<AppointmentDTO> appointments = appointmentApplicationService.listPatientAppointments(patientId, startDate, endDate);
+        return Result.ok(appointments);
     }
 
     /**
@@ -111,11 +115,10 @@ public class AppointmentController {
     @GetMapping("/my/unpaid")
     @Operation(summary = "查询待支付预约", description = "查询当前登录患者的待支付预约")
     @PreAuthorize("hasAuthority('patient')")
-    public Result<List<AppointmentResponse>> listUnpaidAppointments() {
+    public Result<List<AppointmentDTO>> listUnpaidAppointments() {
         Long patientId = currentUserId();
-        List<me.jianwen.mediask.service.application.response.AppointmentResponse> appointments =
-            appointmentApplicationService.listUnpaidAppointments(patientId);
-        return Result.ok(appointments.stream().map(appointmentApiMapper::toResponse).toList());
+        List<AppointmentDTO> appointments = appointmentApplicationService.listUnpaidAppointments(patientId);
+        return Result.ok(appointments);
     }
 
     /**
@@ -123,11 +126,10 @@ public class AppointmentController {
      */
     @GetMapping("/{appointmentId}")
     @Operation(summary = "查询预约详情")
-    public Result<AppointmentResponse> getAppointment(
+    public Result<AppointmentDTO> getAppointment(
             @Parameter(description = "预约ID") @PathVariable Long appointmentId) {
-        me.jianwen.mediask.service.application.response.AppointmentResponse appointment =
-            appointmentApplicationService.getAppointment(appointmentId);
-        return Result.ok(appointmentApiMapper.toResponse(appointment));
+        AppointmentDTO appointment = appointmentApplicationService.getAppointment(appointmentId);
+        return Result.ok(appointment);
     }
 
     /**
@@ -135,11 +137,10 @@ public class AppointmentController {
      */
     @GetMapping("/slots/available")
     @Operation(summary = "查询可预约时段", description = "查询指定排班的可预约时段列表")
-    public Result<List<AvailableSlotResponse>> listAvailableSlots(
+    public Result<List<AvailableSlotDTO>> listAvailableSlots(
             @Parameter(description = "排班ID") @RequestParam Long scheduleId) {
-        List<me.jianwen.mediask.service.application.response.AvailableSlotResponse> slots =
-            appointmentApplicationService.listAvailableSlots(scheduleId);
-        return Result.ok(slots.stream().map(appointmentApiMapper::toResponse).toList());
+        List<AvailableSlotDTO> slots = appointmentApplicationService.listAvailableSlots(scheduleId);
+        return Result.ok(slots);
     }
 
     /**
@@ -148,12 +149,11 @@ public class AppointmentController {
     @GetMapping("/doctor/{doctorId}")
     @Operation(summary = "查询医生预约列表", description = "查询医生在指定日期的预约列表")
     @PreAuthorize("hasAuthority('doctor')")
-    public Result<List<AppointmentResponse>> listDoctorAppointments(
+    public Result<List<AppointmentDTO>> listDoctorAppointments(
             @Parameter(description = "医生ID") @PathVariable Long doctorId,
             @Parameter(description = "日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        List<me.jianwen.mediask.service.application.response.AppointmentResponse> appointments =
-            appointmentApplicationService.listAppointmentsByDoctor(doctorId, date);
-        return Result.ok(appointments.stream().map(appointmentApiMapper::toResponse).toList());
+        List<AppointmentDTO> appointments = appointmentApplicationService.listAppointmentsByDoctor(doctorId, date);
+        return Result.ok(appointments);
     }
 
     /**
@@ -162,13 +162,12 @@ public class AppointmentController {
     @GetMapping("/doctor/{doctorId}/range")
     @Operation(summary = "查询医生预约列表", description = "查询医生在日期范围内的预约列表")
     @PreAuthorize("hasAuthority('doctor')")
-    public Result<List<AppointmentResponse>> listDoctorAppointmentsByRange(
+    public Result<List<AppointmentDTO>> listDoctorAppointmentsByRange(
             @Parameter(description = "医生ID") @PathVariable Long doctorId,
             @Parameter(description = "开始日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "结束日期") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<me.jianwen.mediask.service.application.response.AppointmentResponse> appointments =
-            appointmentApplicationService.listAppointmentsByDoctorAndDateRange(doctorId, startDate, endDate);
-        return Result.ok(appointments.stream().map(appointmentApiMapper::toResponse).toList());
+        List<AppointmentDTO> appointments = appointmentApplicationService.listAppointmentsByDoctorAndDateRange(doctorId, startDate, endDate);
+        return Result.ok(appointments);
     }
 
     /**

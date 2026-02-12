@@ -2,6 +2,12 @@
 
 ## Build Commands
 
+### Platform-Aware Rule (IMPORTANT)
+
+- Detect platform via: `python3 scripts/os_detect.py`
+- If output is `macOS`, you **MUST** use `./scripts/m21.sh` instead of `mvn` for all build/test/verify commands.
+- On non-macOS platforms, use `mvn`.
+
 ```bash
 # Full build with tests and coverage
 mvn clean verify
@@ -180,7 +186,11 @@ When you change any REST API in the `mediask-api` module:
 
 Always run:
 ```bash
-mvn clean verify  # Full build + tests + coverage
+# macOS
+m21 clean verify
+
+# non-macOS
+mvn clean verify
 ```
 
 If linting is added, run lint command before committing.

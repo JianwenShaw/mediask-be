@@ -50,6 +50,11 @@ public class AppointmentDO implements Serializable {
     private Long scheduleId;
 
     /**
+     * 号源ID
+     */
+    private Long slotId;
+
+    /**
      * 就诊日期
      */
     private LocalDate apptDate;
@@ -63,6 +68,11 @@ public class AppointmentDO implements Serializable {
      * 具体时间段
      */
     private LocalTime apptTime;
+
+    /**
+     * 结束时间
+     */
+    private LocalTime apptEndTime;
 
     /**
      * 挂号状态
@@ -90,6 +100,16 @@ public class AppointmentDO implements Serializable {
     private LocalDateTime visitedAt;
 
     /**
+     * 取消时间
+     */
+    private LocalDateTime cancelledAt;
+
+    /**
+     * 取消原因
+     */
+    private String cancelReason;
+
+    /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)
@@ -106,4 +126,9 @@ public class AppointmentDO implements Serializable {
      */
     @TableLogic
     private LocalDateTime deletedAt;
+
+    /**
+     * 乐观锁版本号
+     */
+    private Integer version;
 }

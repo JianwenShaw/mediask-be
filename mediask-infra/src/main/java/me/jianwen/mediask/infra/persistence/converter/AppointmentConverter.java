@@ -4,7 +4,12 @@ import me.jianwen.mediask.dal.entity.AppointmentDO;
 import me.jianwen.mediask.dal.enums.ApptStatusEnum;
 import me.jianwen.mediask.dal.enums.TimePeriodEnum;
 import me.jianwen.mediask.schedule.domain.entity.Appointment;
-import me.jianwen.mediask.schedule.domain.valueobject.*;
+import me.jianwen.mediask.schedule.domain.valueobject.AppointmentId;
+import me.jianwen.mediask.schedule.domain.valueobject.AppointmentStatus;
+import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
+import me.jianwen.mediask.schedule.domain.valueobject.PatientId;
+import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
+import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 
@@ -40,11 +45,15 @@ public interface AppointmentConverter {
         if (appointment.getScheduleId() != null) {
             dataObject.setScheduleId(appointment.getScheduleId().getValue());
         }
+        dataObject.setSlotId(null);
         dataObject.setApptDate(appointment.getApptDate());
         if (appointment.getTimePeriod() != null) {
             dataObject.setTimePeriod(TimePeriodEnum.fromCode(appointment.getTimePeriod().getCode()));
         }
         dataObject.setApptTime(appointment.getApptTime());
+        if (appointment.getApptTime() != null) {
+            dataObject.setApptEndTime(appointment.getApptTime().plusMinutes(15));
+        }
         if (appointment.getStatus() != null) {
             dataObject.setApptStatus(ApptStatusEnum.fromCode(appointment.getStatus().code()));
         }
@@ -54,6 +63,9 @@ public interface AppointmentConverter {
         }
         dataObject.setPaidAt(appointment.getPaidAt());
         dataObject.setVisitedAt(appointment.getVisitedAt());
+        if (appointment.getStatus() != null && appointment.getStatus().isCancelled()) {
+            dataObject.setCancelledAt(appointment.getUpdatedAt());
+        }
         dataObject.setCreatedAt(appointment.getCreatedAt());
         dataObject.setUpdatedAt(appointment.getUpdatedAt());
 

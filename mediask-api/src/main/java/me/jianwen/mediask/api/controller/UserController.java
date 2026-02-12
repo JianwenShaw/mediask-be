@@ -3,9 +3,8 @@ package me.jianwen.mediask.api.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import me.jianwen.mediask.api.mapper.UserApiMapper;
-import me.jianwen.mediask.api.model.user.CurrentUserResponse;
 import me.jianwen.mediask.api.security.CurrentUserProvider;
+import me.jianwen.mediask.common.dto.user.UserDTO;
 import me.jianwen.mediask.common.result.Result;
 import me.jianwen.mediask.service.application.service.UserApplicationService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,15 +22,13 @@ public class UserController {
 
     private final UserApplicationService userApplicationService;
     private final CurrentUserProvider currentUserProvider;
-    private final UserApiMapper userApiMapper;
 
     @GetMapping("/me")
     @Operation(summary = "获取当前登录用户信息")
-    public Result<CurrentUserResponse> me() {
+    public Result<UserDTO> me() {
         Long userId = currentUserId();
-        me.jianwen.mediask.service.application.response.CurrentUserResponse dto =
-            userApplicationService.getCurrentUser(userId);
-        return Result.ok(userApiMapper.toResponse(dto));
+        UserDTO dto = userApplicationService.getCurrentUser(userId);
+        return Result.ok(dto);
     }
 
     private Long currentUserId() {

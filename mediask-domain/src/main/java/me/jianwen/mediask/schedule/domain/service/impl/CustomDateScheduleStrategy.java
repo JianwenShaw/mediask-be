@@ -7,7 +7,6 @@ import me.jianwen.mediask.schedule.domain.service.AutoScheduleStrategy;
 import me.jianwen.mediask.schedule.domain.service.ScheduleContext;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
 import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -25,7 +24,6 @@ import java.util.Map;
  *
  * @author jianwen
  */
-@Service
 @Slf4j
 @RequiredArgsConstructor
 public class CustomDateScheduleStrategy implements AutoScheduleStrategy {
@@ -96,4 +94,3 @@ public class CustomDateScheduleStrategy implements AutoScheduleStrategy {
         private int slotDurationMinutes;
     }
 }
-

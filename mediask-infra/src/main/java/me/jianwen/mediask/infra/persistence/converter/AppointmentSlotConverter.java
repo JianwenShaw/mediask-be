@@ -37,6 +37,7 @@ public interface AppointmentSlotConverter {
             dataObject.setScheduleId(slot.getScheduleId().getValue());
         }
         dataObject.setSlotTime(extractStartTime(slot));
+        dataObject.setSlotEndTime(extractEndTime(slot));
         dataObject.setIsOccupied(slot.isOccupied() ? 1 : 0);
         dataObject.setApptId(slot.getAppointmentId());
         dataObject.setCreatedAt(slot.getCreatedAt());
@@ -55,7 +56,7 @@ public interface AppointmentSlotConverter {
         AppointmentSlot slot = new AppointmentSlot();
         slot.setId(dataObject.getId());
         slot.setScheduleId(ScheduleId.of(dataObject.getScheduleId()));
-        slot.setTimeSlot(TimeSlot.of(dataObject.getSlotTime(), 15));
+        slot.setTimeSlot(toTimeSlot(dataObject));
         slot.setOccupied(dataObject.getIsOccupied() != null && dataObject.getIsOccupied() == 1);
         slot.setAppointmentId(dataObject.getApptId());
         slot.setCreatedAt(dataObject.getCreatedAt());
@@ -70,5 +71,22 @@ public interface AppointmentSlotConverter {
         }
         return timeSlot.getStartTime();
     }
-}
 
+    private LocalTime extractEndTime(AppointmentSlot slot) {
+        TimeSlot timeSlot = slot.getTimeSlot();
+        if (timeSlot == null) {
+            return null;
+        }
+        return timeSlot.getEndTime();
+    }
+
+    private TimeSlot toTimeSlot(AppointmentSlotDO dataObject) {
+        if (dataObject.getSlotTime() == null) {
+            return null;
+        }
+        if (dataObject.getSlotEndTime() != null) {
+            return new TimeSlot(dataObject.getSlotTime(), dataObject.getSlotEndTime());
+        }
+        return TimeSlot.of(dataObject.getSlotTime(), 15);
+    }
+}

@@ -1,14 +1,12 @@
 package me.jianwen.mediask.schedule.domain.algorithm.solver.impl;
 
 import lombok.extern.slf4j.Slf4j;
-import me.jianwen.mediask.schedule.domain.algorithm.problem.*;
+import me.jianwen.mediask.schedule.domain.algorithm.problem.ScheduleProblem;
 import me.jianwen.mediask.schedule.domain.algorithm.result.ScheduleSolution;
-import me.jianwen.mediask.schedule.domain.algorithm.result.SolutionEvaluator;
 import me.jianwen.mediask.schedule.domain.algorithm.solver.ScheduleSolver;
-import me.jianwen.mediask.schedule.domain.algorithm.solver.SolverFactory;
 import me.jianwen.mediask.schedule.domain.algorithm.solver.SolverMetadata;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * 混合策略求解器
@@ -23,13 +21,19 @@ import org.springframework.stereotype.Component;
  * @author MediAsk
  */
 @Slf4j
-@Component
 public class HybridSolver implements ScheduleSolver {
 
-    private final SolverFactory solverFactory;
+    private final GreedySolver greedySolver;
+    private final GreedyLocalSearchSolver greedyLocalSearchSolver;
+    private final GeneticAlgorithmSolver geneticAlgorithmSolver;
 
-    public HybridSolver(@Lazy SolverFactory solverFactory) {
-        this.solverFactory = solverFactory;
+    public HybridSolver(
+            GreedySolver greedySolver,
+            GreedyLocalSearchSolver greedyLocalSearchSolver,
+            GeneticAlgorithmSolver geneticAlgorithmSolver) {
+        this.greedySolver = greedySolver;
+        this.greedyLocalSearchSolver = greedyLocalSearchSolver;
+        this.geneticAlgorithmSolver = geneticAlgorithmSolver;
     }
 
     @Override
@@ -99,16 +103,16 @@ public class HybridSolver implements ScheduleSolver {
 
         // 小规模 + 少医生 -> 遗传算法
         if ("SMALL".equals(scale) && doctorCount <= 10 && estimatedAssignments < 100) {
-            return solverFactory.getSolver("GENETIC");
+            return geneticAlgorithmSolver;
         }
 
         // 中等规模 -> 贪婪局部搜索
         if ("MEDIUM".equals(scale) || estimatedAssignments < 500) {
-            return solverFactory.getSolver("GREEDY_LOCAL_SEARCH");
+            return greedyLocalSearchSolver;
         }
 
         // 大规模 -> 贪婪算法
-        return solverFactory.getSolver("GREEDY");
+        return greedySolver;
     }
 
     /**
@@ -118,14 +122,14 @@ public class HybridSolver implements ScheduleSolver {
         ScheduleSolution bestSolution = null;
         double bestScore = currentScore;
 
-        // 尝试其他求解器
-        for (String solverName : solverFactory.getSolverNames()) {
-            if (solverName.equals(name())) continue;
-
-            ScheduleSolver solver = solverFactory.getSolver(solverName);
+        List<ScheduleSolver> backupSolvers = List.of(greedySolver, greedyLocalSearchSolver, geneticAlgorithmSolver);
+        for (ScheduleSolver solver : backupSolvers) {
+            if (solver.name().equals(name())) {
+                continue;
+            }
             if (!solver.supports(problem)) continue;
 
-            log.info("尝试求解器: {}", solverName);
+            log.info("尝试求解器: {}", solver.name());
             ScheduleSolution solution = solver.solve(problem);
 
             if (solution.isSuccess() && solution.getScore() > bestScore) {
