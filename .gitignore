@@ -42,3 +42,8 @@ build/
 mvn-settings.xml
 .mvn/
 .cursor/rules/macos-specified-rule.mdc
+grafana/
+logs/
+loki/
+prometheus/
+promtail/
