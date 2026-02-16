@@ -7,7 +7,9 @@ import me.jianwen.mediask.common.dto.appointment.AppointmentDTO;
 import me.jianwen.mediask.common.dto.appointment.AppointmentResultDTO;
 import me.jianwen.mediask.common.dto.appointment.AvailableSlotDTO;
 import me.jianwen.mediask.common.exception.BizException;
+import me.jianwen.mediask.domain.ratelimit.RateLimiterService;
 import me.jianwen.mediask.domain.event.DomainEventPublisher;
+import me.jianwen.mediask.infra.cache.CacheKeyManager;
 import me.jianwen.mediask.infra.lock.annotation.DistributedLockable;
 import me.jianwen.mediask.service.application.command.CancelAppointmentCommand;
 import me.jianwen.mediask.service.application.command.CreateAppointmentCommand;
@@ -26,7 +28,9 @@ import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
 import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -53,6 +57,17 @@ public class AppointmentApplicationService {
     private final AppointmentSlotRepository slotRepository;
     private final SlotManagementDomainService slotManagementDomainService;
     private final DomainEventPublisher eventPublisher;
+    private final RateLimiterService rateLimiterService;
+
+    private static final long SINGLE_ACQUIRE_PERMITS = 1L;
+    private static final long DEFAULT_APPOINTMENT_CREATE_LIMIT = 5L;
+    private static final long DEFAULT_APPOINTMENT_CREATE_WINDOW_SECONDS = 60L;
+
+    @Value("${mediask.rate-limit.appointment-create.permits:" + DEFAULT_APPOINTMENT_CREATE_LIMIT + "}")
+    private long appointmentCreateRateLimitPermits;
+
+    @Value("${mediask.rate-limit.appointment-create.window-seconds:" + DEFAULT_APPOINTMENT_CREATE_WINDOW_SECONDS + "}")
+    private long appointmentCreateRateLimitWindowSeconds;
 
     /**
      * 创建预约
@@ -67,6 +82,7 @@ public class AppointmentApplicationService {
     public AppointmentResultDTO createAppointment(Long patientId, CreateAppointmentCommand request) {
         log.info("创建预约: patientId={}, scheduleId={}, date={}, time={}",
                 patientId, request.getScheduleId(), request.getApptDate(), request.getApptTime());
+        assertCreateAppointmentRateLimit(patientId);
 
         ScheduleId scheduleId = ScheduleId.of(request.getScheduleId());
         PatientId patientIdVO = PatientId.of(patientId);
@@ -148,6 +164,31 @@ public class AppointmentApplicationService {
                 .apptFee(schedule.getFee())
                 .payDeadline(LocalDateTime.now().plusMinutes(30)) // 30分钟支付时限
                 .build();
+    }
+
+    private void assertCreateAppointmentRateLimit(Long patientId) {
+        String rateLimitKey = CacheKeyManager.appointmentCreateRateLimitKey(patientId);
+        boolean allowed = rateLimiterService.tryAcquire(
+                rateLimitKey,
+                SINGLE_ACQUIRE_PERMITS,
+                resolveAppointmentCreateRateLimitPermits(),
+                Duration.ofSeconds(resolveAppointmentCreateRateLimitWindowSeconds())
+        );
+        if (!allowed) {
+            throw new BizException(ErrorCode.RATE_LIMIT_EXCEEDED, "预约请求过于频繁，请稍后再试");
+        }
+    }
+
+    private long resolveAppointmentCreateRateLimitPermits() {
+        return appointmentCreateRateLimitPermits > 0
+                ? appointmentCreateRateLimitPermits
+                : DEFAULT_APPOINTMENT_CREATE_LIMIT;
+    }
+
+    private long resolveAppointmentCreateRateLimitWindowSeconds() {
+        return appointmentCreateRateLimitWindowSeconds > 0
+                ? appointmentCreateRateLimitWindowSeconds
+                : DEFAULT_APPOINTMENT_CREATE_WINDOW_SECONDS;
     }
 
     /**

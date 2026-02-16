@@ -122,6 +122,7 @@ public class TestConnectionApplicationService {
             redisResult.put("error", ex.getMessage());
         }
         result.put("redis", redisResult);
+        result.put("localCache", testConnectionInfraService.getLocalCacheStats());
         result.put("success", "UP".equals(mysqlResult.get("status")) && "UP".equals(redisResult.get("status")));
         return result;
     }

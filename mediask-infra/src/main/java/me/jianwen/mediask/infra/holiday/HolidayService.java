@@ -1,16 +1,20 @@
 package me.jianwen.mediask.infra.holiday;
 
 import lombok.extern.slf4j.Slf4j;
+import me.jianwen.mediask.domain.cache.CacheService;
+import me.jianwen.mediask.domain.cache.LocalCacheDefinition;
+import me.jianwen.mediask.domain.cache.LocalCacheService;
+import me.jianwen.mediask.infra.cache.CacheKeyManager;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -30,11 +34,14 @@ import java.util.*;
 @EnableScheduling
 public class HolidayService {
 
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final String HOLIDAY_KEY_PREFIX = "holiday:";
-    private static final String WORKDAY_KEY_PREFIX = "workday:";
+    private static final String CACHE_BOOLEAN_TRUE = Boolean.TRUE.toString();
+    private static final Duration HOLIDAY_LOCAL_CACHE_TTL = Duration.ofHours(6);
+    private static final long HOLIDAY_LOCAL_CACHE_MAX_SIZE = 4096L;
+    private static final LocalCacheDefinition HOLIDAY_LOCAL_CACHE_DEFINITION =
+            new LocalCacheDefinition("holiday:local:date", HOLIDAY_LOCAL_CACHE_TTL, HOLIDAY_LOCAL_CACHE_MAX_SIZE);
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final CacheService cacheService;
+    private final LocalCacheService localCacheService;
 
     @Value("${app.holiday.api-url:}")
     private String holidayApiUrl;
@@ -92,8 +99,9 @@ public class HolidayService {
             LocalDate.of(2026, 10, 7)
     );
 
-    public HolidayService(RedisTemplate<String, Object> redisTemplate) {
-        this.redisTemplate = redisTemplate;
+    public HolidayService(CacheService cacheService, LocalCacheService localCacheService) {
+        this.cacheService = cacheService;
+        this.localCacheService = localCacheService;
     }
 
     /**
@@ -112,8 +120,8 @@ public class HolidayService {
      */
     private void cacheHolidays(Set<LocalDate> holidays) {
         for (LocalDate date : holidays) {
-            String key = HOLIDAY_KEY_PREFIX + date.format(FORMATTER);
-            redisTemplate.opsForValue().set(key, true);
+            String key = CacheKeyManager.holidayKey(date);
+            markHolidayAndRefreshLocalCache(key);
         }
     }
 
@@ -121,21 +129,28 @@ public class HolidayService {
      * 检查指定日期是否为节假日
      */
     public boolean isHoliday(LocalDate date) {
-        // 先检查缓存
-        String key = HOLIDAY_KEY_PREFIX + date.format(FORMATTER);
-        Object cached = redisTemplate.opsForValue().get(key);
-        if (cached != null && Boolean.parseBoolean(cached.toString())) {
+        String key = CacheKeyManager.holidayKey(date);
+        boolean cachedHoliday = localCacheService.get(
+                HOLIDAY_LOCAL_CACHE_DEFINITION,
+                key,
+                () -> cacheService.get(key).map(Boolean::parseBoolean).orElse(false)
+        );
+        if (cachedHoliday) {
             return true;
         }
 
-        // 检查预定义节假日
         if (HOLIDAYS_2025.contains(date) || HOLIDAYS_2026.contains(date)) {
-            // 缓存并返回
-            redisTemplate.opsForValue().set(key, true);
+            markHolidayAndRefreshLocalCache(key);
             return true;
         }
 
         return false;
+    }
+
+    private void markHolidayAndRefreshLocalCache(String key) {
+        cacheService.set(key, CACHE_BOOLEAN_TRUE);
+        localCacheService.invalidate(HOLIDAY_LOCAL_CACHE_DEFINITION, key);
+        localCacheService.get(HOLIDAY_LOCAL_CACHE_DEFINITION, key, () -> true);
     }
 
     /**
@@ -159,8 +174,8 @@ public class HolidayService {
      * 检查是否为周末
      */
     public boolean isWeekend(LocalDate date) {
-        int dayOfWeek = date.getDayOfWeek().getValue();
-        return dayOfWeek == 6 || dayOfWeek == 7;
+        DayOfWeek dayOfWeek = date.getDayOfWeek();
+        return dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY;
     }
 
     /**

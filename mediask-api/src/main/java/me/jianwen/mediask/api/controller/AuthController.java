@@ -3,6 +3,7 @@ package me.jianwen.mediask.api.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.mapper.AuthApiMapper;
@@ -11,6 +12,7 @@ import me.jianwen.mediask.api.model.auth.LogoutRequest;
 import me.jianwen.mediask.api.model.auth.RefreshTokenRequest;
 import me.jianwen.mediask.api.model.auth.RegisterRequest;
 import me.jianwen.mediask.api.security.CurrentUserProvider;
+import me.jianwen.mediask.api.security.SecurityAuditUtil;
 import me.jianwen.mediask.common.dto.auth.LoginDTO;
 import me.jianwen.mediask.common.result.Result;
 import me.jianwen.mediask.service.application.service.AuthApplicationService;
@@ -42,8 +44,9 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "用户登录", description = "支持用户名或手机号登录")
-    public Result<LoginDTO> login(@Valid @RequestBody LoginRequest apiRequest) {
+    public Result<LoginDTO> login(@Valid @RequestBody LoginRequest apiRequest, HttpServletRequest request) {
         var serviceRequest = authApiMapper.toService(apiRequest);
+        serviceRequest.setClientIp(SecurityAuditUtil.clientIp(request));
         LoginDTO dto = authApplicationService.login(serviceRequest);
         return Result.ok(dto);
     }

@@ -101,6 +101,12 @@
             <artifactId>spring-boot-starter-json</artifactId>
         </dependency>
 
+        <!-- ==================== 本地缓存 ==================== -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+
         <!-- ==================== 对象映射 ==================== -->
         <dependency>
             <groupId>org.mapstruct</groupId>
