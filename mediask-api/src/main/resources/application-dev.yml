@@ -50,3 +50,10 @@ logging:
     root: INFO
     me.jianwen.mediask: DEBUG
     com.baomidou.mybatisplus: DEBUG
+
+# ==================== Observability ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

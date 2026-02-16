@@ -2,7 +2,8 @@ package me.jianwen.mediask.infra.security;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import me.jianwen.mediask.domain.cache.CacheService;
+import me.jianwen.mediask.infra.cache.CacheKeyManager;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -21,9 +22,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class RefreshTokenStore {
 
-    private final StringRedisTemplate redisTemplate;
+    private final CacheService cacheService;
 
-    private static final String KEY_PREFIX = "auth:refresh:";
+    private static final String TOKEN_ACTIVE_FLAG = "1";
     private static final Duration DEFAULT_TTL = Duration.ofDays(30);
 
     /**
@@ -34,8 +35,9 @@ public class RefreshTokenStore {
      * @param expireSeconds 过期时间（秒）
      */
     public void store(Long userId, String tokenId, long expireSeconds) {
-        String key = buildKey(userId, tokenId);
-        redisTemplate.opsForValue().set(key, "1", Duration.ofSeconds(expireSeconds));
+        String key = CacheKeyManager.refreshTokenKey(userId, tokenId);
+        Duration ttl = expireSeconds > 0 ? Duration.ofSeconds(expireSeconds) : DEFAULT_TTL;
+        cacheService.set(key, TOKEN_ACTIVE_FLAG, ttl);
         log.debug("Refresh token stored: userId={}, tokenId={}", userId, tokenId);
     }
 
@@ -46,9 +48,8 @@ public class RefreshTokenStore {
      * @param tokenId Token ID (jti)
      */
     public void remove(Long userId, String tokenId) {
-        String key = buildKey(userId, tokenId);
-        Boolean deleted = redisTemplate.delete(key);
-        if (Boolean.TRUE.equals(deleted)) {
+        String key = CacheKeyManager.refreshTokenKey(userId, tokenId);
+        if (cacheService.delete(key)) {
             log.info("Refresh token revoked: userId={}, tokenId={}", userId, tokenId);
         }
     }
@@ -61,8 +62,8 @@ public class RefreshTokenStore {
      * @return 是否有效
      */
     public boolean isValid(Long userId, String tokenId) {
-        String key = buildKey(userId, tokenId);
-        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+        String key = CacheKeyManager.refreshTokenKey(userId, tokenId);
+        return cacheService.exists(key);
     }
 
     /**
@@ -71,11 +72,10 @@ public class RefreshTokenStore {
      * @param userId 用户ID
      */
     public void revokeAll(Long userId) {
-        String pattern = KEY_PREFIX + userId + ":*";
-        var keys = redisTemplate.keys(pattern);
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
-            log.info("All refresh tokens revoked for userId={}, count={}", userId, keys.size());
+        String pattern = CacheKeyManager.refreshTokenPattern(userId);
+        long deletedCount = cacheService.deleteByPattern(pattern);
+        if (deletedCount > 0) {
+            log.info("All refresh tokens revoked for userId={}, count={}", userId, deletedCount);
         }
     }
 
@@ -87,12 +87,7 @@ public class RefreshTokenStore {
      * @return 剩余时间，Token 不存在返回 Optional.empty()
      */
     public Optional<Long> getTtl(Long userId, String tokenId) {
-        String key = buildKey(userId, tokenId);
-        Long ttl = redisTemplate.getExpire(key);
-        return (ttl != null && ttl > 0) ? Optional.of(ttl) : Optional.empty();
-    }
-
-    private String buildKey(Long userId, String tokenId) {
-        return KEY_PREFIX + userId + ":" + tokenId;
+        String key = CacheKeyManager.refreshTokenKey(userId, tokenId);
+        return cacheService.ttl(key);
     }
 }

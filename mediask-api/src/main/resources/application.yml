@@ -34,3 +34,17 @@ security:
     secret: mediask-dev-secret-please-change-32chars-min
     issuer: mediask
     expire-seconds: 604800 # 7 天
+
+# 限流配置（可在各环境覆盖）
+mediask:
+  rate-limit:
+    auth-login:
+      account:
+        permits: 10
+        window-seconds: 60
+      ip:
+        permits: 30
+        window-seconds: 60
+    appointment-create:
+      permits: 5
+      window-seconds: 60

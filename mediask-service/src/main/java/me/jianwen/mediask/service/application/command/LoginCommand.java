@@ -13,4 +13,6 @@ public class LoginCommand {
     private String account;
 
     private String password;
+
+    private String clientIp;
 }

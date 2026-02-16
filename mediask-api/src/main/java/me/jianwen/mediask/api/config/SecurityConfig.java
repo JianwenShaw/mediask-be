@@ -35,6 +35,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/**",
                                 "/api/test/**",
                                 "/actuator/health",
+                                "/actuator/prometheus",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
@@ -52,4 +53,3 @@ public class SecurityConfig {
         return http.build();
     }
 }
-

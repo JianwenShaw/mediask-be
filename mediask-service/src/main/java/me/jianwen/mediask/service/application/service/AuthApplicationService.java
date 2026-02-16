@@ -5,8 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.common.util.AssertUtil;
+import me.jianwen.mediask.domain.ratelimit.RateLimiterService;
 import me.jianwen.mediask.domain.repository.AuthzRepository;
 import me.jianwen.mediask.domain.repository.UserRepository;
+import me.jianwen.mediask.infra.cache.CacheKeyManager;
 import me.jianwen.mediask.infra.security.JwtService;
 import me.jianwen.mediask.infra.security.RefreshTokenStore;
 import me.jianwen.mediask.common.dto.auth.LoginDTO;
@@ -15,11 +17,13 @@ import me.jianwen.mediask.service.application.command.RegisterCommand;
 import me.jianwen.mediask.user.domain.entity.User;
 import me.jianwen.mediask.user.domain.enums.Gender;
 import me.jianwen.mediask.user.domain.enums.UserType;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.Instant;
 
 /**
@@ -38,6 +42,25 @@ public class AuthApplicationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenStore refreshTokenStore;
+    private final RateLimiterService rateLimiterService;
+
+    private static final long SINGLE_ACQUIRE_PERMITS = 1L;
+    private static final long DEFAULT_LOGIN_ACCOUNT_LIMIT = 10L;
+    private static final long DEFAULT_LOGIN_ACCOUNT_WINDOW_SECONDS = 60L;
+    private static final long DEFAULT_LOGIN_IP_LIMIT = 30L;
+    private static final long DEFAULT_LOGIN_IP_WINDOW_SECONDS = 60L;
+
+    @Value("${mediask.rate-limit.auth-login.account.permits:" + DEFAULT_LOGIN_ACCOUNT_LIMIT + "}")
+    private long loginAccountRateLimitPermits;
+
+    @Value("${mediask.rate-limit.auth-login.account.window-seconds:" + DEFAULT_LOGIN_ACCOUNT_WINDOW_SECONDS + "}")
+    private long loginAccountRateLimitWindowSeconds;
+
+    @Value("${mediask.rate-limit.auth-login.ip.permits:" + DEFAULT_LOGIN_IP_LIMIT + "}")
+    private long loginIpRateLimitPermits;
+
+    @Value("${mediask.rate-limit.auth-login.ip.window-seconds:" + DEFAULT_LOGIN_IP_WINDOW_SECONDS + "}")
+    private long loginIpRateLimitWindowSeconds;
 
     /**
      * 用户注册
@@ -109,6 +132,7 @@ public class AuthApplicationService {
      */
     public LoginDTO login(LoginCommand request) {
         AssertUtil.notNull(request, ErrorCode.PARAM_MISSING);
+        assertLoginRateLimit(request.getAccount(), request.getClientIp());
 
         User user = userRepository.findByUsernameOrPhone(request.getAccount()).orElse(null);
 
@@ -137,6 +161,46 @@ public class AuthApplicationService {
                 .refreshToken(refresh.token())
                 .refreshTokenId(refresh.tokenId())
                 .build();
+    }
+
+    private void assertLoginRateLimit(String account, String clientIp) {
+        String ipRateLimitKey = CacheKeyManager.authLoginIpRateLimitKey(clientIp);
+        boolean ipAllowed = rateLimiterService.tryAcquire(
+                ipRateLimitKey,
+                SINGLE_ACQUIRE_PERMITS,
+                resolveLoginIpRateLimitPermits(),
+                Duration.ofSeconds(resolveLoginIpRateLimitWindowSeconds())
+        );
+        if (!ipAllowed) {
+            throw new BizException(ErrorCode.RATE_LIMIT_EXCEEDED, "该来源登录请求过于频繁，请稍后再试");
+        }
+
+        String accountRateLimitKey = CacheKeyManager.authLoginAccountRateLimitKey(account);
+        boolean accountAllowed = rateLimiterService.tryAcquire(
+                accountRateLimitKey,
+                SINGLE_ACQUIRE_PERMITS,
+                resolveLoginAccountRateLimitPermits(),
+                Duration.ofSeconds(resolveLoginAccountRateLimitWindowSeconds())
+        );
+        if (!accountAllowed) {
+            throw new BizException(ErrorCode.RATE_LIMIT_EXCEEDED, "该账号登录过于频繁，请稍后再试");
+        }
+    }
+
+    private long resolveLoginAccountRateLimitPermits() {
+        return loginAccountRateLimitPermits > 0 ? loginAccountRateLimitPermits : DEFAULT_LOGIN_ACCOUNT_LIMIT;
+    }
+
+    private long resolveLoginAccountRateLimitWindowSeconds() {
+        return loginAccountRateLimitWindowSeconds > 0 ? loginAccountRateLimitWindowSeconds : DEFAULT_LOGIN_ACCOUNT_WINDOW_SECONDS;
+    }
+
+    private long resolveLoginIpRateLimitPermits() {
+        return loginIpRateLimitPermits > 0 ? loginIpRateLimitPermits : DEFAULT_LOGIN_IP_LIMIT;
+    }
+
+    private long resolveLoginIpRateLimitWindowSeconds() {
+        return loginIpRateLimitWindowSeconds > 0 ? loginIpRateLimitWindowSeconds : DEFAULT_LOGIN_IP_WINDOW_SECONDS;
     }
 
     /**
