@@ -108,6 +108,11 @@ public class Appointment {
     private LocalDateTime updatedAt;
 
     /**
+     * 乐观锁版本号
+     */
+    private Integer version;
+
+    /**
      * 领域事件集合
      */
     private List<Object> domainEvents = new ArrayList<>();

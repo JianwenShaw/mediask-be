@@ -130,5 +130,6 @@ public class AppointmentDO implements Serializable {
     /**
      * 乐观锁版本号
      */
+    @Version
     private Integer version;
 }

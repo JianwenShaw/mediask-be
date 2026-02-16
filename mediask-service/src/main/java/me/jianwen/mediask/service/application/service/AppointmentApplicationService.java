@@ -16,10 +16,16 @@ import me.jianwen.mediask.service.application.command.CreateAppointmentCommand;
 import me.jianwen.mediask.schedule.domain.entity.Appointment;
 import me.jianwen.mediask.schedule.domain.entity.AppointmentSlot;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
+import me.jianwen.mediask.schedule.domain.event.AppointmentCreatedEvent;
+import me.jianwen.mediask.schedule.domain.event.AppointmentStatusChangedEvent;
 import me.jianwen.mediask.schedule.domain.repository.AppointmentRepository;
 import me.jianwen.mediask.schedule.domain.repository.AppointmentSlotRepository;
 import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
+import me.jianwen.mediask.schedule.domain.service.AppointmentStateMachineDomainService;
+import me.jianwen.mediask.schedule.domain.service.AppointmentTransitionContext;
 import me.jianwen.mediask.schedule.domain.service.SlotManagementDomainService;
+import me.jianwen.mediask.schedule.domain.statemachine.TransitionResult;
+import me.jianwen.mediask.schedule.domain.valueobject.AppointmentEvent;
 import me.jianwen.mediask.schedule.domain.valueobject.AppointmentId;
 import me.jianwen.mediask.schedule.domain.valueobject.AppointmentStatus;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
@@ -56,6 +62,7 @@ public class AppointmentApplicationService {
     private final DoctorScheduleRepository scheduleRepository;
     private final AppointmentSlotRepository slotRepository;
     private final SlotManagementDomainService slotManagementDomainService;
+    private final AppointmentStateMachineDomainService appointmentStateMachineDomainService;
     private final DomainEventPublisher eventPublisher;
     private final RateLimiterService rateLimiterService;
 
@@ -218,15 +225,20 @@ public class AppointmentApplicationService {
             throw new BizException(ErrorCode.EMR_ACCESS_DENIED, "无权取消该预约");
         }
 
-        // 检查是否可取消
-        if (!appointment.canCancel()) {
-            throw new BizException(ErrorCode.APPT_CANCEL_FAILED,
-                    "当前状态不允许取消: " + getStatusDescription(appointment.getStatus()));
-        }
-
         // 取消预约
         String cancelReason = isAdmin ? request.getReason() : "用户取消";
-        appointment.cancel(cancelReason);
+        TransitionResult<AppointmentStatus, AppointmentEvent> result = transitAppointment(
+                appointment,
+                isAdmin ? AppointmentEvent.ADMIN_CANCEL : AppointmentEvent.USER_CANCEL,
+                AppointmentTransitionContext.forCancel(appointment, cancelReason),
+                ErrorCode.APPT_CANCEL_FAILED
+        );
+
+        if (!result.stateChanged()) {
+            log.info("预约取消请求幂等处理: appointmentId={}, operatorId={}", appointmentId.value(), operatorId);
+            return;
+        }
+
         appointmentRepository.save(appointment);
 
         // 释放号源（强校验 appointment 归属）
@@ -250,6 +262,12 @@ public class AppointmentApplicationService {
      * 支付预约
      */
     @Transactional(rollbackFor = Exception.class)
+    @DistributedLockable(
+            key = "'appt:pay:' + #appointmentId",
+            waitTime = 3,
+            leaseTime = 10,
+            errorMessage = "系统繁忙，请稍后重试"
+    )
     public void payAppointment(Long appointmentId) {
         log.info("支付预约: appointmentId={}", appointmentId);
 
@@ -258,13 +276,18 @@ public class AppointmentApplicationService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.APPT_NOT_FOUND, "预约记录不存在"));
 
-        if (!appointment.canPay()) {
-            throw new BizException(ErrorCode.APPT_STATUS_ERROR, "当前状态不允许支付");
+        TransitionResult<AppointmentStatus, AppointmentEvent> result = transitAppointment(
+                appointment,
+                AppointmentEvent.PAY_SUCCESS,
+                AppointmentTransitionContext.of(appointment),
+                ErrorCode.APPT_STATUS_ERROR
+        );
+
+        if (!result.stateChanged()) {
+            log.info("预约支付请求幂等处理: appointmentId={}", appointmentId);
+            return;
         }
-
-        appointment.markAsPaid();
         appointmentRepository.save(appointment);
-
         publishEvents(appointment);
 
         log.info("预约支付成功: appointmentId={}", appointmentId);
@@ -274,6 +297,12 @@ public class AppointmentApplicationService {
      * 标记已就诊
      */
     @Transactional(rollbackFor = Exception.class)
+    @DistributedLockable(
+            key = "'appt:visit:' + #appointmentId",
+            waitTime = 3,
+            leaseTime = 10,
+            errorMessage = "系统繁忙，请稍后重试"
+    )
     public void markAsVisited(Long appointmentId) {
         log.info("标记就诊: appointmentId={}", appointmentId);
 
@@ -282,9 +311,18 @@ public class AppointmentApplicationService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.APPT_NOT_FOUND, "预约记录不存在"));
 
-        appointment.markAsVisited();
-        appointmentRepository.save(appointment);
+        TransitionResult<AppointmentStatus, AppointmentEvent> result = transitAppointment(
+                appointment,
+                AppointmentEvent.DOCTOR_MARK_VISITED,
+                AppointmentTransitionContext.of(appointment),
+                ErrorCode.APPT_STATUS_ERROR
+        );
 
+        if (!result.stateChanged()) {
+            log.info("标记就诊请求幂等处理: appointmentId={}", appointmentId);
+            return;
+        }
+        appointmentRepository.save(appointment);
         publishEvents(appointment);
 
         log.info("标记就诊成功: appointmentId={}", appointmentId);
@@ -295,15 +333,12 @@ public class AppointmentApplicationService {
      */
     public List<AppointmentDTO> listPatientAppointments(Long patientId, LocalDate startDate, LocalDate endDate) {
         PatientId patientIdVO = PatientId.of(patientId);
-        List<Appointment> appointments;
-
-        if (startDate != null && endDate != null) {
-            appointments = appointmentRepository.findByPatientIdAndDateRange(patientIdVO, startDate, endDate);
-        } else {
-            appointments = appointmentRepository.findByPatientId(patientIdVO);
+        if (startDate == null || endDate == null) {
+            return appointmentRepository.findByPatientId(patientIdVO).stream()
+                    .map(this::convertToResponse)
+                    .collect(Collectors.toList());
         }
-
-        return appointments.stream()
+        return appointmentRepository.findByPatientIdAndDateRange(patientIdVO, startDate, endDate).stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
@@ -378,6 +413,12 @@ public class AppointmentApplicationService {
      * 标记爽约
      */
     @Transactional(rollbackFor = Exception.class)
+    @DistributedLockable(
+            key = "'appt:absent:' + #appointmentId",
+            waitTime = 3,
+            leaseTime = 10,
+            errorMessage = "系统繁忙，请稍后重试"
+    )
     public void markAsAbsent(Long appointmentId) {
         log.info("标记爽约: appointmentId={}", appointmentId);
 
@@ -385,9 +426,18 @@ public class AppointmentApplicationService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.APPT_NOT_FOUND, "预约记录不存在"));
 
-        appointment.markAsAbsent();
-        appointmentRepository.save(appointment);
+        TransitionResult<AppointmentStatus, AppointmentEvent> result = transitAppointment(
+                appointment,
+                AppointmentEvent.SYSTEM_MARK_ABSENT,
+                AppointmentTransitionContext.of(appointment),
+                ErrorCode.APPT_STATUS_ERROR
+        );
 
+        if (!result.stateChanged()) {
+            log.info("标记爽约请求幂等处理: appointmentId={}", appointmentId);
+            return;
+        }
+        appointmentRepository.save(appointment);
         publishEvents(appointment);
 
         log.info("标记爽约成功: appointmentId={}", appointmentId);
@@ -446,11 +496,6 @@ public class AppointmentApplicationService {
     }
 
     private AppointmentDTO convertToResponse(Appointment appointment) {
-        DoctorSchedule schedule = null;
-        if (appointment.getScheduleId() != null) {
-            schedule = scheduleRepository.findById(appointment.getScheduleId()).orElse(null);
-        }
-
         return AppointmentDTO.builder()
                 .id(appointment.getId() != null ? appointment.getId().value() : null)
                 .apptNo(appointment.getApptNo())
@@ -470,27 +515,40 @@ public class AppointmentApplicationService {
                 .build();
     }
 
-    private String getStatusDescription(AppointmentStatus status) {
-        return switch (status.code()) {
-            case 1 -> "待支付";
-            case 2 -> "已预约";
-            case 3 -> "已就诊";
-            case 4 -> "已取消";
-            case 5 -> "爽约";
-            default -> "未知";
-        };
+    private void publishEvents(Appointment appointment) {
+        for (Object event : appointment.getDomainEvents()) {
+            if (event instanceof AppointmentCreatedEvent createdEvent) {
+                AppointmentCreatedEvent normalizedEvent = createdEvent.appointmentId() == null
+                        ? new AppointmentCreatedEvent(
+                        appointment.getId(),
+                        createdEvent.patientId(),
+                        createdEvent.doctorId(),
+                        createdEvent.apptDate(),
+                        createdEvent.apptNo(),
+                        createdEvent.apptFee(),
+                        createdEvent.createdAt())
+                        : createdEvent;
+                eventPublisher.publishAppointmentCreated(normalizedEvent);
+                continue;
+            }
+            if (event instanceof AppointmentStatusChangedEvent statusEvent) {
+                eventPublisher.publishAppointmentStatusChanged(statusEvent);
+                continue;
+            }
+            log.warn("未处理的领域事件类型: {}", event.getClass().getName());
+        }
+        appointment.clearDomainEvents();
     }
 
-    private void publishEvents(Appointment appointment) {
-        appointment.getDomainEvents().forEach(event -> {
-            if (event instanceof me.jianwen.mediask.schedule.domain.event.AppointmentCreatedEvent createdEvent) {
-                eventPublisher.publishAppointmentCreated(createdEvent);
-            } else if (event instanceof me.jianwen.mediask.schedule.domain.event.AppointmentStatusChangedEvent statusEvent) {
-                eventPublisher.publishAppointmentStatusChanged(statusEvent);
-            } else {
-                log.warn("未处理的领域事件类型: {}", event.getClass().getName());
-            }
-        });
-        appointment.clearDomainEvents();
+    private TransitionResult<AppointmentStatus, AppointmentEvent> transitAppointment(
+            Appointment appointment,
+            AppointmentEvent event,
+            AppointmentTransitionContext context,
+            ErrorCode errorCode) {
+        try {
+            return appointmentStateMachineDomainService.transit(appointment, event, context);
+        } catch (IllegalStateException ex) {
+            throw new BizException(errorCode, ex.getMessage());
+        }
     }
 }

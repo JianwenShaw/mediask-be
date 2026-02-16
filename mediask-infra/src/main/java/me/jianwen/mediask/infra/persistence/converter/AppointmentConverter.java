@@ -68,6 +68,7 @@ public interface AppointmentConverter {
         }
         dataObject.setCreatedAt(appointment.getCreatedAt());
         dataObject.setUpdatedAt(appointment.getUpdatedAt());
+        dataObject.setVersion(appointment.getVersion());
 
         return dataObject;
     }
@@ -102,6 +103,7 @@ public interface AppointmentConverter {
         appointment.setVisitedAt(dataObject.getVisitedAt());
         appointment.setCreatedAt(dataObject.getCreatedAt());
         appointment.setUpdatedAt(dataObject.getUpdatedAt());
+        appointment.setVersion(dataObject.getVersion());
 
         return appointment;
     }

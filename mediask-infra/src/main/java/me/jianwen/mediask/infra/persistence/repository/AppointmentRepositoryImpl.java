@@ -2,6 +2,8 @@ package me.jianwen.mediask.infra.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
+import me.jianwen.mediask.common.constant.ErrorCode;
+import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.dal.entity.AppointmentDO;
 import me.jianwen.mediask.dal.enums.ApptStatusEnum;
 import me.jianwen.mediask.dal.enums.TimePeriodEnum;
@@ -13,6 +15,7 @@ import me.jianwen.mediask.schedule.domain.valueobject.*;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -35,7 +38,10 @@ public class AppointmentRepositoryImpl implements AppointmentRepository {
         AppointmentDO dataObject = appointmentConverter.toDataObject(appointment);
 
         if (dataObject.getId() == null) {
-            appointmentMapper.insert(dataObject);
+            int affectedRows = appointmentMapper.insert(dataObject);
+            if (affectedRows <= 0) {
+                throw new BizException(ErrorCode.DATABASE_ERROR, "预约创建失败，请重试");
+            }
             // 回填ID
             try {
                 java.lang.reflect.Field field = Appointment.class.getDeclaredField("id");
@@ -44,8 +50,12 @@ public class AppointmentRepositoryImpl implements AppointmentRepository {
             } catch (Exception e) {
                 // 忽略
             }
-        } else {
-            appointmentMapper.updateById(dataObject);
+            return;
+        }
+
+        int affectedRows = appointmentMapper.updateById(dataObject);
+        if (affectedRows <= 0) {
+            throw new BizException(ErrorCode.APPT_BUSY, "预约状态已发生变化，请刷新后重试");
         }
     }
 
@@ -88,6 +98,18 @@ public class AppointmentRepositoryImpl implements AppointmentRepository {
                 .eq(AppointmentDO::getApptStatus, ApptStatusEnum.fromCode(status.code()))
                 .orderByDesc(AppointmentDO::getCreatedAt);
 
+        return appointmentMapper.selectList(wrapper).stream()
+                .map(appointmentConverter::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Appointment> findUnpaidAppointmentsCreatedBefore(LocalDateTime cutoff, int limit) {
+        LambdaQueryWrapper<AppointmentDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AppointmentDO::getApptStatus, ApptStatusEnum.UNPAID)
+                .le(AppointmentDO::getCreatedAt, cutoff)
+                .orderByAsc(AppointmentDO::getCreatedAt)
+                .last("LIMIT " + Math.max(limit, 1));
         return appointmentMapper.selectList(wrapper).stream()
                 .map(appointmentConverter::toDomain)
                 .collect(Collectors.toList());
@@ -141,6 +163,18 @@ public class AppointmentRepositoryImpl implements AppointmentRepository {
                 .eq(AppointmentDO::getTimePeriod, TimePeriodEnum.fromCode(timePeriod.getCode()))
                 .orderByAsc(AppointmentDO::getApptTime);
 
+        return appointmentMapper.selectList(wrapper).stream()
+                .map(appointmentConverter::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Appointment> findByStatusAndApptDateBefore(AppointmentStatus status, LocalDate beforeDate, int limit) {
+        LambdaQueryWrapper<AppointmentDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AppointmentDO::getApptStatus, ApptStatusEnum.fromCode(status.code()))
+                .lt(AppointmentDO::getApptDate, beforeDate)
+                .orderByAsc(AppointmentDO::getApptDate, AppointmentDO::getApptTime)
+                .last("LIMIT " + Math.max(limit, 1));
         return appointmentMapper.selectList(wrapper).stream()
                 .map(appointmentConverter::toDomain)
                 .collect(Collectors.toList());

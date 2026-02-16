@@ -4,6 +4,7 @@ import me.jianwen.mediask.schedule.domain.entity.Appointment;
 import me.jianwen.mediask.schedule.domain.valueobject.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -41,6 +42,11 @@ public interface AppointmentRepository {
     List<Appointment> findByPatientIdAndStatus(PatientId patientId, AppointmentStatus status);
 
     /**
+     * 查询支付超时前创建的待支付预约
+     */
+    List<Appointment> findUnpaidAppointmentsCreatedBefore(LocalDateTime cutoff, int limit);
+
+    /**
      * 查询患者的预约列表（日期范围）
      */
     List<Appointment> findByPatientIdAndDateRange(PatientId patientId, LocalDate startDate, LocalDate endDate);
@@ -60,6 +66,11 @@ public interface AppointmentRepository {
      */
     List<Appointment> findByDoctorIdAndDateAndTimePeriod(
             DoctorId doctorId, LocalDate apptDate, TimePeriod timePeriod);
+
+    /**
+     * 查询指定日期前、指定状态的预约
+     */
+    List<Appointment> findByStatusAndApptDateBefore(AppointmentStatus status, LocalDate beforeDate, int limit);
 
     /**
      * 检查患者在同一时段是否有预约

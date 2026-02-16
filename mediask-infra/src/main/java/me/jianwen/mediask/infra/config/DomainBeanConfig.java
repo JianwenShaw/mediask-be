@@ -9,6 +9,7 @@ import me.jianwen.mediask.schedule.domain.repository.AppointmentSlotRepository;
 import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
 import me.jianwen.mediask.schedule.domain.service.AutoScheduleDomainService;
 import me.jianwen.mediask.schedule.domain.service.AutoScheduleStrategy;
+import me.jianwen.mediask.schedule.domain.service.AppointmentStateMachineDomainService;
 import me.jianwen.mediask.schedule.domain.service.SlotManagementDomainService;
 import me.jianwen.mediask.schedule.domain.service.impl.CustomDateScheduleStrategy;
 import me.jianwen.mediask.schedule.domain.service.impl.PeriodicScheduleStrategy;
@@ -45,6 +46,11 @@ public class DomainBeanConfig {
     @Bean
     public SlotManagementDomainService slotManagementDomainService(AppointmentSlotRepository appointmentSlotRepository) {
         return new SlotManagementDomainService(appointmentSlotRepository);
+    }
+
+    @Bean
+    public AppointmentStateMachineDomainService appointmentStateMachineDomainService() {
+        return new AppointmentStateMachineDomainService();
     }
 
     @Bean

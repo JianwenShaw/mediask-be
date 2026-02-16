@@ -2,15 +2,24 @@ package me.jianwen.mediask.worker.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import me.jianwen.mediask.domain.event.DomainEventPublisher;
 import me.jianwen.mediask.schedule.domain.entity.Appointment;
+import me.jianwen.mediask.schedule.domain.entity.AppointmentSlot;
 import me.jianwen.mediask.schedule.domain.repository.AppointmentRepository;
+import me.jianwen.mediask.schedule.domain.repository.AppointmentSlotRepository;
+import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
+import me.jianwen.mediask.schedule.domain.service.AppointmentStateMachineDomainService;
+import me.jianwen.mediask.schedule.domain.service.AppointmentTransitionContext;
+import me.jianwen.mediask.schedule.domain.service.SlotManagementDomainService;
+import me.jianwen.mediask.schedule.domain.statemachine.TransitionResult;
+import me.jianwen.mediask.schedule.domain.valueobject.AppointmentEvent;
 import me.jianwen.mediask.schedule.domain.valueobject.AppointmentStatus;
-import me.jianwen.mediask.schedule.domain.valueobject.PatientId;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -25,11 +34,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AppointmentScheduler {
 
+    private static final int BATCH_LIMIT = 200;
     private final AppointmentRepository appointmentRepository;
+    private final AppointmentSlotRepository slotRepository;
+    private final DoctorScheduleRepository scheduleRepository;
+    private final SlotManagementDomainService slotManagementDomainService;
+    private final AppointmentStateMachineDomainService appointmentStateMachineDomainService;
+    private final DomainEventPublisher eventPublisher;
+    private final TransactionTemplate transactionTemplate;
 
     private static final int PAYMENT_TIMEOUT_MINUTES = 30;
-
-    private static final int ABSENT_CHECK_HOUR = 12;
 
     /**
      * 处理预约超时未支付
@@ -39,23 +53,36 @@ public class AppointmentScheduler {
     public void processAppointmentTimeout() {
         log.info("开始处理预约超时任务");
 
-        List<Appointment> unpaidAppointments = appointmentRepository.findByPatientIdAndStatus(
-                PatientId.of(0L), AppointmentStatus.UNPAID);
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(PAYMENT_TIMEOUT_MINUTES);
+        List<Appointment> unpaidAppointments = appointmentRepository.findUnpaidAppointmentsCreatedBefore(
+                cutoff, BATCH_LIMIT);
 
-        LocalDate today = LocalDate.now();
         long processedCount = 0;
 
         for (Appointment appointment : unpaidAppointments) {
-            if (isAppointmentTimeout(appointment)) {
-                try {
-                    appointment.cancel("支付超时，系统自动取消");
+            try {
+                Boolean stateChanged = transactionTemplate.execute(status -> {
+                    TransitionResult<AppointmentStatus, AppointmentEvent> result = appointmentStateMachineDomainService.transit(
+                            appointment,
+                            AppointmentEvent.PAY_TIMEOUT_CANCEL,
+                            AppointmentTransitionContext.forCancel(appointment, "支付超时，系统自动取消")
+                    );
+                    if (!result.stateChanged()) {
+                        return false;
+                    }
                     appointmentRepository.save(appointment);
-                    log.info("预约超时已自动取消: appointmentId={}, apptNo={}",
-                            appointment.getId().value(), appointment.getApptNo());
-                    processedCount++;
-                } catch (Exception e) {
-                    log.error("预约超时处理失败: appointmentId={}", appointment.getId().value(), e);
+                    releaseAppointmentSlotAndRestoreSchedule(appointment);
+                    publishEvents(appointment);
+                    return true;
+                });
+                if (!Boolean.TRUE.equals(stateChanged)) {
+                    continue;
                 }
+                log.info("预约超时已自动取消: appointmentId={}, apptNo={}",
+                        appointment.getId().value(), appointment.getApptNo());
+                processedCount++;
+            } catch (Exception e) {
+                log.error("预约超时处理失败: appointmentId={}", appointment.getId().value(), e);
             }
         }
 
@@ -70,43 +97,67 @@ public class AppointmentScheduler {
     public void markAbsentAppointments() {
         log.info("开始标记爽约预约任务");
 
-        LocalDate yesterday = LocalDate.now().minusDays(1);
-
-        List<Appointment> allAppointments = appointmentRepository.findByPatientIdAndStatus(
-                PatientId.of(0L), AppointmentStatus.CONFIRMED);
+        LocalDate today = LocalDate.now();
+        List<Appointment> allAppointments = appointmentRepository.findByStatusAndApptDateBefore(
+                AppointmentStatus.CONFIRMED, today, BATCH_LIMIT);
 
         long markedCount = 0;
         for (Appointment appointment : allAppointments) {
-            if (appointment.getApptDate().isBefore(yesterday)) {
-                try {
-                    appointment.markAsAbsent();
-                    appointmentRepository.save(appointment);
-                    log.info("已标记爽约: appointmentId={}, apptNo={}, apptDate={}",
-                            appointment.getId().value(), appointment.getApptNo(), appointment.getApptDate());
-                    markedCount++;
-                } catch (Exception e) {
-                    log.error("爽约标记失败: appointmentId={}", appointment.getId().value(), e);
+            try {
+                TransitionResult<AppointmentStatus, AppointmentEvent> result = appointmentStateMachineDomainService.transit(
+                        appointment,
+                        AppointmentEvent.SYSTEM_MARK_ABSENT,
+                        AppointmentTransitionContext.of(appointment)
+                );
+                if (!result.stateChanged()) {
+                    continue;
                 }
+                appointmentRepository.save(appointment);
+                publishEvents(appointment);
+                log.info("已标记爽约: appointmentId={}, apptNo={}, apptDate={}",
+                        appointment.getId().value(), appointment.getApptNo(), appointment.getApptDate());
+                markedCount++;
+            } catch (Exception e) {
+                log.error("爽约标记失败: appointmentId={}", appointment.getId().value(), e);
             }
         }
 
         log.info("爽约标记任务完成: 共标记 {} 条", markedCount);
     }
 
-    /**
-     * 检查预约是否超时
-     */
-    private boolean isAppointmentTimeout(Appointment appointment) {
-        if (appointment.getCreatedAt() == null) {
-            return false;
+    private void releaseAppointmentSlotAndRestoreSchedule(Appointment appointment) {
+        AppointmentSlot slot = slotRepository.findByScheduleAndTime(appointment.getScheduleId(), appointment.getApptTime())
+                .orElseThrow(() -> new IllegalStateException("号源不存在: scheduleId=" + appointment.getScheduleId().getValue()));
+        slotManagementDomainService.releaseSlot(slot.getId(), appointment.getId().value());
+        boolean increased = scheduleRepository.increaseAvailableSlots(appointment.getScheduleId());
+        if (!increased) {
+            throw new IllegalStateException("回补排班号源失败: scheduleId=" + appointment.getScheduleId().getValue());
         }
+    }
 
-        if (!appointment.getApptDate().isAfter(LocalDate.now())) {
-            return true;
+    private void publishEvents(Appointment appointment) {
+        for (Object event : appointment.getDomainEvents()) {
+            if (event instanceof me.jianwen.mediask.schedule.domain.event.AppointmentCreatedEvent createdEvent) {
+                me.jianwen.mediask.schedule.domain.event.AppointmentCreatedEvent normalizedEvent =
+                        createdEvent.appointmentId() == null
+                                ? new me.jianwen.mediask.schedule.domain.event.AppointmentCreatedEvent(
+                                appointment.getId(),
+                                createdEvent.patientId(),
+                                createdEvent.doctorId(),
+                                createdEvent.apptDate(),
+                                createdEvent.apptNo(),
+                                createdEvent.apptFee(),
+                                createdEvent.createdAt())
+                                : createdEvent;
+                eventPublisher.publishAppointmentCreated(normalizedEvent);
+                continue;
+            }
+            if (event instanceof me.jianwen.mediask.schedule.domain.event.AppointmentStatusChangedEvent statusEvent) {
+                eventPublisher.publishAppointmentStatusChanged(statusEvent);
+                continue;
+            }
+            log.warn("未处理的领域事件类型: {}", event.getClass().getName());
         }
-
-        return appointment.getCreatedAt()
-                .plusMinutes(PAYMENT_TIMEOUT_MINUTES)
-                .isBefore(java.time.LocalDateTime.now());
+        appointment.clearDomainEvents();
     }
 }
