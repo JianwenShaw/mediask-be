@@ -1,6 +1,7 @@
 package me.jianwen.mediask.schedule.domain.valueobject;
 
 import lombok.Value;
+import me.jianwen.mediask.common.util.SnowflakeIdWorker;
 
 /**
  * 排班ID值对象
@@ -9,6 +10,8 @@ import lombok.Value;
  */
 @Value
 public class ScheduleId {
+
+    private static final SnowflakeIdWorker ID_WORKER = new SnowflakeIdWorker(1, 1);
 
     Long value;
 
@@ -20,7 +23,6 @@ public class ScheduleId {
     }
 
     public static ScheduleId generate() {
-        // 由雪花算法生成，在应用层设置
-        return null;
+        return new ScheduleId(ID_WORKER.nextId());
     }
 }

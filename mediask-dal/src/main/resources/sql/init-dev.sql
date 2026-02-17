@@ -10,6 +10,13 @@ DROP TABLE IF EXISTS `schedule_templates`;
 DROP TABLE IF EXISTS `appointments`;
 DROP TABLE IF EXISTS `appointment_slots`;
 DROP TABLE IF EXISTS `doctor_schedules`;
+DROP TABLE IF EXISTS `schedule_plan_constraint_snapshot`;
+DROP TABLE IF EXISTS `schedule_plan_items`;
+DROP TABLE IF EXISTS `schedule_plan`;
+DROP TABLE IF EXISTS `calendar_day`;
+DROP TABLE IF EXISTS `department_schedule_demand`;
+DROP TABLE IF EXISTS `doctor_time_off`;
+DROP TABLE IF EXISTS `doctor_availability_rules`;
 DROP TABLE IF EXISTS `ai_metrics_dept_daily`;
 DROP TABLE IF EXISTS `ai_metrics_daily`;
 DROP TABLE IF EXISTS `ai_feedback_reviews`;
@@ -378,6 +385,119 @@ CREATE TABLE IF NOT EXISTS `schedule_exceptions` (
   KEY `idx_exception_doctor_date` (`doctor_id`, `exception_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班例外规则表';
 
+CREATE TABLE IF NOT EXISTS `doctor_availability_rules` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `doctor_id` BIGINT NOT NULL COMMENT '医生ID',
+  `weekday` TINYINT NOT NULL COMMENT '周几 1-7',
+  `period_code` TINYINT NOT NULL COMMENT '时段编码 1上午 2下午 3晚上',
+  `is_available` TINYINT NOT NULL DEFAULT 1 COMMENT '是否可排班',
+  `priority` INT NOT NULL DEFAULT 0 COMMENT '偏好优先级，越大越偏好',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_doc_weekday_period` (`doctor_id`, `weekday`, `period_code`),
+  KEY `idx_doc_availability_status` (`doctor_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='医生可排班规则';
+
+CREATE TABLE IF NOT EXISTS `doctor_time_off` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `doctor_id` BIGINT NOT NULL COMMENT '医生ID',
+  `start_date` DATE NOT NULL COMMENT '请假开始日期',
+  `end_date` DATE NOT NULL COMMENT '请假结束日期',
+  `period_code` TINYINT DEFAULT NULL COMMENT '请假时段，NULL表示全天',
+  `reason` VARCHAR(255) DEFAULT NULL COMMENT '请假原因',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_doc_time_off_range` (`doctor_id`, `start_date`, `end_date`),
+  KEY `idx_doc_time_off_status` (`doctor_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='医生请假规则';
+
+CREATE TABLE IF NOT EXISTS `department_schedule_demand` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `department_id` BIGINT NOT NULL COMMENT '科室ID',
+  `demand_date` DATE NOT NULL COMMENT '需求日期',
+  `period_code` TINYINT NOT NULL COMMENT '时段编码 1上午 2下午 3晚上',
+  `required_doctors` INT NOT NULL COMMENT '最少排班医生数',
+  `min_senior_doctors` INT NOT NULL DEFAULT 0 COMMENT '最少资深医生数',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_dept_demand_date_period` (`department_id`, `demand_date`, `period_code`),
+  KEY `idx_dept_demand_range` (`department_id`, `demand_date`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='科室排班需求';
+
+CREATE TABLE IF NOT EXISTS `calendar_day` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `calendar_date` DATE NOT NULL COMMENT '自然日',
+  `is_holiday` TINYINT NOT NULL DEFAULT 0 COMMENT '是否法定节假日',
+  `is_makeup_workday` TINYINT NOT NULL DEFAULT 0 COMMENT '是否调休工作日',
+  `holiday_name` VARCHAR(64) DEFAULT NULL COMMENT '节假日名称',
+  `region_code` VARCHAR(32) NOT NULL DEFAULT 'CN-NATIONAL' COMMENT '地区编码',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_calendar_day_region` (`calendar_date`, `region_code`),
+  KEY `idx_calendar_day_flags` (`calendar_date`, `is_holiday`, `is_makeup_workday`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='法定节假日与调休日历';
+
+CREATE TABLE IF NOT EXISTS `schedule_plan` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `plan_code` VARCHAR(64) NOT NULL COMMENT '方案编码',
+  `department_id` BIGINT NOT NULL COMMENT '科室ID',
+  `start_date` DATE NOT NULL COMMENT '排班开始日期',
+  `end_date` DATE NOT NULL COMMENT '排班结束日期',
+  `version_no` INT NOT NULL DEFAULT 1 COMMENT '版本号',
+  `plan_status` VARCHAR(16) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT/PUBLISHED/ARCHIVED',
+  `solver_strategy` VARCHAR(32) DEFAULT NULL COMMENT '求解策略',
+  `generated_by` BIGINT DEFAULT NULL COMMENT '生成人',
+  `total_score` DECIMAL(8,2) DEFAULT NULL COMMENT '方案总分',
+  `hard_violation_count` INT NOT NULL DEFAULT 0 COMMENT '硬约束违例数',
+  `warnings_json` JSON DEFAULT NULL COMMENT '告警信息',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_schedule_plan_code_ver` (`plan_code`, `version_no`),
+  KEY `idx_schedule_plan_dept_range` (`department_id`, `start_date`, `end_date`, `plan_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班方案主表';
+
+CREATE TABLE IF NOT EXISTS `schedule_plan_items` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `plan_id` BIGINT NOT NULL COMMENT '方案ID',
+  `schedule_date` DATE NOT NULL COMMENT '排班日期',
+  `period_code` TINYINT NOT NULL COMMENT '时段编码',
+  `doctor_id` BIGINT NOT NULL COMMENT '医生ID',
+  `is_senior` TINYINT NOT NULL DEFAULT 0 COMMENT '是否资深医生',
+  `reason_json` JSON DEFAULT NULL COMMENT '分配原因',
+  `penalty_json` JSON DEFAULT NULL COMMENT '惩罚项',
+  `score_delta` DECIMAL(8,2) DEFAULT NULL COMMENT '分配增量分',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_plan_slot_doctor` (`plan_id`, `schedule_date`, `period_code`, `doctor_id`),
+  KEY `idx_plan_item_slot` (`plan_id`, `schedule_date`, `period_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班方案明细';
+
+CREATE TABLE IF NOT EXISTS `schedule_plan_constraint_snapshot` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `plan_id` BIGINT NOT NULL COMMENT '方案ID',
+  `snapshot_type` VARCHAR(32) NOT NULL COMMENT 'DOCTOR_RULES/TIME_OFF/DEMAND/CALENDAR/HARD_SOFT',
+  `snapshot_json` JSON NOT NULL COMMENT '快照内容',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_plan_snapshot_type` (`plan_id`, `snapshot_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班约束快照';
+
 CREATE TABLE IF NOT EXISTS `appointment_events` (
   `id` BIGINT NOT NULL COMMENT '雪花ID',
   `appointment_id` BIGINT NOT NULL COMMENT '预约ID',
@@ -462,6 +582,34 @@ INSERT INTO `doctors` (
  '[\"内分泌\",\"高血压\"]', '擅长慢病管理', 50.00, 'LIC-000001', 1),
 (100000000002, 100000000002, 100000000001, 100000000002, 'D002', '副主任医师',
  '[\"普通外科\"]', '擅长普外手术咨询', 60.00, 'LIC-000002', 1);
+
+-- 插入排班优化相关测试数据
+INSERT INTO `doctor_availability_rules`
+(`id`, `doctor_id`, `weekday`, `period_code`, `is_available`, `priority`, `status`) VALUES
+(100000000001, 100000000001, 1, 1, 1, 9, 1),
+(100000000002, 100000000001, 1, 2, 1, 8, 1),
+(100000000003, 100000000001, 2, 1, 1, 9, 1),
+(100000000004, 100000000002, 1, 1, 1, 10, 1),
+(100000000005, 100000000002, 2, 1, 1, 10, 1);
+
+INSERT INTO `doctor_time_off`
+(`id`, `doctor_id`, `start_date`, `end_date`, `period_code`, `reason`, `status`) VALUES
+(100000000001, 100000000001, DATE_ADD(CURDATE(), INTERVAL 3 DAY), DATE_ADD(CURDATE(), INTERVAL 3 DAY), NULL, '培训停诊', 1);
+
+INSERT INTO `department_schedule_demand`
+(`id`, `department_id`, `demand_date`, `period_code`, `required_doctors`, `min_senior_doctors`, `status`) VALUES
+(100000000001, 100000000001, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 1, 1, 0, 1),
+(100000000002, 100000000001, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 2, 1, 0, 1),
+(100000000003, 100000000001, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 1, 1, 0, 1);
+
+INSERT INTO `calendar_day`
+(`id`, `calendar_date`, `is_holiday`, `is_makeup_workday`, `holiday_name`, `region_code`, `status`) VALUES
+(100000000001, '2026-01-01', 1, 0, '元旦', 'CN-NATIONAL', 1),
+(100000000002, '2026-02-17', 1, 0, '春节', 'CN-NATIONAL', 1),
+(100000000003, '2026-02-18', 1, 0, '春节', 'CN-NATIONAL', 1),
+(100000000004, '2026-02-22', 0, 1, '春节调休上班', 'CN-NATIONAL', 1),
+(100000000005, '2026-04-05', 1, 0, '清明节', 'CN-NATIONAL', 1),
+(100000000006, '2026-05-01', 1, 0, '劳动节', 'CN-NATIONAL', 1);
 
 -- 插入测试排班
 INSERT INTO `doctor_schedules` (

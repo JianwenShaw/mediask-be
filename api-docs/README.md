@@ -10,7 +10,9 @@
 | 用户 | 1 | 获取用户信息 |
 | 权限管理 | 4 | 角色查询、权限查询、用户角色查询与更新 |
 | 医生管理 | 5 | 医生档案创建、更新、启停、详情、分页 |
+| 科室数据 | 1 | 查询科室列表 |
 | 排班 | 12 | 创建/查询/删除排班、按模板生成排班 |
+| 排班方案 | 4 | 方案版本查询、预检、发布、回滚 |
 | 排班模板 | 4 | 创建/更新/查询/发布模板 |
 | 预约 | 11 | 预约挂号、取消、支付、爽约、医生查询 |
 | AI指标 | 3 | 医生复核、管理员总览、分科室统计 |
@@ -120,6 +122,12 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 | GET | `/api/v1/doctors/{doctorId}` | 查询医生详情 |
 | GET | `/api/v1/doctors` | 分页查询医生档案 |
 
+### Department 科室数据模块 (1 接口)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/department/departments` | 查询科室列表 |
+
 ### Schedule 排班模块 (12 接口)
 
 | 方法 | 路径 | 说明 |
@@ -137,6 +145,41 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 | GET | `/api/v1/schedules/available` | 可预约排班 |
 | DELETE | `/api/v1/schedules/batch` | 批量删除排班（新增） |
 
+**创建排班真实口径（以当前代码为准）**：
+- 请求字段为 `doctorId`、`scheduleDate`、`timePeriodCode`、`totalSlots`、`slotDurationMinutes`（不是 `date/periodCode`）。
+- 同医生 + 同日期 + 同时段创建会被拒绝，返回业务异常 `code=1006`，提示“该时段的排班已存在”。
+- `timePeriodCode` 仅支持 `1/2/3`（上午/下午/晚上）。
+
+**排班状态与操作规则**：
+- 状态码：`0=停诊`、`1=开放`、`2=约满`、`3=过期`。
+- `POST /api/v1/schedules/{scheduleId}/close`、`POST /api/v1/schedules/{scheduleId}/open` 为幂等操作。
+- 已过期排班不可开诊（open）。
+- 删除排班时：`force=false` 且存在未取消预约会失败；`force=true` 会先取消关联预约再关闭排班。
+
+**分页查询限制说明**：
+- `GET /api/v1/schedules` 当前版本中 `departmentId` 参数暂未生效（已预留参数，后续版本补齐服务层过滤）。
+
+**自动排班请求说明（已升级为科室多医生联合排班）**：
+- `departmentId`：科室 ID（必填）
+- `dateRange.startDate/endDate`：排班范围（必填）
+- `periods`：参与求解的时段编码列表（必填）
+- `doctorIds`：可选，指定医生池；为空则取科室全部在职医生
+- `demand.byDatePeriod`：可选，按日期+时段的需求覆盖
+- `hardConstraints`：可选，硬约束
+- `hardConstraints.holidayPolicy`：节假日策略（`CLOSE/REDUCED/NORMAL`，推荐 `REDUCED`）
+- `hardConstraints.holidayReductionFactor`：节假日降载系数（仅 `REDUCED` 生效，建议 0.4~0.7）
+- `softGoals`：可选，软目标权重
+- `solverConfig`：可选，求解策略参数
+
+**自动排班响应说明**：
+- `data.planId`：本次排班方案 ID
+- `data.generatedScheduleIds`：当前实现通常为空（`POST /api/v1/schedules/auto` 仅保存 DRAFT 方案，不直接创建正式排班）
+- `data.scoreSummary`：总分、硬约束违例数、软目标分解
+- `data.explanations`：每个排班分配的解释与惩罚项
+- `data.unfilledSlots`：未排满时段及原因
+- `data.warnings`：告警信息（如时段未排满、已存在排班被跳过）
+- 重要：`POST /api/v1/schedules/auto` 仅生成并保存 `DRAFT` 方案，不会直接生效；需调用 `POST /api/v1/schedule-plans/{planId}/publish` 才会落地到正式排班。
+
 ### ScheduleTemplate 排班模板模块 (4 接口)
 
 | 方法 | 路径 | 说明 |
@@ -145,6 +188,19 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 | PUT | `/api/v1/schedule-templates/{templateId}` | 更新排班模板（新增） |
 | GET | `/api/v1/schedule-templates/{templateId}` | 查询排班模板详情（新增） |
 | POST | `/api/v1/schedule-templates/{templateId}/publish` | 发布排班模板（新增） |
+
+### SchedulePlan 排班方案模块 (4 接口)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/schedule-plans/{planCode}/versions` | 查询方案版本列表 |
+| GET | `/api/v1/schedule-plans/{planId}/precheck?mode=STRICT|FORCE` | 发布前冲突预检（不执行发布） |
+| POST | `/api/v1/schedule-plans/{planId}/publish?mode=STRICT|FORCE` | 发布指定方案版本 |
+| POST | `/api/v1/schedule-plans/{planId}/rollback?mode=STRICT|FORCE` | 回滚到指定方案版本（重新发布） |
+
+**发布模式说明**：
+- `STRICT`（默认）：只要检测到“已有有效预约导致无法替换”的冲突，直接拒绝发布。
+- `FORCE`：允许发布，保留冲突排班并在返回 `warnings` 中给出冲突清单。
 
 ### Appointment 预约模块 (11 接口)
 
@@ -191,6 +247,10 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 
 | 日期 | 变更类型 | 方法 | 路径 | 模块 | 对接状态 | 备注 |
 |------|----------|------|------|------|----------|------|
+| 2026-02-16 | 新增 | GET | `/api/v1/department/departments` | 科室数据 | 待对接 | 同步 Controller 到 OpenAPI，补齐缺失接口 |
+| 2026-02-16 | 修改 | POST | `/api/v1/schedules` | 排班 | 待对接 | 创建排班请求字段口径修正为 `scheduleDate/timePeriodCode` |
+| 2026-02-16 | 修改 | GET | `/api/v1/schedules` | 排班 | 待对接 | 明确 `departmentId` 当前版本暂未生效 |
+| 2026-02-16 | 修改 | POST | `/api/v1/schedules/auto` | 排班 | 待对接 | 明确仅保存 DRAFT，`generatedScheduleIds` 通常为空 |
 | 2026-02-12 | 新增 | GET | `/api/v1/admin/authz/roles` | 权限管理 | 待对接 | 查询角色列表（含权限编码） |
 | 2026-02-12 | 新增 | GET | `/api/v1/admin/authz/permissions` | 权限管理 | 待对接 | 查询权限列表 |
 | 2026-02-12 | 新增 | GET | `/api/v1/admin/authz/users/{userId}/roles` | 权限管理 | 待对接 | 查询用户角色 |

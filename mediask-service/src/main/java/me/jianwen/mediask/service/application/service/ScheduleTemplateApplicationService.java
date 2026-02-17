@@ -13,6 +13,7 @@ import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
 import me.jianwen.mediask.schedule.domain.repository.ScheduleTemplateRepository;
 import me.jianwen.mediask.schedule.domain.service.SlotManagementDomainService;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
+import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
 import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 import me.jianwen.mediask.service.application.command.CreateScheduleTemplateCommand;
 import me.jianwen.mediask.service.application.command.GenerateScheduleFromTemplateCommand;
@@ -112,6 +113,7 @@ public class ScheduleTemplateApplicationService {
                 }
 
                 DoctorSchedule schedule = DoctorSchedule.create(
+                        ScheduleId.generate(),
                         doctorId,
                         date,
                         timePeriod,

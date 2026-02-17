@@ -37,6 +37,7 @@ class DoctorScheduleTest {
 
         // then
         assertNotNull(schedule);
+        assertNotNull(schedule.getId());
         assertEquals(DOCTOR_ID, schedule.getDoctorId());
         assertEquals(SCHEDULE_DATE, schedule.getScheduleDate());
         assertEquals(TIME_PERIOD, schedule.getTimePeriod());
@@ -57,6 +58,8 @@ class DoctorScheduleTest {
         // then
         assertEquals(1, schedule.getDomainEvents().size());
         assertInstanceOf(ScheduleCreatedEvent.class, schedule.getDomainEvents().get(0));
+        ScheduleCreatedEvent event = (ScheduleCreatedEvent) schedule.getDomainEvents().get(0);
+        assertEquals(schedule.getId(), event.getScheduleId());
     }
 
     @Test

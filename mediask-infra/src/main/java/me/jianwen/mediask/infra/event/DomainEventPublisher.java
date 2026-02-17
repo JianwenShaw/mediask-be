@@ -15,6 +15,8 @@ import me.jianwen.mediask.schedule.domain.event.ScheduleStatusChangedEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
+
 /**
  * 领域事件发布器
  *
@@ -79,7 +81,7 @@ public class DomainEventPublisher implements me.jianwen.mediask.domain.event.Dom
     @Override
     public void publishScheduleCreated(ScheduleCreatedEvent event) {
         ScheduleEventDO eventDO = new ScheduleEventDO();
-        eventDO.setScheduleId(event.getScheduleId() != null ? event.getScheduleId().getValue() : null);
+        eventDO.setScheduleId(Objects.requireNonNull(event.getScheduleId(), "排班创建事件缺少scheduleId").getValue());
         eventDO.setEventType("SCHEDULE_CREATED");
         eventDO.setToStatus(1);
         eventDO.setOccurredAt(event.getOccurredOn());

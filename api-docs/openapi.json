@@ -35,6 +35,10 @@
     {
       "name": "ai",
       "description": "AI问诊指标模块"
+    },
+    {
+      "name": "department",
+      "description": "科室模块"
     }
   ],
   "paths": {
@@ -65,7 +69,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResponseWrapper"
+                  "$ref": "#/components/schemas/AutoSchedulePlanResponse"
                 }
               }
             }
@@ -1264,6 +1268,32 @@
         }
       }
     },
+    "/api/v1/department/departments": {
+      "get": {
+        "tags": [
+          "department"
+        ],
+        "summary": "查询科室列表",
+        "description": "返回科室列表信息",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartmentListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/schedule-templates": {
       "post": {
         "tags": [
@@ -1419,6 +1449,7 @@
           "schedule"
         ],
         "summary": "创建排班",
+        "description": "手动创建单个排班；同医生+同日期+同时段已存在时返回业务错误(code=1006)",
         "security": [
           {
             "bearerAuth": []
@@ -1475,7 +1506,7 @@
               "type": "integer",
               "format": "int64"
             },
-            "description": "科室ID"
+            "description": "科室ID（当前版本暂未生效，仅预留参数）"
           },
           {
             "name": "startDate",
@@ -1550,6 +1581,7 @@
           "schedule"
         ],
         "summary": "自动排班",
+        "description": "仅生成并保存DRAFT方案，不直接生效；需调用发布接口使方案生效",
         "security": [
           {
             "bearerAuth": []
@@ -1570,7 +1602,196 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResponseWrapper"
+                  "$ref": "#/components/schemas/AutoSchedulePlanResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-plans/{planCode}/versions": {
+      "get": {
+        "tags": [
+          "schedule-plan"
+        ],
+        "summary": "查询排班方案版本列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "planCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "方案编码"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulePlanVersionListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-plans/{planId}/publish": {
+      "post": {
+        "tags": [
+          "schedule-plan"
+        ],
+        "summary": "发布排班方案",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "方案ID"
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STRICT",
+                "FORCE"
+              ],
+              "default": "STRICT"
+            },
+            "description": "发布模式：STRICT(冲突即失败) / FORCE(保留冲突并继续发布)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulePlanPublishResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-plans/{planId}/precheck": {
+      "get": {
+        "tags": [
+          "schedule-plan"
+        ],
+        "summary": "发布前冲突预检",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "方案ID"
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STRICT",
+                "FORCE"
+              ],
+              "default": "STRICT"
+            },
+            "description": "预检模式：STRICT/FORCE"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulePlanPrecheckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-plans/{planId}/rollback": {
+      "post": {
+        "tags": [
+          "schedule-plan"
+        ],
+        "summary": "回滚到指定排班方案版本",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "方案ID"
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STRICT",
+                "FORCE"
+              ],
+              "default": "STRICT"
+            },
+            "description": "回滚模式：STRICT(冲突即失败) / FORCE(保留冲突并继续回滚)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulePlanPublishResponse"
                 }
               }
             }
@@ -2210,74 +2431,523 @@
       },
       "AutoScheduleRequest": {
         "type": "object",
+        "required": [
+          "departmentId",
+          "dateRange",
+          "periods"
+        ],
         "properties": {
-          "doctorId": {
+          "departmentId": {
             "type": "integer",
             "format": "int64",
-            "description": "医生ID"
+            "description": "科室ID"
           },
-          "startDate": {
-            "type": "string",
-            "format": "date",
-            "description": "开始日期"
+          "dateRange": {
+            "$ref": "#/components/schemas/AutoScheduleDateRangeRequest"
           },
-          "endDate": {
-            "type": "string",
-            "format": "date",
-            "description": "结束日期"
-          },
-          "strategyName": {
-            "type": "string",
-            "description": "排班策略名称"
-          },
-          "workDays": {
+          "doctorIds": {
             "type": "array",
             "items": {
-              "type": "integer"
+              "type": "integer",
+              "format": "int64"
             },
-            "description": "工作日（1=周一 7=周日）"
+            "description": "指定参与排班的医生ID列表"
           },
-          "timePeriodCodes": {
+          "periods": {
             "type": "array",
             "items": {
-              "type": "integer"
+              "type": "integer",
+              "format": "int32"
             },
-            "description": "时段编码列表"
+            "description": "时段编码列表，1=上午 2=下午 3=晚上"
           },
-          "slotsPerPeriod": {
-            "type": "integer",
-            "format": "int32",
-            "description": "每个时段号源数"
+          "demand": {
+            "$ref": "#/components/schemas/AutoScheduleDemandRequest"
           },
-          "slotDurationMinutes": {
-            "type": "integer",
-            "format": "int32",
-            "description": "号源时长（分钟）"
+          "hardConstraints": {
+            "$ref": "#/components/schemas/AutoScheduleHardConstraintsRequest"
           },
-          "excludeHolidays": {
-            "type": "boolean",
-            "description": "是否排除节假日"
+          "softGoals": {
+            "$ref": "#/components/schemas/AutoScheduleSoftGoalsRequest"
+          },
+          "solverConfig": {
+            "$ref": "#/components/schemas/AutoScheduleSolverConfigRequest"
           }
         },
         "example": {
-          "doctorId": 1,
-          "startDate": "2024-01-15",
-          "endDate": "2024-01-21",
-          "strategyName": "periodic",
-          "workDays": [
-            1,
-            2,
-            3,
-            4,
-            5
+          "departmentId": 100000000001,
+          "dateRange": {
+            "startDate": "2026-02-20",
+            "endDate": "2026-02-26"
+          },
+          "doctorIds": [
+            100000000001,
+            100000000002
           ],
-          "timePeriodCodes": [
+          "periods": [
             1,
             2
           ],
-          "slotsPerPeriod": 20,
-          "slotDurationMinutes": 15,
-          "excludeHolidays": true
+          "hardConstraints": {
+            "maxConsecutiveDays": 5,
+            "maxShiftsPerWeek": 10,
+            "minRestHoursBetweenShifts": 12,
+            "excludeHolidays": false,
+            "holidayPolicy": "REDUCED",
+            "holidayReductionFactor": 0.5
+          },
+          "softGoals": {
+            "fairnessWeight": 0.3,
+            "preferenceWeight": 0.2,
+            "continuityWeight": 0.15,
+            "seniorCoverageWeight": 0.2,
+            "weekendBalanceWeight": 0.15
+          },
+          "solverConfig": {
+            "strategy": "HYBRID_V2",
+            "maxIterations": 2000,
+            "timeLimitMs": 3000
+          }
+        }
+      },
+      "AutoScheduleDateRangeRequest": {
+        "type": "object",
+        "required": [
+          "startDate",
+          "endDate"
+        ],
+        "properties": {
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "AutoScheduleDemandRequest": {
+        "type": "object",
+        "properties": {
+          "byDatePeriod": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutoScheduleDemandItemRequest"
+            }
+          }
+        }
+      },
+      "AutoScheduleDemandItemRequest": {
+        "type": "object",
+        "required": [
+          "date",
+          "periodCode",
+          "requiredDoctors"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "periodCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "requiredDoctors": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "minSeniorDoctors": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "AutoScheduleHardConstraintsRequest": {
+        "type": "object",
+        "properties": {
+          "maxConsecutiveDays": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "maxShiftsPerWeek": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "minRestHoursBetweenShifts": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "excludeHolidays": {
+            "type": "boolean",
+            "description": "兼容旧逻辑：是否节假日全停排"
+          },
+          "holidayPolicy": {
+            "type": "string",
+            "enum": [
+              "CLOSE",
+              "REDUCED",
+              "NORMAL"
+            ],
+            "description": "节假日策略：CLOSE=停排，REDUCED=降载，NORMAL=按平日排班"
+          },
+          "holidayReductionFactor": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0.01,
+            "maximum": 1.0,
+            "description": "节假日降载系数，仅 REDUCED 生效"
+          }
+        }
+      },
+      "AutoScheduleSoftGoalsRequest": {
+        "type": "object",
+        "properties": {
+          "fairnessWeight": {
+            "type": "number",
+            "format": "double"
+          },
+          "preferenceWeight": {
+            "type": "number",
+            "format": "double"
+          },
+          "continuityWeight": {
+            "type": "number",
+            "format": "double"
+          },
+          "seniorCoverageWeight": {
+            "type": "number",
+            "format": "double"
+          },
+          "weekendBalanceWeight": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "AutoScheduleSolverConfigRequest": {
+        "type": "object",
+        "properties": {
+          "strategy": {
+            "type": "string"
+          },
+          "maxIterations": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "timeLimitMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seed": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AutoSchedulePlanResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AutoSchedulePlanDTO"
+          }
+        }
+      },
+      "AutoSchedulePlanDTO": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "description": "排班方案标识，格式为 {planCode}@v{version}，例如 AUTO-100000000001-2026-02-20-2026-02-26@v1"
+          },
+          "generatedScheduleIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "本次自动排班直接创建的排班ID。当前实现仅保存DRAFT方案，此列表通常为空，需调用 publish/rollback 才会落地正式排班"
+          },
+          "scoreSummary": {
+            "$ref": "#/components/schemas/AutoScheduleScoreSummary"
+          },
+          "explanations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutoScheduleAssignmentExplanation"
+            }
+          },
+          "unfilledSlots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutoScheduleUnfilledSlot"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AutoScheduleScoreSummary": {
+        "type": "object",
+        "properties": {
+          "totalScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "hardViolationCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "softScoreBreakdown": {
+            "$ref": "#/components/schemas/AutoScheduleSoftScoreBreakdown"
+          }
+        }
+      },
+      "AutoScheduleSoftScoreBreakdown": {
+        "type": "object",
+        "properties": {
+          "fairnessScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "preferenceScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "continuityScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "seniorCoverageScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "weekendBalanceScore": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "AutoScheduleAssignmentExplanation": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "periodCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "doctorId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "penalties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AutoScheduleUnfilledSlot": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "periodCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "missingDoctors": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulePlanVersionListResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulePlanVersionDTO"
+            }
+          }
+        }
+      },
+      "SchedulePlanVersionDTO": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "planCode": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "planStatus": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "totalScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "hardViolationCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SchedulePlanPublishResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulePlanPublishResultDTO"
+          }
+        }
+      },
+      "SchedulePlanPublishResultDTO": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "planCode": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "action": {
+            "type": "string"
+          },
+          "createdSchedules": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "closedSchedules": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SchedulePlanPrecheckResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulePlanPrecheckResultDTO"
+          }
+        }
+      },
+      "SchedulePlanPrecheckResultDTO": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "planCode": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "wouldBlock": {
+            "type": "boolean"
+          },
+          "conflictCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "toCreateSchedules": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "toCloseSchedules": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       },
       "AvailableSlotResponse": {
@@ -2447,8 +3117,8 @@
         "type": "object",
         "required": [
           "doctorId",
-          "date",
-          "periodCode",
+          "scheduleDate",
+          "timePeriodCode",
           "totalSlots",
           "slotDurationMinutes"
         ],
@@ -2458,12 +3128,12 @@
             "format": "int64",
             "description": "医生ID"
           },
-          "date": {
+          "scheduleDate": {
             "type": "string",
             "format": "date",
             "description": "排班日期"
           },
-          "periodCode": {
+          "timePeriodCode": {
             "type": "integer",
             "format": "int32",
             "description": "1=上午, 2=下午, 3=晚上"
@@ -2471,20 +3141,63 @@
           "totalSlots": {
             "type": "integer",
             "format": "int32",
-            "description": "总号源数"
+            "description": "总号源数",
+            "minimum": 1
           },
           "slotDurationMinutes": {
             "type": "integer",
             "format": "int32",
-            "description": "每个号源时长（分钟）"
+            "description": "每个号源时长（分钟）",
+            "minimum": 5
           }
         },
         "example": {
           "doctorId": 1,
-          "date": "2024-01-15",
-          "periodCode": 1,
+          "scheduleDate": "2026-02-18",
+          "timePeriodCode": 1,
           "totalSlots": 20,
           "slotDurationMinutes": 15
+        }
+      },
+      "DepartmentListResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepartmentResponse"
+            }
+          }
+        }
+      },
+      "DepartmentResponse": {
+        "type": "object",
+        "properties": {
+          "departmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "hospitalId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "deptCode": {
+            "type": "string"
+          },
+          "deptName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "CreateScheduleTemplateRequest": {
@@ -2944,7 +3657,7 @@
       "ScheduleResponse": {
         "type": "object",
         "properties": {
-          "id": {
+          "scheduleId": {
             "type": "integer",
             "format": "int64",
             "description": "排班ID"
@@ -2954,14 +3667,15 @@
             "format": "int64",
             "description": "医生ID"
           },
-          "doctorName": {
-            "type": "string",
-            "description": "医生姓名"
-          },
           "scheduleDate": {
             "type": "string",
             "format": "date",
             "description": "排班日期"
+          },
+          "timePeriodCode": {
+            "type": "integer",
+            "format": "int32",
+            "description": "时段编码：1上午 2下午 3晚上"
           },
           "timePeriodDesc": {
             "type": "string",
@@ -2990,6 +3704,16 @@
             "type": "integer",
             "format": "int32",
             "description": "号源时长（分钟）"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "更新时间"
           }
         }
       },

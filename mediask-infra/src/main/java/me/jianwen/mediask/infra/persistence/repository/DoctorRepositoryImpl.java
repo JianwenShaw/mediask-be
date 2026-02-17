@@ -67,6 +67,29 @@ public class DoctorRepositoryImpl implements DoctorRepository {
     }
 
     @Override
+    public List<DoctorProfile> listActiveByDepartment(Long departmentId, List<Long> doctorIds) {
+        LambdaQueryWrapper<DoctorDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(DoctorDO::getDeptId, departmentId)
+                .eq(DoctorDO::getStatus, StatusEnum.ENABLED)
+                .in(doctorIds != null && !doctorIds.isEmpty(), DoctorDO::getId, doctorIds)
+                .orderByAsc(DoctorDO::getId);
+
+        List<DoctorDO> doctors = doctorMapper.selectList(wrapper);
+        if (doctors == null || doctors.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> userIds = doctors.stream().map(DoctorDO::getUserId).collect(Collectors.toSet());
+        Set<Long> deptIds = doctors.stream().map(DoctorDO::getDeptId).collect(Collectors.toSet());
+        Set<Long> hospitalIds = doctors.stream().map(DoctorDO::getHospitalId).collect(Collectors.toSet());
+        Map<Long, UserDO> userMap = loadUserMap(userIds);
+        Map<Long, DepartmentDO> departmentMap = loadDepartmentMap(deptIds);
+        Map<Long, HospitalDO> hospitalMap = loadHospitalMap(hospitalIds);
+        return doctors.stream()
+                .map(record -> toDoctorProfile(record, userMap, departmentMap, hospitalMap))
+                .toList();
+    }
+
+    @Override
     public PageResult<DoctorProfile> page(DoctorPageQuery query) {
         int pageNum = query.getPageNum() == null || query.getPageNum() < 1 ? 1 : query.getPageNum();
         int pageSize = query.getPageSize() == null || query.getPageSize() < 1 ? 10 : query.getPageSize();

@@ -89,6 +89,7 @@ public class DoctorSchedule {
      * 创建排班
      */
     public static DoctorSchedule create(
+            ScheduleId scheduleId,
             DoctorId doctorId,
             LocalDate scheduleDate,
             TimePeriod timePeriod,
@@ -96,6 +97,7 @@ public class DoctorSchedule {
             int slotDurationMinutes) {
 
         DoctorSchedule schedule = new DoctorSchedule();
+        schedule.setId(scheduleId);
         schedule.setDoctorId(doctorId);
         schedule.setScheduleDate(scheduleDate);
         schedule.setTimePeriod(timePeriod);
@@ -114,6 +116,22 @@ public class DoctorSchedule {
                 schedule.getTimePeriod()));
 
         return schedule;
+    }
+
+    public static DoctorSchedule create(
+            DoctorId doctorId,
+            LocalDate scheduleDate,
+            TimePeriod timePeriod,
+            int totalSlots,
+            int slotDurationMinutes) {
+        return create(
+                ScheduleId.generate(),
+                doctorId,
+                scheduleDate,
+                timePeriod,
+                totalSlots,
+                slotDurationMinutes
+        );
     }
 
     // ============ 业务行为 ============

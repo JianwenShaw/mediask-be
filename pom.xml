@@ -336,7 +336,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <argLine>${jacocoArgLine} --enable-preview</argLine>
+                        <argLine>${jacocoArgLine} --enable-preview -Djdk.attach.allowAttachSelf=true</argLine>
                     </configuration>
                 </plugin>
 

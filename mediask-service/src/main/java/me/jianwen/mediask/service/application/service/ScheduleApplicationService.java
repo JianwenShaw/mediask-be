@@ -3,30 +3,52 @@ package me.jianwen.mediask.service.application.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.common.constant.ErrorCode;
+import me.jianwen.mediask.common.dto.schedule.AutoSchedulePlanDTO;
 import me.jianwen.mediask.common.dto.schedule.ScheduleDTO;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.common.model.PageResult;
+import me.jianwen.mediask.common.util.JsonUtil;
 import me.jianwen.mediask.domain.event.DomainEventPublisher;
+import me.jianwen.mediask.domain.repository.DoctorRepository;
+import me.jianwen.mediask.schedule.domain.optimization.model.DepartmentScheduleDemand;
+import me.jianwen.mediask.schedule.domain.optimization.model.DepartmentScheduleOptimizationRequest;
+import me.jianwen.mediask.schedule.domain.optimization.model.DepartmentScheduleOptimizationResult;
+import me.jianwen.mediask.schedule.domain.optimization.model.CalendarDayRule;
+import me.jianwen.mediask.schedule.domain.optimization.model.DoctorAvailabilityRule;
+import me.jianwen.mediask.schedule.domain.optimization.model.DoctorTimeOff;
+import me.jianwen.mediask.schedule.domain.optimization.model.ScheduleDoctorProfile;
+import me.jianwen.mediask.schedule.domain.optimization.model.SchedulePlan;
+import me.jianwen.mediask.schedule.domain.optimization.model.SchedulePlanConstraintSnapshot;
+import me.jianwen.mediask.schedule.domain.optimization.model.SchedulePlanItem;
 import me.jianwen.mediask.schedule.domain.entity.Appointment;
 import me.jianwen.mediask.schedule.domain.entity.AppointmentSlot;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
 import me.jianwen.mediask.schedule.domain.repository.AppointmentRepository;
+import me.jianwen.mediask.schedule.domain.repository.CalendarDayRepository;
+import me.jianwen.mediask.schedule.domain.repository.DepartmentScheduleDemandRepository;
+import me.jianwen.mediask.schedule.domain.repository.DoctorAvailabilityRuleRepository;
 import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
-import me.jianwen.mediask.schedule.domain.rule.ScheduleRule;
-import me.jianwen.mediask.schedule.domain.service.AutoScheduleDomainService;
-import me.jianwen.mediask.schedule.domain.service.ScheduleContext;
+import me.jianwen.mediask.schedule.domain.repository.DoctorTimeOffRepository;
+import me.jianwen.mediask.schedule.domain.repository.SchedulePlanRepository;
+import me.jianwen.mediask.schedule.domain.service.DepartmentScheduleOptimizationDomainService;
 import me.jianwen.mediask.schedule.domain.service.SlotManagementDomainService;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
 import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
 import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 import me.jianwen.mediask.service.application.command.AutoScheduleCommand;
 import me.jianwen.mediask.service.application.command.CreateScheduleCommand;
+import me.jianwen.mediask.user.domain.entity.DoctorProfile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 排班应用服务
@@ -46,8 +68,14 @@ public class ScheduleApplicationService {
 
     private final DoctorScheduleRepository scheduleRepository;
     private final AppointmentRepository appointmentRepository;
-    private final AutoScheduleDomainService autoScheduleDomainService;
     private final SlotManagementDomainService slotManagementDomainService;
+    private final DepartmentScheduleOptimizationDomainService optimizationDomainService;
+    private final DoctorRepository doctorRepository;
+    private final DoctorAvailabilityRuleRepository doctorAvailabilityRuleRepository;
+    private final DoctorTimeOffRepository doctorTimeOffRepository;
+    private final DepartmentScheduleDemandRepository departmentScheduleDemandRepository;
+    private final SchedulePlanRepository schedulePlanRepository;
+    private final CalendarDayRepository calendarDayRepository;
     private final DomainEventPublisher eventPublisher;
 
     /**
@@ -68,6 +96,7 @@ public class ScheduleApplicationService {
 
         // 2. 创建排班聚合
         DoctorSchedule schedule = DoctorSchedule.create(
+                ScheduleId.generate(),
                 doctorId,
                 request.getScheduleDate(),
                 timePeriod,
@@ -93,53 +122,87 @@ public class ScheduleApplicationService {
      * 执行自动排班
      */
     @Transactional(rollbackFor = Exception.class)
-    public List<Long> autoSchedule(AutoScheduleCommand request) {
-        log.info("执行自动排班: doctorId={}, dateRange={} to {}",
-                request.getDoctorId(), request.getStartDate(), request.getEndDate());
+    public AutoSchedulePlanDTO autoSchedule(AutoScheduleCommand request) {
+        validateAutoScheduleCommand(request);
+        log.info("执行自动排班: departmentId={}, dateRange={} to {}, doctorIds={}",
+                request.getDepartmentId(), request.getStartDate(), request.getEndDate(), request.getDoctorIds());
 
-        // 1. 构建排班规则
-        ScheduleRule rule = new ScheduleRule();
-        rule.setRuleName("自动排班规则");
-        rule.setEffectiveDaysOfWeek(request.getWorkDays());
-        rule.setEffectivePeriods(request.getTimePeriods());
-        rule.setSlotsPerPeriod(request.getSlotsPerPeriod());
-        rule.setSlotDurationMinutes(request.getSlotDurationMinutes());
-        rule.setEffectiveStartDate(request.getStartDate());
-        rule.setEffectiveEndDate(request.getEndDate());
-        rule.setExcludeHolidays(request.getExcludeHolidays());
+        List<DoctorProfile> doctorProfiles = doctorRepository.listActiveByDepartment(
+                request.getDepartmentId(), request.getDoctorIds());
+        if (doctorProfiles.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "未找到可参与排班的在职医生");
+        }
 
-        // 2. 构建排班上下文
-        ScheduleContext context = ScheduleContext.builder()
-                .scheduleRule(rule)
-                .properties(new HashMap<>())
-                .build();
+        List<ScheduleDoctorProfile> doctors = doctorProfiles.stream()
+                .map(this::toScheduleDoctorProfile)
+                .toList();
+        List<Long> doctorIds = doctors.stream().map(ScheduleDoctorProfile::doctorId).toList();
 
-        // 3. 执行自动排班
-        DoctorId doctorId = DoctorId.of(request.getDoctorId());
-        List<DoctorSchedule> schedules = autoScheduleDomainService.autoSchedule(
-                doctorId,
+        List<DoctorAvailabilityRule> availabilityRules = doctorAvailabilityRuleRepository.listByDoctorIds(doctorIds);
+        List<DoctorTimeOff> timeOffRules = doctorTimeOffRepository.listByDoctorIdsAndDateRange(
+                doctorIds, request.getStartDate(), request.getEndDate());
+        List<DepartmentScheduleDemand> demands = resolveDemands(request);
+        List<CalendarDayRule> calendarDays = calendarDayRepository.listByDateRange(
+                request.getStartDate(), request.getEndDate(), "CN-NATIONAL");
+        Set<LocalDate> holidayDates = calendarDays.stream()
+                .filter(CalendarDayRule::holiday)
+                .map(CalendarDayRule::date)
+                .collect(Collectors.toSet());
+        Set<LocalDate> makeupWorkdayDates = calendarDays.stream()
+                .filter(CalendarDayRule::makeupWorkday)
+                .map(CalendarDayRule::date)
+                .collect(Collectors.toSet());
+
+        DepartmentScheduleOptimizationRequest optimizationRequest = new DepartmentScheduleOptimizationRequest(
                 request.getStartDate(),
                 request.getEndDate(),
-                context,
-                request.getStrategyName());
+                request.getPeriods(),
+                demands,
+                holidayDates,
+                makeupWorkdayDates,
+                toHardConstraints(request.resolvedHardConstraints()),
+                toSoftGoals(request.resolvedSoftGoals())
+        );
+        DepartmentScheduleOptimizationResult optimizationResult = optimizationDomainService.optimize(
+                optimizationRequest, doctors, availabilityRules, timeOffRules);
 
-        // 4. 保存排班
-        autoScheduleDomainService.saveSchedules(schedules);
+        List<Long> generatedScheduleIds = new ArrayList<>();
+        List<String> warnings = new ArrayList<>(optimizationResult.warnings());
+        for (var assignment : optimizationResult.assignments()) {
+            TimePeriod period = resolveTimePeriod(assignment.periodCode());
+            DoctorId doctorId = DoctorId.of(assignment.doctorId());
+            if (scheduleRepository.exists(doctorId, assignment.date(), period)) {
+                warnings.add("跳过已存在排班: doctorId=%d,date=%s,period=%d"
+                        .formatted(assignment.doctorId(), assignment.date(), assignment.periodCode()));
+                continue;
+            }
+        }
 
-        // 5. 为每个排班生成号源时段
-        schedules.forEach(schedule -> {
-            List<AppointmentSlot> slots = slotManagementDomainService.generateSlotsForSchedule(schedule);
-            slotManagementDomainService.saveSlots(slots);
-        });
+        String planCode = buildPlanCode(request.getDepartmentId(), request.getStartDate(), request.getEndDate());
+        int versionNo = schedulePlanRepository.findLatestVersion(planCode) + 1;
+        AutoScheduleCommand.SolverConfig solverConfig = request.resolvedSolverConfig();
+        Long planId = schedulePlanRepository.savePlan(new SchedulePlan(
+                null,
+                planCode,
+                request.getDepartmentId(),
+                request.getStartDate(),
+                request.getEndDate(),
+                versionNo,
+                "DRAFT",
+                solverConfig.strategy(),
+                null,
+                optimizationResult.totalScore(),
+                optimizationResult.hardViolationCount(),
+                JsonUtil.toJson(warnings)
+        ));
+        schedulePlanRepository.savePlanItems(planId, buildPlanItems(optimizationResult, doctors));
+        schedulePlanRepository.saveConstraintSnapshots(planId, buildSnapshots(
+                request, availabilityRules, timeOffRules, demands, holidayDates, makeupWorkdayDates));
+        warnings.add("方案已保存为DRAFT，需调用发布接口后才会生效");
 
-        // 6. 发布领域事件
-        schedules.forEach(this::publishEvents);
-
-        log.info("自动排班完成: 生成 {} 条排班", schedules.size());
-
-        return schedules.stream()
-                .map(s -> s.getId().getValue())
-                .toList();
+        log.info("自动排班完成: 生成 {} 条排班, 未满足时段={}",
+                generatedScheduleIds.size(), optimizationResult.unfilledSlots().size());
+        return toPlanDTO(generatedScheduleIds, optimizationResult, warnings, planCode + "@v" + versionNo);
     }
 
     /**
@@ -354,6 +417,167 @@ public class ScheduleApplicationService {
         } catch (IllegalArgumentException ex) {
             throw new BizException(ErrorCode.PARAM_INVALID, "非法的时段编码");
         }
+    }
+
+    private void validateAutoScheduleCommand(AutoScheduleCommand request) {
+        if (request.getDepartmentId() == null) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "科室ID不能为空");
+        }
+        if (request.getStartDate() == null || request.getEndDate() == null) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "排班日期范围不能为空");
+        }
+        if (request.getStartDate().isAfter(request.getEndDate())) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "开始日期不能晚于结束日期");
+        }
+        if (request.getPeriods() == null || request.getPeriods().isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "时段列表不能为空");
+        }
+    }
+
+    private ScheduleDoctorProfile toScheduleDoctorProfile(DoctorProfile profile) {
+        return new ScheduleDoctorProfile(
+                profile.getDoctorId(),
+                profile.getDepartmentId(),
+                profile.getTitle(),
+                isSeniorTitle(profile.getTitle())
+        );
+    }
+
+    private boolean isSeniorTitle(String title) {
+        if (title == null || title.isBlank()) {
+            return false;
+        }
+        String normalized = title.toLowerCase(Locale.ROOT);
+        return normalized.contains("主任") || normalized.contains("教授") || normalized.contains("expert");
+    }
+
+    private List<DepartmentScheduleDemand> resolveDemands(AutoScheduleCommand request) {
+        if (request.getDemands() != null && !request.getDemands().isEmpty()) {
+            return request.getDemands().stream()
+                    .map(item -> new DepartmentScheduleDemand(
+                            request.getDepartmentId(),
+                            item.date(),
+                            item.periodCode(),
+                            item.requiredDoctors(),
+                            item.minSeniorDoctors() == null ? 0 : item.minSeniorDoctors()
+                    ))
+                    .toList();
+        }
+        return departmentScheduleDemandRepository.listByDepartmentAndDateRange(
+                request.getDepartmentId(), request.getStartDate(), request.getEndDate());
+    }
+
+    private DepartmentScheduleOptimizationRequest.HardConstraints toHardConstraints(AutoScheduleCommand.HardConstraints source) {
+        return new DepartmentScheduleOptimizationRequest.HardConstraints(
+                source.maxConsecutiveDays(),
+                source.maxShiftsPerWeek(),
+                source.minRestHoursBetweenShifts(),
+                source.excludeHolidays(),
+                source.holidayPolicy(),
+                source.holidayReductionFactor()
+        );
+    }
+
+    private DepartmentScheduleOptimizationRequest.SoftGoals toSoftGoals(AutoScheduleCommand.SoftGoals source) {
+        return new DepartmentScheduleOptimizationRequest.SoftGoals(
+                source.fairnessWeight(),
+                source.preferenceWeight(),
+                source.continuityWeight(),
+                source.seniorCoverageWeight(),
+                source.weekendBalanceWeight()
+        );
+    }
+
+    private AutoSchedulePlanDTO toPlanDTO(
+            List<Long> generatedScheduleIds,
+            DepartmentScheduleOptimizationResult result,
+            List<String> warnings,
+            String planId) {
+        Map<String, Double> score = result.scoreBreakdown();
+        AutoSchedulePlanDTO.SoftScoreBreakdown breakdown = new AutoSchedulePlanDTO.SoftScoreBreakdown(
+                score.getOrDefault("fairness", 0D),
+                score.getOrDefault("preference", 0D),
+                score.getOrDefault("continuity", 0D),
+                score.getOrDefault("seniorCoverage", 0D),
+                score.getOrDefault("weekendBalance", 0D)
+        );
+        AutoSchedulePlanDTO.ScoreSummary scoreSummary = new AutoSchedulePlanDTO.ScoreSummary(
+                result.totalScore(),
+                result.hardViolationCount(),
+                breakdown
+        );
+        List<AutoSchedulePlanDTO.AssignmentExplanation> explanations = result.assignments().stream()
+                .map(assignment -> new AutoSchedulePlanDTO.AssignmentExplanation(
+                        assignment.date().toString(),
+                        assignment.periodCode(),
+                        assignment.doctorId(),
+                        assignment.reasons(),
+                        assignment.penalties()
+                ))
+                .toList();
+        List<AutoSchedulePlanDTO.UnfilledSlot> unfilledSlots = result.unfilledSlots().stream()
+                .map(slot -> new AutoSchedulePlanDTO.UnfilledSlot(
+                        slot.date().toString(),
+                        slot.periodCode(),
+                        slot.missingDoctors(),
+                        slot.reason()
+                ))
+                .toList();
+        return new AutoSchedulePlanDTO(
+                planId,
+                generatedScheduleIds,
+                scoreSummary,
+                explanations,
+                unfilledSlots,
+                warnings
+        );
+    }
+
+    private String buildPlanCode(Long departmentId, LocalDate startDate, LocalDate endDate) {
+        return "AUTO-%d-%s-%s".formatted(departmentId, startDate, endDate);
+    }
+
+    private List<SchedulePlanItem> buildPlanItems(
+            DepartmentScheduleOptimizationResult optimizationResult,
+            List<ScheduleDoctorProfile> doctors) {
+        Set<Long> seniorDoctors = new HashSet<>(doctors.stream()
+                .filter(ScheduleDoctorProfile::senior)
+                .map(ScheduleDoctorProfile::doctorId)
+                .toList());
+        return optimizationResult.assignments().stream()
+                .map(assignment -> new SchedulePlanItem(
+                        assignment.date(),
+                        assignment.periodCode(),
+                        assignment.doctorId(),
+                        seniorDoctors.contains(assignment.doctorId()),
+                        JsonUtil.toJson(assignment.reasons()),
+                        JsonUtil.toJson(assignment.penalties()),
+                        null
+                ))
+                .toList();
+    }
+
+    private List<SchedulePlanConstraintSnapshot> buildSnapshots(
+            AutoScheduleCommand request,
+            List<DoctorAvailabilityRule> availabilityRules,
+            List<DoctorTimeOff> timeOffRules,
+            List<DepartmentScheduleDemand> demands,
+            Set<LocalDate> holidayDates,
+            Set<LocalDate> makeupWorkdayDates) {
+        List<SchedulePlanConstraintSnapshot> snapshots = new ArrayList<>();
+        snapshots.add(new SchedulePlanConstraintSnapshot("DOCTOR_RULES", JsonUtil.toJson(availabilityRules)));
+        snapshots.add(new SchedulePlanConstraintSnapshot("TIME_OFF", JsonUtil.toJson(timeOffRules)));
+        snapshots.add(new SchedulePlanConstraintSnapshot("DEMAND", JsonUtil.toJson(demands)));
+        snapshots.add(new SchedulePlanConstraintSnapshot("CALENDAR", JsonUtil.toJson(Map.of(
+                "holidayDates", holidayDates,
+                "makeupWorkdayDates", makeupWorkdayDates
+        ))));
+        snapshots.add(new SchedulePlanConstraintSnapshot("HARD_SOFT", JsonUtil.toJson(Map.of(
+                "hardConstraints", request.resolvedHardConstraints(),
+                "softGoals", request.resolvedSoftGoals(),
+                "solverConfig", request.resolvedSolverConfig()
+        ))));
+        return snapshots;
     }
 
     private ScheduleDTO toScheduleDTO(DoctorSchedule schedule) {

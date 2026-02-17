@@ -7,6 +7,7 @@ import me.jianwen.mediask.schedule.domain.rule.ScheduleRule;
 import me.jianwen.mediask.schedule.domain.service.AutoScheduleStrategy;
 import me.jianwen.mediask.schedule.domain.service.ScheduleContext;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
+import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
 import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
 
 import java.time.LocalDate;
@@ -59,6 +60,7 @@ public class PeriodicScheduleStrategy implements AutoScheduleStrategy {
                 // 为每个时段生成排班
                 for (TimePeriod period : periods) {
                     DoctorSchedule schedule = DoctorSchedule.create(
+                            ScheduleId.generate(),
                             doctorId,
                             currentDate,
                             period,

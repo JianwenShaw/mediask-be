@@ -39,9 +39,16 @@ public class DoctorScheduleRepositoryImpl implements DoctorScheduleRepository {
             scheduleMapper.insert(dataObject);
             // 回填ID
             schedule.setId(ScheduleId.of(dataObject.getId()));
-        } else {
-            scheduleMapper.updateById(dataObject);
+            return;
         }
+
+        DoctorScheduleDO existing = scheduleMapper.selectById(dataObject.getId());
+        if (existing == null) {
+            // 允许应用层提前生成ID后直接插入
+            scheduleMapper.insert(dataObject);
+            return;
+        }
+        scheduleMapper.updateById(dataObject);
     }
 
     @Override

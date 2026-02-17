@@ -10,9 +10,11 @@ import me.jianwen.mediask.api.model.schedule.AutoScheduleRequest;
 import me.jianwen.mediask.api.model.schedule.CreateScheduleRequest;
 import me.jianwen.mediask.api.model.schedule.GenerateScheduleFromTemplateRequest;
 import me.jianwen.mediask.api.model.schedule.ScheduleResponse;
+import me.jianwen.mediask.common.dto.schedule.AutoSchedulePlanDTO;
 import me.jianwen.mediask.common.dto.schedule.ScheduleDTO;
 import me.jianwen.mediask.common.model.PageResult;
 import me.jianwen.mediask.common.result.Result;
+import me.jianwen.mediask.service.application.command.AutoScheduleCommand;
 import me.jianwen.mediask.service.application.service.ScheduleApplicationService;
 import me.jianwen.mediask.service.application.service.ScheduleTemplateApplicationService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -65,10 +67,10 @@ public class ScheduleController {
     @PostMapping("/auto")
     @Operation(summary = "自动排班", description = "根据规则自动批量生成排班")
     @PreAuthorize("hasAuthority('schedule:auto')")
-    public Result<List<Long>> autoSchedule(@Validated @RequestBody AutoScheduleRequest request) {
-        var serviceRequest = scheduleApiMapper.toService(request);
-        List<Long> scheduleIds = scheduleApplicationService.autoSchedule(serviceRequest);
-        return Result.ok(scheduleIds);
+    public Result<AutoSchedulePlanDTO> autoSchedule(@Validated @RequestBody AutoScheduleRequest request) {
+        AutoScheduleCommand serviceRequest = toAutoScheduleCommand(request);
+        AutoSchedulePlanDTO result = scheduleApplicationService.autoSchedule(serviceRequest);
+        return Result.ok(result);
     }
 
     /**
@@ -210,5 +212,53 @@ public class ScheduleController {
             @Parameter(description = "是否强制删除") @RequestParam(defaultValue = "false") Boolean force) {
         int count = scheduleApplicationService.batchDeleteSchedules(doctorId, startDate, endDate, force);
         return Result.ok(count);
+    }
+
+    private AutoScheduleCommand toAutoScheduleCommand(AutoScheduleRequest request) {
+        AutoScheduleCommand command = new AutoScheduleCommand();
+        command.setDepartmentId(request.getDepartmentId());
+        if (request.getDateRange() != null) {
+            command.setStartDate(request.getDateRange().getStartDate());
+            command.setEndDate(request.getDateRange().getEndDate());
+        }
+        command.setDoctorIds(request.getDoctorIds());
+        command.setPeriods(request.getPeriods());
+        if (request.getDemand() != null && request.getDemand().getByDatePeriod() != null) {
+            command.setDemands(request.getDemand().getByDatePeriod().stream()
+                    .map(d -> new AutoScheduleCommand.DemandItemCommand(
+                            d.getDate(),
+                            d.getPeriodCode(),
+                            d.getRequiredDoctors(),
+                            d.getMinSeniorDoctors()))
+                    .toList());
+        }
+        if (request.getHardConstraints() != null) {
+            command.setHardConstraints(new AutoScheduleCommand.HardConstraints(
+                    request.getHardConstraints().getMaxConsecutiveDays(),
+                    request.getHardConstraints().getMaxShiftsPerWeek(),
+                    request.getHardConstraints().getMinRestHoursBetweenShifts(),
+                    request.getHardConstraints().getExcludeHolidays(),
+                    request.getHardConstraints().getHolidayPolicy(),
+                    request.getHardConstraints().getHolidayReductionFactor()
+            ));
+        }
+        if (request.getSoftGoals() != null) {
+            command.setSoftGoals(new AutoScheduleCommand.SoftGoals(
+                    request.getSoftGoals().getFairnessWeight(),
+                    request.getSoftGoals().getPreferenceWeight(),
+                    request.getSoftGoals().getContinuityWeight(),
+                    request.getSoftGoals().getSeniorCoverageWeight(),
+                    request.getSoftGoals().getWeekendBalanceWeight()
+            ));
+        }
+        if (request.getSolverConfig() != null) {
+            command.setSolverConfig(new AutoScheduleCommand.SolverConfig(
+                    request.getSolverConfig().getStrategy(),
+                    request.getSolverConfig().getMaxIterations(),
+                    request.getSolverConfig().getTimeLimitMs(),
+                    request.getSolverConfig().getSeed()
+            ));
+        }
+        return command;
     }
 }

@@ -1,13 +1,15 @@
 package me.jianwen.mediask.api.model.schedule;
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.Data;
+import org.springframework.format.annotation.DateTimeFormat;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.Set;
+import java.util.List;
 
 /**
  * 自动排班请求（API层）
@@ -16,58 +18,130 @@ import java.util.Set;
 public class AutoScheduleRequest {
 
     /**
-     * 医生ID
+     * 科室ID
      */
-    @NotNull(message = "医生ID不能为空")
-    private Long doctorId;
+    @NotNull(message = "科室ID不能为空")
+    private Long departmentId;
 
     /**
-     * 开始日期
+     * 日期范围
      */
-    @NotNull(message = "开始日期不能为空")
-    private LocalDate startDate;
+    @NotNull(message = "日期范围不能为空")
+    private DateRangeRequest dateRange;
 
     /**
-     * 结束日期
+     * 指定参与排班的医生列表（为空则取科室全部在职医生）
      */
-    @NotNull(message = "结束日期不能为空")
-    private LocalDate endDate;
+    private List<Long> doctorIds;
 
     /**
-     * 策略名称（可选）
-     * PERIODIC - 周期性排班
-     * CUSTOM_DATE - 自定义日期排班
+     * 时段列表（1上午 2下午 3晚上）
      */
-    private String strategyName;
+    @NotNull(message = "时段列表不能为空")
+    private List<Integer> periods;
 
     /**
-     * 生效的星期几（1-7）
+     * 科室需求（为空则按默认需求生成）
      */
-    @NotEmpty(message = "工作日不能为空")
-    private Set<DayOfWeek> workDays;
+    private DemandRequest demand;
 
     /**
-     * 生效的时段代码集合
+     * 硬约束
      */
-    @NotEmpty(message = "工作时段不能为空")
-    private Set<Integer> timePeriodCodes;
+    private HardConstraintsRequest hardConstraints;
 
     /**
-     * 每个时段的号源数
+     * 软约束权重
      */
-    @NotNull(message = "号源数不能为空")
-    @Min(value = 1, message = "号源数至少为1")
-    private Integer slotsPerPeriod;
+    private SoftGoalsRequest softGoals;
 
     /**
-     * 每个号源的时长（分钟）
+     * 求解器配置
      */
-    @NotNull(message = "号源时长不能为空")
-    @Min(value = 5, message = "号源时长至少为5分钟")
-    private Integer slotDurationMinutes;
+    private SolverConfigRequest solverConfig;
 
-    /**
-     * 是否排除节假日
-     */
-    private Boolean excludeHolidays = false;
+    @Data
+    public static class DateRangeRequest {
+
+        @NotNull(message = "开始日期不能为空")
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        private LocalDate startDate;
+
+        @NotNull(message = "结束日期不能为空")
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        private LocalDate endDate;
+    }
+
+    @Data
+    public static class DemandRequest {
+
+        private List<DemandItemRequest> byDatePeriod;
+    }
+
+    @Data
+    public static class DemandItemRequest {
+
+        @NotNull(message = "需求日期不能为空")
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        private LocalDate date;
+
+        @NotNull(message = "需求时段不能为空")
+        private Integer periodCode;
+
+        @NotNull(message = "最少排班医生数不能为空")
+        @Positive(message = "最少排班医生数必须大于0")
+        private Integer requiredDoctors;
+
+        @PositiveOrZero(message = "最少资深医生数不能小于0")
+        private Integer minSeniorDoctors;
+    }
+
+    @Data
+    public static class HardConstraintsRequest {
+
+        @Positive(message = "最大连续出诊天数必须大于0")
+        private Integer maxConsecutiveDays;
+
+        @Positive(message = "每周最大班次数必须大于0")
+        private Integer maxShiftsPerWeek;
+
+        @Positive(message = "班次间最少休息小时必须大于0")
+        private Integer minRestHoursBetweenShifts;
+
+        /**
+         * 兼容旧逻辑：是否节假日全停
+         */
+        private Boolean excludeHolidays;
+
+        /**
+         * 节假日策略：CLOSE/REDUCED/NORMAL
+         */
+        private String holidayPolicy;
+
+        /**
+         * 节假日降载系数，仅在 REDUCED 策略下生效（0,1]
+         */
+        @DecimalMin(value = "0.01", message = "节假日降载系数必须大于0")
+        @DecimalMax(value = "1.00", message = "节假日降载系数必须小于等于1")
+        private Double holidayReductionFactor;
+    }
+
+    @Data
+    public static class SoftGoalsRequest {
+
+        private Double fairnessWeight;
+        private Double preferenceWeight;
+        private Double continuityWeight;
+        private Double seniorCoverageWeight;
+        private Double weekendBalanceWeight;
+    }
+
+    @Data
+    public static class SolverConfigRequest {
+
+        private String strategy;
+        private Integer maxIterations;
+        private Long timeLimitMs;
+        private Long seed;
+    }
 }
