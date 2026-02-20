@@ -259,6 +259,13 @@ public class ScheduleController {
                     request.getSolverConfig().getSeed()
             ));
         }
+        command.setConstraintDslJson(request.getConstraintDslJson());
+        command.setRuleProfileCode(request.getRuleProfileCode());
+        command.setBasePlanId(request.getBasePlanId());
+        if (request.getReplanWindow() != null) {
+            command.setReplanWindowStartDate(request.getReplanWindow().getStartDate());
+            command.setReplanWindowEndDate(request.getReplanWindow().getEndDate());
+        }
         return command;
     }
 }

@@ -161,7 +161,7 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 
 **自动排班请求说明（已升级为科室多医生联合排班）**：
 - `departmentId`：科室 ID（必填）
-- `dateRange.startDate/endDate`：排班范围（必填）
+- `dateRange.startDate/endDate`：排班范围（全量模式必填）
 - `periods`：参与求解的时段编码列表（必填）
 - `doctorIds`：可选，指定医生池；为空则取科室全部在职医生
 - `demand.byDatePeriod`：可选，按日期+时段的需求覆盖
@@ -170,6 +170,14 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 - `hardConstraints.holidayReductionFactor`：节假日降载系数（仅 `REDUCED` 生效，建议 0.4~0.7）
 - `softGoals`：可选，软目标权重
 - `solverConfig`：可选，求解策略参数
+- `constraintDslJson`：可选，JSON 格式约束 DSL；传入后优先按 DSL 执行，不再仅依赖 `hardConstraints/softGoals`
+- `ruleProfileCode`：可选，规则配置编码（发布态）；当 `constraintDslJson` 为空时自动加载该配置的 DSL
+- `solverConfig.strategy`：支持 `AUTO/RULE_GREEDY/LOCAL_SEARCH/CP_SAT`，若请求 `CP_SAT` 且插件未启用会自动回退 `RULE_GREEDY`
+- `basePlanId` + `replanWindow`：可选，增量重排入口；基于已有方案在窗口内重排并返回差异
+
+**全量/增量两种模式**：
+- 全量生成：传 `dateRange`，不传 `basePlanId`
+- 增量重排：传 `basePlanId + replanWindow`，`dateRange` 可不传
 
 **自动排班响应说明**：
 - `data.planId`：本次排班方案 ID
@@ -177,7 +185,9 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 - `data.scoreSummary`：总分、硬约束违例数、软目标分解
 - `data.explanations`：每个排班分配的解释与惩罚项
 - `data.unfilledSlots`：未排满时段及原因
-- `data.warnings`：告警信息（如时段未排满、已存在排班被跳过）
+- `data.minimalConflictSet`：近似最小冲突规则集（无解诊断）
+- `data.planDiff`：增量重排差异摘要（新增/移除/变更时段明细）
+- `data.warnings`：告警信息（如时段未排满、已存在排班被跳过、求解器回退、近似最小冲突集）
 - 重要：`POST /api/v1/schedules/auto` 仅生成并保存 `DRAFT` 方案，不会直接生效；需调用 `POST /api/v1/schedule-plans/{planId}/publish` 才会落地到正式排班。
 
 ### ScheduleTemplate 排班模板模块 (4 接口)
@@ -201,6 +211,20 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 **发布模式说明**：
 - `STRICT`（默认）：只要检测到“已有有效预约导致无法替换”的冲突，直接拒绝发布。
 - `FORCE`：允许发布，保留冲突排班并在返回 `warnings` 中给出冲突清单。
+
+### ScheduleRuleProfile 规则配置模块 (5 接口)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/schedule-rule-profiles` | 创建规则配置草稿版本 |
+| GET | `/api/v1/schedule-rule-profiles/{profileId}` | 查询规则配置详情 |
+| GET | `/api/v1/schedule-rule-profiles/versions?departmentId=&profileCode=` | 查询规则配置版本列表 |
+| POST | `/api/v1/schedule-rule-profiles/{profileId}/publish` | 发布规则配置 |
+| POST | `/api/v1/schedule-rule-profiles/{profileId}/rollback` | 回滚发布到指定规则版本 |
+
+**规则配置生效说明**：
+- 发布/回滚会自动递增 DSL 版本号，触发多实例编译缓存失效。
+- 自动排班可通过 `ruleProfileCode` 引用发布态规则，无需每次传完整 DSL。
 
 ### Appointment 预约模块 (11 接口)
 

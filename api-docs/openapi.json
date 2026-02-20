@@ -39,6 +39,10 @@
     {
       "name": "department",
       "description": "科室模块"
+    },
+    {
+      "name": "schedule-rule-profile",
+      "description": "排班规则配置模块"
     }
   ],
   "paths": {
@@ -50,6 +54,9 @@
     },
     "## Schedule 模块 ##": {
       "description": "排班管理接口"
+    },
+    "## ScheduleRuleProfile 模块 ##": {
+      "description": "排班规则配置接口"
     },
     "## Test 模块 ##": {
       "description": "测试接口"
@@ -1799,6 +1806,195 @@
         }
       }
     },
+    "/api/v1/schedule-rule-profiles": {
+      "post": {
+        "tags": [
+          "schedule-rule-profile"
+        ],
+        "summary": "创建规则配置草稿版本",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScheduleRuleProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleRuleProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-rule-profiles/{profileId}": {
+      "get": {
+        "tags": [
+          "schedule-rule-profile"
+        ],
+        "summary": "查询规则配置详情",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "规则配置ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleRuleProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-rule-profiles/versions": {
+      "get": {
+        "tags": [
+          "schedule-rule-profile"
+        ],
+        "summary": "查询规则配置版本列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "departmentId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "profileCode",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleRuleProfileVersionListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-rule-profiles/{profileId}/publish": {
+      "post": {
+        "tags": [
+          "schedule-rule-profile"
+        ],
+        "summary": "发布规则配置",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "规则配置ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleRuleProfilePublishResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedule-rule-profiles/{profileId}/rollback": {
+      "post": {
+        "tags": [
+          "schedule-rule-profile"
+        ],
+        "summary": "回滚发布到指定规则版本",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "规则配置ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleRuleProfilePublishResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/schedules/available": {
       "get": {
         "tags": [
@@ -2433,7 +2629,6 @@
         "type": "object",
         "required": [
           "departmentId",
-          "dateRange",
           "periods"
         ],
         "properties": {
@@ -2472,6 +2667,22 @@
           },
           "solverConfig": {
             "$ref": "#/components/schemas/AutoScheduleSolverConfigRequest"
+          },
+          "constraintDslJson": {
+            "type": "string",
+            "description": "约束 DSL(JSON 字符串)，传入后优先使用 DSL 编译结果"
+          },
+          "ruleProfileCode": {
+            "type": "string",
+            "description": "规则配置编码（发布态），当 constraintDslJson 为空时自动加载对应 DSL"
+          },
+          "basePlanId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "增量重排基线方案ID"
+          },
+          "replanWindow": {
+            "$ref": "#/components/schemas/AutoScheduleReplanWindowRequest"
           }
         },
         "example": {
@@ -2504,13 +2715,37 @@
             "weekendBalanceWeight": 0.15
           },
           "solverConfig": {
-            "strategy": "HYBRID_V2",
+            "strategy": "AUTO",
             "maxIterations": 2000,
             "timeLimitMs": 3000
+          },
+          "constraintDslJson": "{\"version\":\"1.0\",\"rules\":[],\"hardExpr\":{},\"softExpr\":{},\"objective\":{}}",
+          "ruleProfileCode": "DEPT_DEFAULT",
+          "basePlanId": 100000000100,
+          "replanWindow": {
+            "startDate": "2026-02-22",
+            "endDate": "2026-02-24"
           }
         }
       },
       "AutoScheduleDateRangeRequest": {
+        "type": "object",
+        "required": [
+          "startDate",
+          "endDate"
+        ],
+        "properties": {
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "AutoScheduleReplanWindowRequest": {
         "type": "object",
         "required": [
           "startDate",
@@ -2635,7 +2870,8 @@
         "type": "object",
         "properties": {
           "strategy": {
-            "type": "string"
+            "type": "string",
+            "description": "求解策略：AUTO/RULE_GREEDY/LOCAL_SEARCH/CP_SAT。若 CP_SAT 不可用会自动回退 RULE_GREEDY"
           },
           "maxIterations": {
             "type": "integer",
@@ -2695,6 +2931,16 @@
             "items": {
               "$ref": "#/components/schemas/AutoScheduleUnfilledSlot"
             }
+          },
+          "minimalConflictSet": {
+            "type": "array",
+            "description": "近似最小冲突规则集（无解诊断）",
+            "items": {
+              "type": "string"
+            }
+          },
+          "planDiff": {
+            "$ref": "#/components/schemas/AutoSchedulePlanDiff"
           },
           "warnings": {
             "type": "array",
@@ -2790,6 +3036,226 @@
             "format": "int32"
           },
           "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "AutoSchedulePlanDiff": {
+        "type": "object",
+        "properties": {
+          "addedAssignments": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "removedAssignments": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "changedSlots": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unchangedAssignments": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "changedSlotDetails": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutoSchedulePlanDiffSlot"
+            }
+          }
+        }
+      },
+      "AutoSchedulePlanDiffSlot": {
+        "type": "object",
+        "properties": {
+          "changeType": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "periodCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "beforeDoctorIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "afterDoctorIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "CreateScheduleRuleProfileRequest": {
+        "type": "object",
+        "required": [
+          "departmentId",
+          "profileCode",
+          "profileName",
+          "constraintDslJson"
+        ],
+        "properties": {
+          "departmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "profileCode": {
+            "type": "string"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "constraintDslJson": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "ScheduleRuleProfileResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ScheduleRuleProfileDTO"
+          }
+        }
+      },
+      "ScheduleRuleProfileDTO": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "departmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "profileCode": {
+            "type": "string"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "profileStatus": {
+            "type": "string"
+          },
+          "constraintDslJson": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "ScheduleRuleProfileVersionListResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleRuleProfileVersionDTO"
+            }
+          }
+        }
+      },
+      "ScheduleRuleProfileVersionDTO": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "departmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "profileCode": {
+            "type": "string"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "profileStatus": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ScheduleRuleProfilePublishResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ScheduleRuleProfilePublishResultDTO"
+          }
+        }
+      },
+      "ScheduleRuleProfilePublishResultDTO": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "profileCode": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "profileStatus": {
+            "type": "string"
+          },
+          "dslVersion": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
             "type": "string"
           }
         }

@@ -31,4 +31,20 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    /**
+     * 排班求解线程池
+     */
+    @Bean(name = "scheduleSolverExecutor")
+    public Executor scheduleSolverExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(6);
+        executor.setMaxPoolSize(12);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("schedule-solver-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(60);
+        executor.initialize();
+        return executor;
+    }
 }

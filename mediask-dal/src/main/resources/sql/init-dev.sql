@@ -498,6 +498,24 @@ CREATE TABLE IF NOT EXISTS `schedule_plan_constraint_snapshot` (
   KEY `idx_plan_snapshot_type` (`plan_id`, `snapshot_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班约束快照';
 
+CREATE TABLE IF NOT EXISTS `schedule_rule_profile` (
+  `id` BIGINT NOT NULL COMMENT '雪花ID',
+  `department_id` BIGINT NOT NULL COMMENT '科室ID',
+  `profile_code` VARCHAR(64) NOT NULL COMMENT '规则配置编码',
+  `profile_name` VARCHAR(128) NOT NULL COMMENT '规则配置名称',
+  `version_no` INT NOT NULL DEFAULT 1 COMMENT '版本号',
+  `profile_status` VARCHAR(16) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT/PUBLISHED/ARCHIVED',
+  `constraint_dsl_json` JSON NOT NULL COMMENT 'JSON DSL 配置',
+  `description` VARCHAR(255) DEFAULT NULL COMMENT '描述',
+  `updated_by` BIGINT DEFAULT NULL COMMENT '最近操作人',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '软删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_rule_profile_code_ver` (`department_id`, `profile_code`, `version_no`),
+  KEY `idx_rule_profile_status` (`department_id`, `profile_code`, `profile_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班规则配置版本表';
+
 CREATE TABLE IF NOT EXISTS `appointment_events` (
   `id` BIGINT NOT NULL COMMENT '雪花ID',
   `appointment_id` BIGINT NOT NULL COMMENT '预约ID',

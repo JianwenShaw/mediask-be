@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 科室多医生自动排班命令
@@ -24,7 +25,7 @@ public class AutoScheduleCommand {
     public static final double DEFAULT_SENIOR_COVERAGE_WEIGHT = 0.20D;
     public static final double DEFAULT_WEEKEND_BALANCE_WEIGHT = 0.15D;
 
-    public static final String DEFAULT_SOLVER_STRATEGY = "HYBRID_V2";
+    public static final String DEFAULT_SOLVER_STRATEGY = "AUTO";
     public static final int DEFAULT_MAX_ITERATIONS = 2000;
     public static final long DEFAULT_TIME_LIMIT_MS = 3000L;
 
@@ -37,6 +38,11 @@ public class AutoScheduleCommand {
     private HardConstraints hardConstraints;
     private SoftGoals softGoals;
     private SolverConfig solverConfig;
+    private String constraintDslJson;
+    private String ruleProfileCode;
+    private Long basePlanId;
+    private LocalDate replanWindowStartDate;
+    private LocalDate replanWindowEndDate;
 
     public HardConstraints resolvedHardConstraints() {
         if (hardConstraints == null) {
@@ -83,11 +89,30 @@ public class AutoScheduleCommand {
             return new SolverConfig(DEFAULT_SOLVER_STRATEGY, DEFAULT_MAX_ITERATIONS, DEFAULT_TIME_LIMIT_MS, null);
         }
         return new SolverConfig(
-                solverConfig.strategy() == null ? DEFAULT_SOLVER_STRATEGY : solverConfig.strategy(),
+                normalizeStrategy(solverConfig.strategy()),
                 valueOrDefault(solverConfig.maxIterations(), DEFAULT_MAX_ITERATIONS),
                 valueOrDefault(solverConfig.timeLimitMs(), DEFAULT_TIME_LIMIT_MS),
                 solverConfig.seed()
         );
+    }
+
+    private static String normalizeStrategy(String strategy) {
+        if (strategy == null || strategy.isBlank()) {
+            return DEFAULT_SOLVER_STRATEGY;
+        }
+        return strategy.trim().toUpperCase(Locale.ROOT);
+    }
+
+    public boolean incrementalReplan() {
+        return basePlanId != null;
+    }
+
+    public LocalDate resolvedPlanningStartDate() {
+        return incrementalReplan() && replanWindowStartDate != null ? replanWindowStartDate : startDate;
+    }
+
+    public LocalDate resolvedPlanningEndDate() {
+        return incrementalReplan() && replanWindowEndDate != null ? replanWindowEndDate : endDate;
     }
 
     private static int valueOrDefault(Integer value, int defaultValue) {

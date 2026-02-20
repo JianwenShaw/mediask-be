@@ -26,7 +26,6 @@ public class AutoScheduleRequest {
     /**
      * 日期范围
      */
-    @NotNull(message = "日期范围不能为空")
     private DateRangeRequest dateRange;
 
     /**
@@ -59,6 +58,26 @@ public class AutoScheduleRequest {
      * 求解器配置
      */
     private SolverConfigRequest solverConfig;
+
+    /**
+     * 约束 DSL（JSON 字符串）
+     */
+    private String constraintDslJson;
+
+    /**
+     * 规则配置编码（发布态）
+     */
+    private String ruleProfileCode;
+
+    /**
+     * 增量重排基线方案ID
+     */
+    private Long basePlanId;
+
+    /**
+     * 增量重排窗口
+     */
+    private ReplanWindowRequest replanWindow;
 
     @Data
     public static class DateRangeRequest {
@@ -143,5 +162,17 @@ public class AutoScheduleRequest {
         private Integer maxIterations;
         private Long timeLimitMs;
         private Long seed;
+    }
+
+    @Data
+    public static class ReplanWindowRequest {
+
+        @NotNull(message = "增量重排开始日期不能为空")
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        private LocalDate startDate;
+
+        @NotNull(message = "增量重排结束日期不能为空")
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        private LocalDate endDate;
     }
 }
