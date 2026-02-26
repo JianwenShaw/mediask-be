@@ -2,7 +2,7 @@
 
 > MediAsk 项目改进任务清单
 >
-> **最后更新**: 2026-01-18
+> **最后更新**: 2026-02-25
 > **下一步建议**: 安全加固 或 AI/RAG 问诊模块
 
 ---
@@ -43,6 +43,53 @@
 - [ ] 修复注册越权漏洞
 - [ ] 添加 Rate Limiting
 - [ ] 移除硬编码密钥
+
+---
+
+## Code Review 遗留项 (2026-02-25 CR)
+
+> 以下项目来自 `CR/code-review-2026-02-25-16-04-46.md`，本次未修复，需后续跟进。
+
+### 需确认
+
+- [ ] **[M-4] 确认错误码兼容性** — `AppointmentApplicationService.java:224`
+  - `cancelAppointment` 中错误码从 `EMR_ACCESS_DENIED(5002)` 改为 `ACCESS_DENIED(1103)`
+  - 语义修正正确（预约取消不属于病历模块），但属于面向客户端的 API 行为变更
+  - **需与前端确认**是否对错误码 5002 有专门处理逻辑，若有需前后端同步发布
+  - 在 API 变更日志中记录此 breaking change
+
+- [ ] **[S-5] 确认 replaceUserRolesByCodes 事务保护** — `AuthzRepositoryImpl.java:195-227`
+  - 该方法先 delete 所有旧角色关联再逐条 insert 新关联
+  - 需确认调用方 `AuthzApplicationService.updateUserRoles` 的 `@Transactional` 能完全覆盖
+  - 否则 delete 成功但 insert 失败会导致用户丧失所有角色
+
+- [ ] **[m-6] EMR_ACCESS_DENIED 枚举是否还有其他使用方** — `ErrorCode.java:84`
+  - 预约取消不再使用该枚举，如无其他引用建议标记 `@Deprecated`
+
+### 架构优化
+
+- [ ] **[m-3] Infra 层 Repository 抛 BizException 职责归属** — `AuthzRepositoryImpl.java:205-216`
+  - 当前 `replaceUserRolesByCodes` 中参数空值校验在 Infra 层抛 `BizException`
+  - 按 DDD 分层原则应移至 Service 层（AssertUtil 模式），Repository 层只负责数据级校验
+
+- [ ] **[m-5] replaceUserRolesByCodes N+1 查询优化** — `AuthzRepositoryImpl.java:209-214`
+  - `findRoleByCode` 对每个 roleCode 最多执行 3 次 DB 查询（原始、大写、小写）
+  - 建议改为 IN 查询一次性获取所有角色
+
+### 代码质量改进 (Suggestion 级别)
+
+- [ ] **[S-1] 合并 BindException 分支消除重复** — `GlobalExceptionHandler.java`
+  - `MethodArgumentNotValidException` 继承自 `BindException`，可合并为一个分支
+
+- [ ] **[S-2] 补充 TraceIdFilter 类 Javadoc** — `TraceIdFilter.java`
+  - 说明完整行为：读取/生成 traceId → 写入 MDC → 响应头回传 → 清理 MDC
+
+- [ ] **[S-3] 补充 GlobalExceptionHandler 各方法 Javadoc** — `GlobalExceptionHandler.java`
+  - 为每个 handler 方法添加简要说明（捕获场景和触发条件）
+
+- [ ] **[S-4] 异常处理 handler 日志补充请求上下文** — `GlobalExceptionHandler.java`
+  - warn/error 级别 handler 注入 `HttpServletRequest` 记录 URL、HTTP 方法、用户 ID 等
+  - 或确认 logback 模板已包含 MDC requestUri 字段
 
 ---
 
@@ -245,6 +292,20 @@
 - [x] **修复注册性别验证**
   - gender 字段改为必填
 
+- [x] **Code Review 安全修复** (2026-02-25)
+  - [C-1] TraceIdFilter traceId 输入校验（正则白名单+长度限制，防止日志注入）
+  - [C-2] MDC 异步线程传播（新增 MdcTaskDecorator，eventTaskExecutor/scheduleSolverExecutor 均已配置）
+  - [C-3] SysException handler 不再暴露内部错误消息，返回通用 SYSTEM_ERROR
+  - [M-1] IllegalArgumentException handler 返回固定消息，error 级别记录堆栈
+  - [M-2] 移除 IllegalStateException 全局拦截，走 handleOther 兜底
+  - [M-3] 清理 AuthzApplicationService 死代码 catch(IllegalArgumentException) 块
+  - [M-5] FilterRegistrationBean 禁用 TraceIdFilter Servlet 容器自动注册
+  - [M-6] 新增 HttpRequestMethodNotSupported/HttpMediaTypeNotSupported 异常处理
+  - [M-7] 校验异常返回所有错误信息（Collectors.joining）
+  - [M-8] 修正 SecurityConfig traceIdFilter 字段缩进
+  - [m-2] ConstraintViolation null 安全检查
+  - [m-4] handleOther 移到类最末尾
+
 ---
 
 ## 阶段划分建议
@@ -287,6 +348,7 @@
 
 | 日期 | 更新内容 |
 |------|----------|
+| 2026-02-25 | Code Review 安全修复（C-1/C-2/C-3 + M-1~M-8 + m-2/m-4，共12项） |
 | 2026-01-18 | 预约/排班功能增强、定时任务、测试覆盖、API文档同步 |
 | 2026-01-18 | PageResult 统一重构、注册性别验证修复 |
 | 2025-12-17 | 预约挂号模块核心实现 |

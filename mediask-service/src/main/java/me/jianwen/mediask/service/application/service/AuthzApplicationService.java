@@ -64,12 +64,8 @@ public class AuthzApplicationService {
         validateUserExists(userId);
         AssertUtil.notNull(command, ErrorCode.PARAM_MISSING);
         AssertUtil.notEmpty(command.getRoleCodes(), "角色编码不能为空");
-        try {
-            authzRepository.replaceUserRolesByCodes(userId, command.getRoleCodes());
-            log.info("更新用户角色成功: userId={}, roleCodes={}", userId, command.getRoleCodes());
-        } catch (IllegalArgumentException ex) {
-            throw new BizException(ErrorCode.PARAM_ERROR, ex.getMessage());
-        }
+        authzRepository.replaceUserRolesByCodes(userId, command.getRoleCodes());
+        log.info("更新用户角色成功: userId={}, roleCodes={}", userId, command.getRoleCodes());
     }
 
     private void validateUserExists(Long userId) {

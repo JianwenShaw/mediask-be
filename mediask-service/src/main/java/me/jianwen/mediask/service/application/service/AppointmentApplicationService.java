@@ -222,7 +222,7 @@ public class AppointmentApplicationService {
         boolean isAdmin = request.getOperatorId() != null && request.getOperatorId().equals(operatorId);
 
         if (!isPatient && !isAdmin) {
-            throw new BizException(ErrorCode.EMR_ACCESS_DENIED, "无权取消该预约");
+            throw new BizException(ErrorCode.ACCESS_DENIED, "无权取消该预约");
         }
 
         // 取消预约

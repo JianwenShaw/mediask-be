@@ -11,6 +11,8 @@ import me.jianwen.mediask.dal.mapper.RoleMapper;
 import me.jianwen.mediask.dal.mapper.RolePermissionMapper;
 import me.jianwen.mediask.dal.mapper.UserRoleMapper;
 import me.jianwen.mediask.domain.repository.AuthzRepository;
+import me.jianwen.mediask.common.constant.ErrorCode;
+import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.user.domain.entity.PermissionInfo;
 import me.jianwen.mediask.user.domain.entity.RoleInfo;
 import org.springframework.stereotype.Repository;
@@ -201,7 +203,7 @@ public class AuthzRepositoryImpl implements AuthzRepository {
                 .distinct()
                 .toList();
         if (normalizedCodes.isEmpty()) {
-            throw new IllegalArgumentException("角色编码不能为空");
+            throw new BizException(ErrorCode.PARAM_MISSING, "角色编码不能为空");
         }
 
         List<RoleDO> roles = normalizedCodes.stream()
@@ -211,7 +213,7 @@ public class AuthzRepositoryImpl implements AuthzRepository {
                 .sorted(Comparator.comparing(RoleDO::getId))
                 .toList();
         if (roles.size() != normalizedCodes.size()) {
-            throw new IllegalArgumentException("存在无效角色编码");
+            throw new BizException(ErrorCode.PARAM_INVALID, "存在无效角色编码");
         }
 
         userRoleMapper.delete(new LambdaQueryWrapper<UserRoleDO>().eq(UserRoleDO::getUserId, userId));

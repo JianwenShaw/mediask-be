@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import me.jianwen.mediask.common.constant.CommonConstants;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import org.slf4j.MDC;
 
@@ -65,7 +66,7 @@ public class Result<T> implements Serializable {
                 .code(ErrorCode.SUCCESS.getCode())
                 .msg(ErrorCode.SUCCESS.getMsg())
                 .data(data)
-                .traceId(MDC.get("traceId"))
+                .traceId(MDC.get(CommonConstants.MDC_TRACE_ID))
                 .timestamp(System.currentTimeMillis())
                 .build();
     }
@@ -93,7 +94,7 @@ public class Result<T> implements Serializable {
                 .code(ErrorCode.SUCCESS.getCode())
                 .msg(msg)
                 .data(data)
-                .traceId(MDC.get("traceId"))
+                .traceId(MDC.get(CommonConstants.MDC_TRACE_ID))
                 .timestamp(System.currentTimeMillis())
                 .build();
     }
@@ -109,7 +110,7 @@ public class Result<T> implements Serializable {
         return Result.<T>builder()
                 .code(errorCode.getCode())
                 .msg(errorCode.getMsg())
-                .traceId(MDC.get("traceId"))
+                .traceId(MDC.get(CommonConstants.MDC_TRACE_ID))
                 .timestamp(System.currentTimeMillis())
                 .build();
     }
@@ -126,7 +127,7 @@ public class Result<T> implements Serializable {
         return Result.<T>builder()
                 .code(code)
                 .msg(msg)
-                .traceId(MDC.get("traceId"))
+                .traceId(MDC.get(CommonConstants.MDC_TRACE_ID))
                 .timestamp(System.currentTimeMillis())
                 .build();
     }
