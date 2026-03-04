@@ -1,6 +1,6 @@
 package me.jianwen.mediask.infra.schedule.engine.dsl;
 
-import me.jianwen.mediask.domain.cache.LocalCacheService;
+import me.jianwen.mediask.domain.cache.CacheOperations;
 import me.jianwen.mediask.schedule.domain.engine.SchedulingEngineRequest;
 import me.jianwen.mediask.schedule.domain.engine.SolverConfig;
 import me.jianwen.mediask.schedule.domain.engine.SolverStrategy;
@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
 class ConstraintDslCompilerTest {
 
     @Mock
-    private LocalCacheService localCacheService;
+    private CacheOperations cacheOperations;
     @Mock
     private ConstraintDslVersionManager versionManager;
 
@@ -37,11 +37,11 @@ class ConstraintDslCompilerTest {
 
     @BeforeEach
     void setUp() {
-        compiler = new ConstraintDslCompiler(localCacheService, versionManager);
+        compiler = new ConstraintDslCompiler(cacheOperations, versionManager);
         when(versionManager.currentVersion(anyString(), any())).thenReturn(0L);
-        when(localCacheService.get(any(), anyString(), any())).thenAnswer(invocation -> {
+        when(cacheOperations.get(any(), anyString(), any(Class.class), any())).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")
-            Supplier<Object> loader = invocation.getArgument(2, Supplier.class);
+            Supplier<Object> loader = invocation.getArgument(3, Supplier.class);
             return loader.get();
         });
     }

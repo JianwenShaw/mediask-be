@@ -1,10 +1,8 @@
 package me.jianwen.mediask.infra.holiday;
 
 import lombok.extern.slf4j.Slf4j;
-import me.jianwen.mediask.domain.cache.CacheService;
-import me.jianwen.mediask.domain.cache.LocalCacheDefinition;
-import me.jianwen.mediask.domain.cache.LocalCacheService;
-import me.jianwen.mediask.infra.cache.CacheKeyManager;
+import me.jianwen.mediask.domain.cache.CacheDefinition;
+import me.jianwen.mediask.domain.cache.CacheOperations;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -18,7 +16,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 /**
- * 节假日服务
+ * 节假日服务。
  *
  * <p>提供节假日查询和管理功能：
  * <ul>
@@ -34,14 +32,18 @@ import java.util.*;
 @EnableScheduling
 public class HolidayService {
 
-    private static final String CACHE_BOOLEAN_TRUE = Boolean.TRUE.toString();
-    private static final Duration HOLIDAY_LOCAL_CACHE_TTL = Duration.ofHours(6);
-    private static final long HOLIDAY_LOCAL_CACHE_MAX_SIZE = 4096L;
-    private static final LocalCacheDefinition HOLIDAY_LOCAL_CACHE_DEFINITION =
-            new LocalCacheDefinition("holiday:local:date", HOLIDAY_LOCAL_CACHE_TTL, HOLIDAY_LOCAL_CACHE_MAX_SIZE);
+    /**
+     * 节假日缓存定义：两级缓存（L1 6 小时 + L2 30 天），启用空值缓存防止不存在日期的穿透。
+     */
+    private static final CacheDefinition HOLIDAY_CACHE = CacheDefinition.builder("holiday")
+            .twoLevel()
+            .localTtl(Duration.ofHours(6))
+            .localMaxSize(4096)
+            .remoteTtl(Duration.ofDays(30))
+            .cacheNullValues(Duration.ofMinutes(10))
+            .build();
 
-    private final CacheService cacheService;
-    private final LocalCacheService localCacheService;
+    private final CacheOperations cacheOperations;
 
     @Value("${app.holiday.api-url:}")
     private String holidayApiUrl;
@@ -99,9 +101,8 @@ public class HolidayService {
             LocalDate.of(2026, 10, 7)
     );
 
-    public HolidayService(CacheService cacheService, LocalCacheService localCacheService) {
-        this.cacheService = cacheService;
-        this.localCacheService = localCacheService;
+    public HolidayService(CacheOperations cacheOperations) {
+        this.cacheOperations = cacheOperations;
     }
 
     /**
@@ -116,12 +117,12 @@ public class HolidayService {
     }
 
     /**
-     * 缓存节假日到Redis
+     * 缓存节假日到所有缓存层
      */
     private void cacheHolidays(Set<LocalDate> holidays) {
         for (LocalDate date : holidays) {
-            String key = CacheKeyManager.holidayKey(date);
-            markHolidayAndRefreshLocalCache(key);
+            String key = dateKey(date);
+            cacheOperations.put(HOLIDAY_CACHE, key, Boolean.TRUE);
         }
     }
 
@@ -129,28 +130,17 @@ public class HolidayService {
      * 检查指定日期是否为节假日
      */
     public boolean isHoliday(LocalDate date) {
-        String key = CacheKeyManager.holidayKey(date);
-        boolean cachedHoliday = localCacheService.get(
-                HOLIDAY_LOCAL_CACHE_DEFINITION,
-                key,
-                () -> cacheService.get(key).map(Boolean::parseBoolean).orElse(false)
-        );
-        if (cachedHoliday) {
-            return true;
-        }
+        String key = dateKey(date);
 
-        if (HOLIDAYS_2025.contains(date) || HOLIDAYS_2026.contains(date)) {
-            markHolidayAndRefreshLocalCache(key);
-            return true;
-        }
+        // 通过两级缓存查询，loader 回源检查静态数据
+        Boolean cached = cacheOperations.get(HOLIDAY_CACHE, key, Boolean.class, () -> {
+            if (HOLIDAYS_2025.contains(date) || HOLIDAYS_2026.contains(date)) {
+                return Boolean.TRUE;
+            }
+            return null; // 非节假日，空值缓存防穿透
+        });
 
-        return false;
-    }
-
-    private void markHolidayAndRefreshLocalCache(String key) {
-        cacheService.set(key, CACHE_BOOLEAN_TRUE);
-        localCacheService.invalidate(HOLIDAY_LOCAL_CACHE_DEFINITION, key);
-        localCacheService.get(HOLIDAY_LOCAL_CACHE_DEFINITION, key, () -> true);
+        return Boolean.TRUE.equals(cached);
     }
 
     /**
@@ -259,5 +249,12 @@ public class HolidayService {
         // TODO: 实现API调用同步节假日数据
         // 可以调用第三方节假日API（如阿里云、百度等）
         log.info("节假日数据同步完成");
+    }
+
+    /**
+     * 生成日期缓存键（不含全局前缀，由 CacheKeyGenerator 自动拼接）。
+     */
+    private static String dateKey(LocalDate date) {
+        return date.toString(); // ISO-8601 格式：yyyy-MM-dd
     }
 }

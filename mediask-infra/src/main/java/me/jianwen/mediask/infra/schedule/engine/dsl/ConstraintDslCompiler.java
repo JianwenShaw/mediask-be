@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.common.util.JsonUtil;
-import me.jianwen.mediask.domain.cache.LocalCacheDefinition;
-import me.jianwen.mediask.domain.cache.LocalCacheService;
+import me.jianwen.mediask.domain.cache.CacheDefinition;
+import me.jianwen.mediask.domain.cache.CacheOperations;
 import me.jianwen.mediask.schedule.domain.engine.SchedulingEngineRequest;
 import me.jianwen.mediask.schedule.domain.engine.constraint.CompiledConstraintModel;
 import me.jianwen.mediask.schedule.domain.engine.constraint.ConstraintExpression;
@@ -32,16 +32,22 @@ import java.util.Map;
 @Component
 public class ConstraintDslCompiler {
 
-    private static final LocalCacheDefinition COMPILED_DSL_CACHE =
-            new LocalCacheDefinition("schedule-compiled-dsl", Duration.ofMinutes(5), 512);
+    /**
+     * 编译产物缓存定义：仅本地缓存（编译结果是不可变的，按内容哈希+版本号寻址）。
+     */
+    private static final CacheDefinition COMPILED_DSL_CACHE = CacheDefinition.builder("compiled-dsl")
+            .localOnly()
+            .localTtl(Duration.ofMinutes(5))
+            .localMaxSize(512)
+            .build();
 
-    private final LocalCacheService localCacheService;
+    private final CacheOperations cacheOperations;
     private final ConstraintDslVersionManager versionManager;
 
     public ConstraintDslCompiler(
-            LocalCacheService localCacheService,
+            CacheOperations cacheOperations,
             ConstraintDslVersionManager versionManager) {
-        this.localCacheService = localCacheService;
+        this.cacheOperations = cacheOperations;
         this.versionManager = versionManager;
     }
 
@@ -59,7 +65,8 @@ public class ConstraintDslCompiler {
         long version = versionManager.currentVersion(namespace, request.departmentId());
         String cacheKey = namespace + ":" + request.departmentId() + ":" + version + ":" + sourceHash;
 
-        return localCacheService.get(COMPILED_DSL_CACHE, cacheKey, () -> doCompile(finalSourceDsl, sourceHash));
+        return cacheOperations.get(COMPILED_DSL_CACHE, cacheKey, CompiledConstraintModel.class,
+                () -> doCompile(finalSourceDsl, sourceHash));
     }
 
     private CompiledConstraintModel doCompile(String sourceDsl, String sourceHash) {

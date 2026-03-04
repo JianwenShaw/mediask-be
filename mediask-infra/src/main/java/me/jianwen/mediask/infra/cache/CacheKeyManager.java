@@ -3,45 +3,27 @@ package me.jianwen.mediask.infra.cache;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
 import java.util.Locale;
 
 /**
- * 统一缓存 Key 管理
+ * 限流键管理器。
+ *
+ * <p>集中管理所有限流场景的 Redis Key 生成逻辑。
+ * 敏感字段（账号、IP）使用 SHA-256 哈希脱敏。
+ *
+ * <p>注意：缓存键（holiday、token、test-connection 等）已迁移至各自的业务类中，
+ * 由 {@link CacheKeyGenerator} 统一加前缀。本类仅保留限流键生成方法。
  */
 public final class CacheKeyManager {
 
     private static final String KEY_DELIMITER = ":";
-    private static final String PATTERN_SUFFIX = "*";
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-    private static final String AUTH_REFRESH_PREFIX = "auth:refresh";
-    private static final String HOLIDAY_PREFIX = "holiday";
-    private static final String TEST_CONNECTION_PREFIX = "test:connection";
     private static final String RATE_LIMIT_AUTH_LOGIN_ACCOUNT_PREFIX = "rate:limit:auth:login:account";
     private static final String RATE_LIMIT_AUTH_LOGIN_IP_PREFIX = "rate:limit:auth:login:ip";
     private static final String RATE_LIMIT_APPOINTMENT_CREATE_PREFIX = "rate:limit:appointment:create";
     private static final int KEY_HASH_LENGTH = 16;
 
     private CacheKeyManager() {
-    }
-
-    public static String refreshTokenKey(Long userId, String tokenId) {
-        return join(AUTH_REFRESH_PREFIX, String.valueOf(userId), tokenId);
-    }
-
-    public static String refreshTokenPattern(Long userId) {
-        return join(AUTH_REFRESH_PREFIX, String.valueOf(userId), PATTERN_SUFFIX);
-    }
-
-    public static String holidayKey(LocalDate date) {
-        return join(HOLIDAY_PREFIX, DATE_FORMATTER.format(date));
-    }
-
-    public static String testConnectionKey(String key) {
-        return join(TEST_CONNECTION_PREFIX, key);
     }
 
     public static String authLoginAccountRateLimitKey(String account) {

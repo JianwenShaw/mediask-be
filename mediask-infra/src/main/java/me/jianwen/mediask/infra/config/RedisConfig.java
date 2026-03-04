@@ -1,22 +1,21 @@
 package me.jianwen.mediask.infra.config;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 
 /**
- * Redis 配置类
- * 使用 Spring Data Redis（Lettuce）作为缓存客户端
- * 分布式锁使用 Redisson
+ * Redis 配置类。
+ *
+ * <p>使用 Spring Data Redis（Lettuce）作为缓存客户端，分布式锁使用 Redisson。
+ *
+ * <h3>提供的 Bean</h3>
+ * <ul>
+ *   <li>{@link StringRedisTemplate} — 所有缓存操作统一使用 String 序列化（值由 CacheSerialization 处理）</li>
+ *   <li>{@link RedisMessageListenerContainer} — 用于缓存失效广播（Redis Pub/Sub）</li>
+ * </ul>
  *
  * @author jianwen
  */
@@ -24,45 +23,28 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class RedisConfig {
 
     /**
-     * 配置 RedisTemplate，使用 JSON 序列化
-     */
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
-
-        // JSON 序列化配置
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-        objectMapper.activateDefaultTyping(
-                objectMapper.getPolymorphicTypeValidator(),
-                ObjectMapper.DefaultTyping.NON_FINAL);
-        // 支持 Java 8 时间类型
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        Jackson2JsonRedisSerializer<Object> jsonSerializer = new Jackson2JsonRedisSerializer<>(objectMapper,
-                Object.class);
-        StringRedisSerializer stringSerializer = new StringRedisSerializer();
-
-        // Key 使用 String 序列化
-        template.setKeySerializer(stringSerializer);
-        template.setHashKeySerializer(stringSerializer);
-
-        // Value 使用 JSON 序列化
-        template.setValueSerializer(jsonSerializer);
-        template.setHashValueSerializer(jsonSerializer);
-
-        template.afterPropertiesSet();
-        return template;
-    }
-
-    /**
-     * StringRedisTemplate，用于简单的字符串操作
+     * StringRedisTemplate，统一用于所有缓存和简单字符串操作。
+     *
+     * <p>不再提供 {@code RedisTemplate<String, Object>}：
+     * 旧的 JSON 序列化模板使用了 {@code DefaultTyping.NON_FINAL}，存在反序列化安全风险，
+     * 且项目中从未实际使用。所有缓存值的序列化/反序列化由 CacheSerialization 统一处理。
      */
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
         return new StringRedisTemplate(connectionFactory);
+    }
+
+    /**
+     * Redis Pub/Sub 消息监听容器。
+     *
+     * <p>供 {@link me.jianwen.mediask.infra.cache.CacheInvalidationBus} 注册
+     * 缓存失效消息的监听器，实现多实例间本地缓存（L1）的自动失效。
+     */
+    @Bean
+    public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory connectionFactory) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        return container;
     }
 }
 
