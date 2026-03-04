@@ -8,7 +8,7 @@ import me.jianwen.mediask.common.util.AssertUtil;
 import me.jianwen.mediask.domain.ratelimit.RateLimiterService;
 import me.jianwen.mediask.domain.repository.AuthzRepository;
 import me.jianwen.mediask.domain.repository.UserRepository;
-import me.jianwen.mediask.infra.cache.CacheKeyManager;
+import me.jianwen.mediask.infra.cache.RateLimitKeyManager;
 import me.jianwen.mediask.infra.security.JwtService;
 import me.jianwen.mediask.infra.security.RefreshTokenStore;
 import me.jianwen.mediask.common.dto.auth.LoginDTO;
@@ -164,7 +164,7 @@ public class AuthApplicationService {
     }
 
     private void assertLoginRateLimit(String account, String clientIp) {
-        String ipRateLimitKey = CacheKeyManager.authLoginIpRateLimitKey(clientIp);
+        String ipRateLimitKey = RateLimitKeyManager.authLoginIpRateLimitKey(clientIp);
         boolean ipAllowed = rateLimiterService.tryAcquire(
                 ipRateLimitKey,
                 SINGLE_ACQUIRE_PERMITS,
@@ -175,7 +175,7 @@ public class AuthApplicationService {
             throw new BizException(ErrorCode.RATE_LIMIT_EXCEEDED, "该来源登录请求过于频繁，请稍后再试");
         }
 
-        String accountRateLimitKey = CacheKeyManager.authLoginAccountRateLimitKey(account);
+        String accountRateLimitKey = RateLimitKeyManager.authLoginAccountRateLimitKey(account);
         boolean accountAllowed = rateLimiterService.tryAcquire(
                 accountRateLimitKey,
                 SINGLE_ACQUIRE_PERMITS,
@@ -232,8 +232,7 @@ public class AuthApplicationService {
 
         var authorities = authzRepository.listAuthoritiesByUserId(payload.userId());
 
-        // 轮换 Refresh Token：删除旧的，存储新的
-        refreshTokenStore.remove(payload.userId(), payload.tokenId());
+        // 轮换 Refresh Token：新 Token 覆盖写，旧 Token 自动失效
         JwtService.JwtToken newAccess = jwtService.generateAccessToken(payload.userId(), payload.username(), payload.userType(), authorities);
         JwtService.JwtToken newRefresh = jwtService.generateRefreshToken(payload.userId(), payload.username(), payload.userType(), authorities);
         refreshTokenStore.store(payload.userId(), newRefresh.tokenId(), jwtService.getRefreshExpireSeconds());
@@ -256,24 +255,11 @@ public class AuthApplicationService {
     /**
      * 登出：撤销当前用户的 Refresh Token
      *
-     * @param userId     用户ID
-     * @param refreshTokenId 要撤销的 Refresh Token ID
-     */
-    public void logout(Long userId, String refreshTokenId) {
-        if (refreshTokenId != null) {
-            refreshTokenStore.remove(userId, refreshTokenId);
-        }
-        log.info("用户登出: userId={}", userId);
-    }
-
-    /**
-     * 登出所有设备：撤销用户的所有 Refresh Token
-     *
      * @param userId 用户ID
      */
-    public void logoutAll(Long userId) {
-        refreshTokenStore.revokeAll(userId);
-        log.info("用户登出所有设备: userId={}", userId);
+    public void logout(Long userId) {
+        refreshTokenStore.remove(userId);
+        log.info("用户登出: userId={}", userId);
     }
 
     private UserType resolveUserType(Integer code) {

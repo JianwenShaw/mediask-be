@@ -8,7 +8,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.mapper.AuthApiMapper;
 import me.jianwen.mediask.api.model.auth.LoginRequest;
-import me.jianwen.mediask.api.model.auth.LogoutRequest;
 import me.jianwen.mediask.api.model.auth.RefreshTokenRequest;
 import me.jianwen.mediask.api.model.auth.RegisterRequest;
 import me.jianwen.mediask.api.security.CurrentUserProvider;
@@ -59,21 +58,14 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "用户登出", description = "撤销 Refresh Token，使 Token 失效")
+    @Operation(summary = "用户登出", description = "撤销当前用户的 Refresh Token，使会话失效")
     @SecurityRequirement(name = "bearerAuth")
-    public Result<Void> logout(@RequestBody LogoutRequest request) {
+    public Result<Void> logout() {
         Long userId = currentUserId();
         if (userId == null) {
             return Result.ok();
         }
-
-        if (request.getRefreshTokenId() == null || request.getRefreshTokenId().isBlank()) {
-            // 登出所有设备
-            authApplicationService.logoutAll(userId);
-        } else {
-            // 仅登出当前设备
-            authApplicationService.logout(userId, request.getRefreshTokenId());
-        }
+        authApplicationService.logout(userId);
         return Result.ok();
     }
 

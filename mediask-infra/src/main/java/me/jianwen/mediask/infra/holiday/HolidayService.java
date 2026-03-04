@@ -48,9 +48,6 @@ public class HolidayService {
     @Value("${app.holiday.api-url:}")
     private String holidayApiUrl;
 
-    @Value("${app.holiday.api-key:}")
-    private String holidayApiKey;
-
     // 预定义的2025年节假日
     private static final Set<LocalDate> HOLIDAYS_2025 = Set.of(
             // 元旦
@@ -128,8 +125,15 @@ public class HolidayService {
 
     /**
      * 检查指定日期是否为节假日
+     *
+     * @param date 要检查的日期，不能为 null
+     * @return 如果是节假日返回 true
+     * @throws IllegalArgumentException 如果 date 为 null
      */
     public boolean isHoliday(LocalDate date) {
+        if (date == null) {
+            throw new IllegalArgumentException("date must not be null");
+        }
         String key = dateKey(date);
 
         // 通过两级缓存查询，loader 回源检查静态数据

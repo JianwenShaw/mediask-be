@@ -15,7 +15,7 @@ import java.util.Locale;
  * <p>注意：缓存键（holiday、token、test-connection 等）已迁移至各自的业务类中，
  * 由 {@link CacheKeyGenerator} 统一加前缀。本类仅保留限流键生成方法。
  */
-public final class CacheKeyManager {
+public final class RateLimitKeyManager {
 
     private static final String KEY_DELIMITER = ":";
     private static final String RATE_LIMIT_AUTH_LOGIN_ACCOUNT_PREFIX = "rate:limit:auth:login:account";
@@ -23,7 +23,7 @@ public final class CacheKeyManager {
     private static final String RATE_LIMIT_APPOINTMENT_CREATE_PREFIX = "rate:limit:appointment:create";
     private static final int KEY_HASH_LENGTH = 16;
 
-    private CacheKeyManager() {
+    private RateLimitKeyManager() {
     }
 
     public static String authLoginAccountRateLimitKey(String account) {

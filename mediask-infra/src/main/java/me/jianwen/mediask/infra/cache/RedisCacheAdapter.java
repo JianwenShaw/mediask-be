@@ -217,4 +217,5 @@ public class RedisCacheAdapter {
     public void putRaw(String key, String value) {
         stringRedisTemplate.opsForValue().set(key, value);
     }
+
 }

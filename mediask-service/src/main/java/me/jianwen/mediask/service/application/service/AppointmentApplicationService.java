@@ -9,7 +9,7 @@ import me.jianwen.mediask.common.dto.appointment.AvailableSlotDTO;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.domain.ratelimit.RateLimiterService;
 import me.jianwen.mediask.domain.event.DomainEventPublisher;
-import me.jianwen.mediask.infra.cache.CacheKeyManager;
+import me.jianwen.mediask.infra.cache.RateLimitKeyManager;
 import me.jianwen.mediask.infra.lock.annotation.DistributedLockable;
 import me.jianwen.mediask.service.application.command.CancelAppointmentCommand;
 import me.jianwen.mediask.service.application.command.CreateAppointmentCommand;
@@ -174,7 +174,7 @@ public class AppointmentApplicationService {
     }
 
     private void assertCreateAppointmentRateLimit(Long patientId) {
-        String rateLimitKey = CacheKeyManager.appointmentCreateRateLimitKey(patientId);
+        String rateLimitKey = RateLimitKeyManager.appointmentCreateRateLimitKey(patientId);
         boolean allowed = rateLimiterService.tryAcquire(
                 rateLimitKey,
                 SINGLE_ACQUIRE_PERMITS,

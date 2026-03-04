@@ -1,5 +1,6 @@
 package me.jianwen.mediask.infra.schedule.engine.dsl;
 
+import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.infra.cache.RedisCacheAdapter;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +14,7 @@ import java.util.Locale;
  *
  * <p>使用 Redis {@code INCR} 原子递增，修复旧版 GET-then-SET 竞态条件。
  */
+@Slf4j
 @Component
 public class ConstraintDslVersionManager {
 
@@ -50,13 +52,21 @@ public class ConstraintDslVersionManager {
      * 原子递增版本号。
      *
      * <p>使用 Redis INCR 保证多实例并发调用时版本号严格递增，不会回退。
+     * 若版本键存在脏值（非整数），则自动删除脏值并重置为 1，记录告警日志。
      *
      * @param namespace    命名空间
      * @param departmentId 科室ID
      * @return 递增后的版本号
      */
     public long bumpVersion(String namespace, Long departmentId) {
-        return redisCacheAdapter.increment(versionKey(namespace, departmentId));
+        String key = versionKey(namespace, departmentId);
+        try {
+            return redisCacheAdapter.increment(key);
+        } catch (Exception exception) {
+            log.warn("版本键值异常，执行自愈重置: key={}", key, exception);
+            redisCacheAdapter.delete(key);
+            return redisCacheAdapter.increment(key);
+        }
     }
 
     public String versionKey(String namespace, Long departmentId) {

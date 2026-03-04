@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>缓存键: {@code mediask:c:} — 本类负责</li>
  *   <li>分布式锁: {@code mediask:lock:} — DistributedLockProperties 负责</li>
- *   <li>限流键: {@code rate:limit:} — CacheKeyManager（已迁移）负责</li>
+ *   <li>限流键: {@code rate:limit:} — RateLimitKeyManager 负责</li>
  * </ul>
  */
 @Component
