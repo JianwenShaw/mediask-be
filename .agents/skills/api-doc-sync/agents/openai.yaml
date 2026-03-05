@@ -1,5 +1,0 @@
-version: 1
-interface:
-  display_name: API Doc Sync
-  description: 同步并校验 Controller 与 api-docs 文档一致性
-  prompt: 请用这个技能检查并同步 mediask-api 接口与 api-docs/openapi.json、api-docs/README.md 的一致性。
