@@ -43,9 +43,6 @@
         <!-- Redis & 缓存 -->
         <redisson.version>3.40.2</redisson.version>
 
-        <!-- 消息队列 -->
-        <rocketmq-spring.version>2.3.1</rocketmq-spring.version>
-
         <!-- RAG 文档处理 -->
         <tika.version>2.9.2</tika.version>
         <pdfbox.version>3.0.3</pdfbox.version>
@@ -154,13 +151,6 @@
                 <groupId>org.redisson</groupId>
                 <artifactId>redisson-spring-boot-starter</artifactId>
                 <version>${redisson.version}</version>
-            </dependency>
-
-            <!-- ==================== 消息队列 ==================== -->
-            <dependency>
-                <groupId>org.apache.rocketmq</groupId>
-                <artifactId>rocketmq-spring-boot-starter</artifactId>
-                <version>${rocketmq-spring.version}</version>
             </dependency>
 
             <!-- ==================== RAG 文档处理 ==================== -->

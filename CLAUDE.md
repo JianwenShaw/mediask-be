@@ -37,10 +37,10 @@ API → Service → Domain
 | `mediask-api` | REST controllers, JWT auth, security config | Web entry point |
 | `mediask-service` | Application services, business orchestration | Use case implementation |
 | `mediask-domain` | Entities, value objects, domain services, repository interfaces | Core business logic |
-| `mediask-infra` | Repository implementations, Redis, MQ, AI clients | Technical implementations |
+| `mediask-infra` | Repository implementations, Redis, domain events, AI clients | Technical implementations |
 | `mediask-dal` | DO entities, MyBatis-Plus mappers | Data access |
 | `mediask-common` | Utilities, exceptions, constants, response wrapper | Shared code |
-| `mediask-worker` | Scheduled jobs, MQ consumers | Async tasks |
+| `mediask-worker` | Scheduled jobs | Async tasks |
 
 **Critical Constraints**:
 - API layer cannot directly depend on Domain or Infra
@@ -106,7 +106,6 @@ public AppointmentResultDTO createAppointment(CreateAppointmentRequest request) 
 - MyBatis-Plus 3.5.15 (ORM)
 - Redis 7.x with Redisson (distributed lock, cache)
 - Milvus 2.4+ (vector database for RAG)
-- RocketMQ 5.0+ (message queue)
 - LangChain4j 1.9.1 (AI integration)
 - Spring Security + JWT 0.12.6 (authentication)
 

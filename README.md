@@ -30,7 +30,6 @@ MediAsk 是一个集成传统医疗业务流程与 AI 辅助功能的智能问�
 | **数据库** | MySQL | 8.0+ |
 | **缓存** | Redis (Redisson) | 7.x |
 | **向量库** | Milvus | 2.4+ |
-| **消息队列** | RocketMQ | 5.0+ |
 | **AI** | LangChain4j | 1.9.1 |
 | **文档** | Knife4j (OpenAPI 3) | 4.5.0 |
 
@@ -43,7 +42,7 @@ mediask-be/
 ├── mediask-domain/     # 领域层 - 核心业务规则、实体
 ├── mediask-dal/        # 数据访问层 - Mapper、Repository 实现
 ├── mediask-common/     # 通用层 - 工具类、异常、常量
-├── mediask-worker/     # 任务层 - 定时任务、消息消费
+├── mediask-worker/     # 任务层 - 定时任务
 └── MediAskDocs/        # 项目文档
 ```
 
@@ -213,4 +212,3 @@ CI 和 Release 工作流都支持邮件通知：
 ## License
 
 [MIT](LICENSE)
-

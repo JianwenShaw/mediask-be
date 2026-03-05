@@ -102,7 +102,6 @@ public enum ErrorCode {
     SYSTEM_ERROR(9999, "系统繁忙，请稍后再试"),
     DATABASE_ERROR(9001, "数据库操作异常"),
     REDIS_ERROR(9002, "缓存服务异常"),
-    MQ_ERROR(9003, "消息队列异常"),
     RPC_ERROR(9004, "远程调用失败"),
     THIRD_PARTY_ERROR(9005, "第三方服务异常");
 
