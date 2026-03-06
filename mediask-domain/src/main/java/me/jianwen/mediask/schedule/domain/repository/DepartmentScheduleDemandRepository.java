@@ -1,6 +1,6 @@
 package me.jianwen.mediask.schedule.domain.repository;
 
-import me.jianwen.mediask.schedule.domain.optimization.model.DepartmentScheduleDemand;
+import me.jianwen.mediask.schedule.domain.optimization.DepartmentScheduleDemand;
 
 import java.time.LocalDate;
 import java.util.List;

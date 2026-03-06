@@ -1,6 +1,7 @@
 package me.jianwen.mediask.schedule.domain.service;
 
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
+import me.jianwen.mediask.schedule.domain.context.AutoScheduleContext;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
 
 import java.time.LocalDate;
@@ -32,10 +33,10 @@ public interface AutoScheduleStrategy {
             DoctorId doctorId,
             LocalDate startDate,
             LocalDate endDate,
-            ScheduleContext context);
+            AutoScheduleContext context);
 
     /**
      * 验证策略是否适用
      */
-    boolean isApplicable(ScheduleContext context);
+    boolean isApplicable(AutoScheduleContext context);
 }

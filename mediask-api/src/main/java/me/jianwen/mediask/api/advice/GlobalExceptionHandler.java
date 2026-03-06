@@ -4,7 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
-import me.jianwen.mediask.api.security.SecurityAuditUtil;
+import me.jianwen.mediask.api.util.SecurityAuditUtil;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.common.exception.SysException;

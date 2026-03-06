@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.dal.entity.DoctorTimeOffDO;
 import me.jianwen.mediask.dal.mapper.DoctorTimeOffMapper;
-import me.jianwen.mediask.schedule.domain.optimization.model.DoctorTimeOff;
+import me.jianwen.mediask.schedule.domain.rule.DoctorTimeOff;
 import me.jianwen.mediask.schedule.domain.repository.DoctorTimeOffRepository;
 import org.springframework.stereotype.Repository;
 

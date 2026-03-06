@@ -2,9 +2,9 @@ package me.jianwen.mediask.schedule.domain.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import me.jianwen.mediask.schedule.domain.context.AutoScheduleContext;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
 import me.jianwen.mediask.schedule.domain.service.AutoScheduleStrategy;
-import me.jianwen.mediask.schedule.domain.service.ScheduleContext;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
 import me.jianwen.mediask.schedule.domain.valueobject.ScheduleId;
 import me.jianwen.mediask.schedule.domain.valueobject.TimePeriod;
@@ -40,7 +40,7 @@ public class CustomDateScheduleStrategy implements AutoScheduleStrategy {
             DoctorId doctorId,
             LocalDate startDate,
             LocalDate endDate,
-            ScheduleContext context) {
+            AutoScheduleContext context) {
 
         log.info("使用自定义日期排班策略为医生 {} 生成排班", doctorId.getValue());
 
@@ -82,7 +82,7 @@ public class CustomDateScheduleStrategy implements AutoScheduleStrategy {
     }
 
     @Override
-    public boolean isApplicable(ScheduleContext context) {
+    public boolean isApplicable(AutoScheduleContext context) {
         return context.getProperties().containsKey("customDates");
     }
 

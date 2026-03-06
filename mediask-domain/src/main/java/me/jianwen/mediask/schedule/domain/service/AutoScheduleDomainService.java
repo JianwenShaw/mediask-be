@@ -2,6 +2,7 @@ package me.jianwen.mediask.schedule.domain.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import me.jianwen.mediask.schedule.domain.context.AutoScheduleContext;
 import me.jianwen.mediask.schedule.domain.entity.DoctorSchedule;
 import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
 import me.jianwen.mediask.schedule.domain.valueobject.DoctorId;
@@ -37,7 +38,7 @@ public class AutoScheduleDomainService {
             DoctorId doctorId,
             LocalDate startDate,
             LocalDate endDate,
-            ScheduleContext context,
+            AutoScheduleContext context,
             String strategyName) {
 
         log.info("开始自动排班: doctorId={}, dateRange={} to {}, strategy={}",
@@ -76,7 +77,7 @@ public class AutoScheduleDomainService {
     /**
      * 选择排班策略
      */
-    private AutoScheduleStrategy selectStrategy(String strategyName, ScheduleContext context) {
+    private AutoScheduleStrategy selectStrategy(String strategyName, AutoScheduleContext context) {
         if (strategyName != null) {
             return strategies.stream()
                     .filter(s -> s.getStrategyName().equals(strategyName))

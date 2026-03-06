@@ -7,12 +7,12 @@ import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.common.util.JsonUtil;
 import me.jianwen.mediask.domain.cache.CacheDefinition;
 import me.jianwen.mediask.domain.cache.CacheOperations;
-import me.jianwen.mediask.schedule.domain.engine.SchedulingEngineRequest;
-import me.jianwen.mediask.schedule.domain.engine.constraint.CompiledConstraintModel;
-import me.jianwen.mediask.schedule.domain.engine.constraint.ConstraintExpression;
-import me.jianwen.mediask.schedule.domain.engine.constraint.ConstraintKind;
-import me.jianwen.mediask.schedule.domain.engine.constraint.ConstraintRule;
-import me.jianwen.mediask.schedule.domain.engine.constraint.ObjectiveSpec;
+import me.jianwen.mediask.schedule.domain.optimization.engine.SchedulingEngineRequest;
+import me.jianwen.mediask.schedule.domain.optimization.engine.constraint.CompiledConstraintModel;
+import me.jianwen.mediask.schedule.domain.optimization.engine.constraint.ConstraintExpression;
+import me.jianwen.mediask.schedule.domain.optimization.engine.constraint.ConstraintKind;
+import me.jianwen.mediask.schedule.domain.optimization.engine.constraint.ConstraintRule;
+import me.jianwen.mediask.schedule.domain.optimization.engine.constraint.ObjectiveSpec;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;

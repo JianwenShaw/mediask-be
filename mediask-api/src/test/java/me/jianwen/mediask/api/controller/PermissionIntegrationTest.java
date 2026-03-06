@@ -1,9 +1,9 @@
 package me.jianwen.mediask.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import me.jianwen.mediask.common.dto.auth.AccessTokenPrincipalDTO;
 import me.jianwen.mediask.infra.security.JwtService;
-import me.jianwen.mediask.service.application.service.TokenApplicationService;
+import me.jianwen.mediask.service.application.dto.auth.AccessTokenPrincipalDTO;
+import me.jianwen.mediask.service.application.TokenApplicationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Disabled;

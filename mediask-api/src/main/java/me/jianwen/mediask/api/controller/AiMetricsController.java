@@ -5,14 +5,14 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import me.jianwen.mediask.api.model.ai.SubmitAiReviewRequest;
+import me.jianwen.mediask.api.request.ai.SubmitAiReviewRequest;
 import me.jianwen.mediask.api.security.CurrentUserProvider;
-import me.jianwen.mediask.common.dto.ai.AiDepartmentMetricsDTO;
-import me.jianwen.mediask.common.dto.ai.AiOverviewMetricsDTO;
-import me.jianwen.mediask.common.dto.ai.AiReviewResultDTO;
 import me.jianwen.mediask.common.result.Result;
+import me.jianwen.mediask.schedule.domain.readmodel.AiDepartmentMetrics;
+import me.jianwen.mediask.schedule.domain.readmodel.AiOverviewMetrics;
 import me.jianwen.mediask.service.application.command.SubmitAiReviewCommand;
-import me.jianwen.mediask.service.application.service.AiMetricsApplicationService;
+import me.jianwen.mediask.service.application.dto.ai.AiReviewResultDTO;
+import me.jianwen.mediask.service.application.AiMetricsApplicationService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,7 +50,7 @@ public class AiMetricsController {
     @GetMapping("/metrics/overview")
     @Operation(summary = "AI指标总览", description = "管理员查看AI问诊全局指标")
     @PreAuthorize("hasAuthority('admin')")
-    public Result<AiOverviewMetricsDTO> getOverview(
+    public Result<AiOverviewMetrics> getOverview(
             @Parameter(description = "统计日期，默认当天")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return Result.ok(aiMetricsApplicationService.getOverviewMetrics(date));
@@ -59,7 +59,7 @@ public class AiMetricsController {
     @GetMapping("/metrics/departments")
     @Operation(summary = "AI指标分科室统计", description = "管理员查看AI问诊分科室统计")
     @PreAuthorize("hasAuthority('admin')")
-    public Result<List<AiDepartmentMetricsDTO>> getDepartmentMetrics(
+    public Result<List<AiDepartmentMetrics>> getDepartmentMetrics(
             @Parameter(description = "统计日期，默认当天")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return Result.ok(aiMetricsApplicationService.listDepartmentMetrics(date));

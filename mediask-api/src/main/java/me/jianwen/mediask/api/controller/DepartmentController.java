@@ -3,7 +3,7 @@ package me.jianwen.mediask.api.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import me.jianwen.mediask.api.model.department.DepartmentResponse;
+import me.jianwen.mediask.api.response.department.DepartmentResponse;
 import me.jianwen.mediask.common.result.Result;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -6,7 +6,7 @@ import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.dal.entity.ScheduleRuleProfileDO;
 import me.jianwen.mediask.dal.mapper.ScheduleRuleProfileMapper;
-import me.jianwen.mediask.schedule.domain.optimization.model.ScheduleRuleProfile;
+import me.jianwen.mediask.schedule.domain.rule.ScheduleRuleProfile;
 import me.jianwen.mediask.schedule.domain.repository.ScheduleRuleProfileRepository;
 import org.springframework.stereotype.Repository;
 

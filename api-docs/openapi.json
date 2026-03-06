@@ -43,27 +43,21 @@
     {
       "name": "schedule-rule-profile",
       "description": "排班规则配置模块"
+    },
+    {
+      "name": "authz",
+      "description": "权限管理模块：角色、权限、用户角色维护"
+    },
+    {
+      "name": "doctor",
+      "description": "医生档案管理模块"
+    },
+    {
+      "name": "schedule-plan",
+      "description": "排班方案版本、预检、发布、回滚模块"
     }
   ],
   "paths": {
-    "## Appointment 模块 ##": {
-      "description": "预约管理接口"
-    },
-    "## Auth 模块 ##": {
-      "description": "认证相关接口"
-    },
-    "## Schedule 模块 ##": {
-      "description": "排班管理接口"
-    },
-    "## ScheduleRuleProfile 模块 ##": {
-      "description": "排班规则配置接口"
-    },
-    "## Test 模块 ##": {
-      "description": "测试接口"
-    },
-    "## User 模块 ##": {
-      "description": "用户相关接口"
-    },
     "/api/test/all": {
       "get": {
         "tags": [
@@ -76,12 +70,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AutoSchedulePlanResponse"
+                  "$ref": "#/components/schemas/ResponseWrapper"
                 }
               }
             }
           }
-        }
+        },
+        "security": [],
+        "operationId": "getApiTestAll",
+        "description": "综合测试 MySQL 与 Redis 连接（公开接口，无需认证）。"
       }
     },
     "/api/test/health": {
@@ -101,7 +98,10 @@
               }
             }
           }
-        }
+        },
+        "security": [],
+        "operationId": "getApiTestHealth",
+        "description": "健康检查（公开接口，无需认证）。"
       }
     },
     "/api/test/mysql": {
@@ -121,7 +121,10 @@
               }
             }
           }
-        }
+        },
+        "security": [],
+        "operationId": "getApiTestMysql",
+        "description": "测试 MySQL 读取能力（公开接口，无需认证）。"
       },
       "post": {
         "tags": [
@@ -132,10 +135,12 @@
           {
             "name": "message",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
-            }
+              "type": "string",
+              "default": "Hello MediAsk!"
+            },
+            "description": "测试写入内容，默认 Hello MediAsk!"
           }
         ],
         "responses": {
@@ -149,7 +154,10 @@
               }
             }
           }
-        }
+        },
+        "security": [],
+        "operationId": "postApiTestMysql",
+        "description": "测试 MySQL 写入能力（公开接口，无需认证）。"
       }
     },
     "/api/test/redis": {
@@ -162,10 +170,12 @@
           {
             "name": "key",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
-            }
+              "type": "string",
+              "default": "test:key"
+            },
+            "description": "读取键名，默认 test:key"
           }
         ],
         "responses": {
@@ -179,7 +189,10 @@
               }
             }
           }
-        }
+        },
+        "security": [],
+        "operationId": "getApiTestRedis",
+        "description": "测试 Redis 读取能力（公开接口，无需认证）。"
       },
       "post": {
         "tags": [
@@ -190,18 +203,22 @@
           {
             "name": "key",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
-            }
+              "type": "string",
+              "default": "test:key"
+            },
+            "description": "写入键名，默认 test:key"
           },
           {
             "name": "value",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
-            }
+              "type": "string",
+              "default": "Hello Redis!"
+            },
+            "description": "写入值，默认 Hello Redis!"
           }
         ],
         "responses": {
@@ -215,7 +232,10 @@
               }
             }
           }
-        }
+        },
+        "security": [],
+        "operationId": "postApiTestRedis",
+        "description": "测试 Redis 写入能力（公开接口，无需认证）。"
       }
     },
     "/api/v1/admin/authz/permissions": {
@@ -241,7 +261,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AdminAuthzPermissions"
       }
     },
     "/api/v1/admin/authz/roles": {
@@ -267,7 +288,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AdminAuthzRoles"
       }
     },
     "/api/v1/admin/authz/users/{userId}/roles": {
@@ -305,7 +327,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AdminAuthzUsersByUserIdRoles"
       },
       "put": {
         "tags": [
@@ -350,7 +373,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putApiV1AdminAuthzUsersByUserIdRoles"
       }
     },
     "/api/v1/ai/metrics/departments": {
@@ -382,12 +406,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResponseWrapper"
+                  "$ref": "#/components/schemas/AiDepartmentMetricsListResponse"
                 }
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AiMetricsDepartments",
+        "description": "管理员查看 AI 问诊分科室指标（admin 权限）。date 为空时默认当天。"
       }
     },
     "/api/v1/ai/metrics/overview": {
@@ -419,12 +445,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResponseWrapper"
+                  "$ref": "#/components/schemas/AiOverviewMetricsResponse"
                 }
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AiMetricsOverview",
+        "description": "管理员查看 AI 问诊全局指标（admin 权限）。date 为空时默认当天。"
       }
     },
     "/api/v1/ai/reviews": {
@@ -453,12 +481,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResponseWrapper"
+                  "$ref": "#/components/schemas/AiReviewResultResponse"
                 }
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1AiReviews",
+        "description": "医生对 AI 问诊会话提交复核评分（doctor 权限）。"
       }
     },
     "/api/v1/appointments": {
@@ -492,7 +522,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1Appointments"
       }
     },
     "/api/v1/appointments/cancel": {
@@ -526,7 +557,9 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1AppointmentsCancel",
+        "description": "患者取消自己的预约（接口当前仅 patient 权限可用；operatorId/operatorType 字段保留但当前控制层不用于放权）。"
       }
     },
     "/api/v1/appointments/doctor/{doctorId}": {
@@ -534,7 +567,7 @@
         "tags": [
           "appointment"
         ],
-        "summary": "医生查询预约列表",
+        "summary": "查询医生预约列表（按日期）",
         "security": [
           {
             "bearerAuth": []
@@ -572,7 +605,9 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AppointmentsDoctorByDoctorId",
+        "description": "查询医生在指定日期的预约列表（doctor 权限）。"
       }
     },
     "/api/v1/appointments/doctor/{doctorId}/range": {
@@ -580,7 +615,7 @@
         "tags": [
           "appointment"
         ],
-        "summary": "医生查询预约列表",
+        "summary": "查询医生预约列表（日期范围）",
         "security": [
           {
             "bearerAuth": []
@@ -628,7 +663,9 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AppointmentsDoctorByDoctorIdRange",
+        "description": "查询医生在日期范围内的预约列表（doctor 权限）。"
       }
     },
     "/api/v1/appointments/my": {
@@ -675,7 +712,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AppointmentsMy"
       }
     },
     "/api/v1/appointments/my/unpaid": {
@@ -700,7 +738,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AppointmentsMyUnpaid"
       }
     },
     "/api/v1/appointments/slots/available": {
@@ -736,7 +775,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AppointmentsSlotsAvailable"
       }
     },
     "/api/v1/appointments/{appointmentId}": {
@@ -772,7 +812,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1AppointmentsByAppointmentId"
       }
     },
     "/api/v1/appointments/{appointmentId}/absent": {
@@ -808,7 +849,9 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1AppointmentsByAppointmentIdAbsent",
+        "description": "医生标记患者爽约（doctor 权限）。"
       }
     },
     "/api/v1/appointments/{appointmentId}/pay": {
@@ -844,7 +887,9 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1AppointmentsByAppointmentIdPay",
+        "description": "模拟支付预约（当前仅 patient 权限）。"
       }
     },
     "/api/v1/appointments/{appointmentId}/visited": {
@@ -880,7 +925,9 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1AppointmentsByAppointmentIdVisited",
+        "description": "医生标记患者已就诊（doctor 权限）。"
       }
     },
     "/api/v1/auth/login": {
@@ -910,7 +957,9 @@
               }
             }
           }
-        }
+        },
+        "security": [],
+        "operationId": "postApiV1AuthLogin"
       }
     },
     "/api/v1/auth/logout": {
@@ -919,21 +968,12 @@
           "auth"
         ],
         "summary": "用户登出",
-        "description": "撤销 Refresh Token，使 Token 失效。可选择登出当前设备或所有设备。",
+        "description": "撤销当前访问令牌所属用户的 Refresh Token 会话。当前实现不接收请求体。",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LogoutRequest"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "登出成功",
@@ -945,7 +985,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1AuthLogout"
       }
     },
     "/api/v1/auth/refresh": {
@@ -975,7 +1016,9 @@
               }
             }
           }
-        }
+        },
+        "security": [],
+        "operationId": "postApiV1AuthRefresh"
       }
     },
     "/api/v1/auth/register": {
@@ -1005,7 +1048,9 @@
               }
             }
           }
-        }
+        },
+        "security": [],
+        "operationId": "postApiV1AuthRegister"
       }
     },
     "/api/v1/doctors": {
@@ -1039,7 +1084,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1Doctors"
       },
       "get": {
         "tags": [
@@ -1144,7 +1190,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1Doctors"
       }
     },
     "/api/v1/doctors/{doctorId}": {
@@ -1181,7 +1228,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1DoctorsByDoctorId"
       },
       "put": {
         "tags": [
@@ -1225,7 +1273,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putApiV1DoctorsByDoctorId"
       }
     },
     "/api/v1/doctors/{doctorId}/status": {
@@ -1256,9 +1305,13 @@
             "required": true,
             "schema": {
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "enum": [
+                0,
+                1
+              ]
             },
-            "description": "状态 0-停用 1-启用"
+            "description": "状态：0=停用，1=启用"
           }
         ],
         "responses": {
@@ -1272,7 +1325,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putApiV1DoctorsByDoctorIdStatus"
       }
     },
     "/api/v1/department/departments": {
@@ -1281,7 +1335,7 @@
           "department"
         ],
         "summary": "查询科室列表",
-        "description": "返回科室列表信息",
+        "description": "查询科室列表。补充说明：当前 Controller 为占位实现，返回 Result.ok()，data 可能为 null。",
         "security": [
           {
             "bearerAuth": []
@@ -1293,12 +1347,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DepartmentListResponse"
+                  "$ref": "#/components/schemas/ResponseWrapper"
                 }
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1DepartmentDepartments"
       }
     },
     "/api/v1/schedule-templates": {
@@ -1332,7 +1387,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1ScheduleTemplates"
       }
     },
     "/api/v1/schedule-templates/{templateId}": {
@@ -1368,7 +1424,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1ScheduleTemplatesByTemplateId"
       },
       "put": {
         "tags": [
@@ -1411,7 +1468,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putApiV1ScheduleTemplatesByTemplateId"
       }
     },
     "/api/v1/schedule-templates/{templateId}/publish": {
@@ -1447,7 +1505,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1ScheduleTemplatesByTemplateIdPublish"
       }
     },
     "/api/v1/schedules": {
@@ -1482,7 +1541,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1Schedules"
       },
       "get": {
         "tags": [
@@ -1541,9 +1601,15 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "enum": [
+                0,
+                1,
+                2,
+                3
+              ]
             },
-            "description": "状态：0停诊 1开放 2约满 3过期"
+            "description": "状态：0=停诊，1=开放，2=约满，3=过期"
           },
           {
             "name": "pageNum",
@@ -1579,7 +1645,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1Schedules"
       }
     },
     "/api/v1/schedules/auto": {
@@ -1614,7 +1681,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1SchedulesAuto"
       }
     },
     "/api/v1/schedule-plans/{planCode}/versions": {
@@ -1650,7 +1718,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1SchedulePlansByPlanCodeVersions"
       }
     },
     "/api/v1/schedule-plans/{planId}/publish": {
@@ -1701,7 +1770,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1SchedulePlansByPlanIdPublish"
       }
     },
     "/api/v1/schedule-plans/{planId}/precheck": {
@@ -1752,7 +1822,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1SchedulePlansByPlanIdPrecheck"
       }
     },
     "/api/v1/schedule-plans/{planId}/rollback": {
@@ -1803,7 +1874,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1SchedulePlansByPlanIdRollback"
       }
     },
     "/api/v1/schedule-rule-profiles": {
@@ -1837,7 +1909,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1ScheduleRuleProfiles"
       }
     },
     "/api/v1/schedule-rule-profiles/{profileId}": {
@@ -1874,7 +1947,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1ScheduleRuleProfilesByProfileId"
       }
     },
     "/api/v1/schedule-rule-profiles/versions": {
@@ -1918,7 +1992,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1ScheduleRuleProfilesVersions"
       }
     },
     "/api/v1/schedule-rule-profiles/{profileId}/publish": {
@@ -1955,7 +2030,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1ScheduleRuleProfilesByProfileIdPublish"
       }
     },
     "/api/v1/schedule-rule-profiles/{profileId}/rollback": {
@@ -1992,7 +2068,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1ScheduleRuleProfilesByProfileIdRollback"
       }
     },
     "/api/v1/schedules/available": {
@@ -2038,7 +2115,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1SchedulesAvailable"
       }
     },
     "/api/v1/schedules/batch": {
@@ -2105,7 +2183,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteApiV1SchedulesBatch"
       }
     },
     "/api/v1/schedules/doctor/{doctorId}": {
@@ -2159,7 +2238,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1SchedulesDoctorByDoctorId"
       }
     },
     "/api/v1/schedules/generate": {
@@ -2193,7 +2273,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1SchedulesGenerate"
       }
     },
     "/api/v1/schedules/{scheduleId}": {
@@ -2229,7 +2310,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1SchedulesByScheduleId"
       },
       "delete": {
         "tags": [
@@ -2273,7 +2355,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteApiV1SchedulesByScheduleId"
       }
     },
     "/api/v1/schedules/{scheduleId}/close": {
@@ -2318,7 +2401,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1SchedulesByScheduleIdClose"
       }
     },
     "/api/v1/schedules/{scheduleId}/open": {
@@ -2354,7 +2438,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postApiV1SchedulesByScheduleIdOpen"
       }
     },
     "/api/v1/schedules/{scheduleId}/slots": {
@@ -2399,7 +2484,8 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putApiV1SchedulesByScheduleIdSlots"
       }
     },
     "/api/v1/users/me": {
@@ -2419,12 +2505,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResponseWrapper"
+                  "$ref": "#/components/schemas/UserResultResponse"
                 }
               }
             }
           }
-        }
+        },
+        "operationId": "getApiV1UsersMe",
+        "description": "获取当前登录用户信息（依赖 Authorization: Bearer token）。"
       }
     }
   },
@@ -3513,7 +3601,12 @@
           "timePeriodCode": {
             "type": "integer",
             "format": "int32",
-            "description": "时段代码：1=上午 2=下午 3=晚上"
+            "description": "时段代码：1=上午 2=下午 3=晚上",
+            "enum": [
+              1,
+              2,
+              3
+            ]
           },
           "apptTime": {
             "type": "string",
@@ -3602,7 +3695,12 @@
           "timePeriodCode": {
             "type": "integer",
             "format": "int32",
-            "description": "1=上午, 2=下午, 3=晚上"
+            "description": "1=上午, 2=下午, 3=晚上",
+            "enum": [
+              1,
+              2,
+              3
+            ]
           },
           "totalSlots": {
             "type": "integer",
@@ -4036,7 +4134,12 @@
           "userType": {
             "type": "integer",
             "format": "int32",
-            "description": "用户类型：1=管理员 2=医生 3=患者"
+            "description": "用户类型：1=患者，2=医生，3=管理员",
+            "enum": [
+              1,
+              2,
+              3
+            ]
           },
           "realName": {
             "type": "string",
@@ -4045,7 +4148,12 @@
           "gender": {
             "type": "integer",
             "format": "int32",
-            "description": "性别：0=未知 1=男 2=女"
+            "description": "性别：0=未知，1=男，2=女",
+            "enum": [
+              0,
+              1,
+              2
+            ]
           },
           "birthDate": {
             "type": "string",
@@ -4083,6 +4191,15 @@
           "data": {
             "type": "object",
             "description": "响应数据"
+          },
+          "traceId": {
+            "type": "string",
+            "description": "链路追踪ID"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "响应时间戳（毫秒）"
           }
         },
         "example": {
@@ -4380,6 +4497,239 @@
           },
           "data": {
             "$ref": "#/components/schemas/UserRolesResponse"
+          }
+        }
+      },
+      "AiReviewResultDTO": {
+        "type": "object",
+        "properties": {
+          "reviewId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "复核记录ID"
+          }
+        }
+      },
+      "AiOverviewMetricsDTO": {
+        "type": "object",
+        "properties": {
+          "metricDate": {
+            "type": "string",
+            "format": "date",
+            "description": "统计日期"
+          },
+          "totalConversations": {
+            "type": "integer",
+            "format": "int64",
+            "description": "总会话数"
+          },
+          "activeUsers": {
+            "type": "integer",
+            "format": "int64",
+            "description": "活跃用户数"
+          },
+          "totalMessages": {
+            "type": "integer",
+            "format": "int64",
+            "description": "总消息数"
+          },
+          "totalReviews": {
+            "type": "integer",
+            "format": "int64",
+            "description": "总复核数"
+          },
+          "avgReviewScore": {
+            "type": "number",
+            "format": "double",
+            "description": "平均复核分"
+          },
+          "accuracyRate": {
+            "type": "number",
+            "format": "double",
+            "description": "采纳率"
+          }
+        }
+      },
+      "AiDepartmentMetricsDTO": {
+        "type": "object",
+        "properties": {
+          "metricDate": {
+            "type": "string",
+            "format": "date",
+            "description": "统计日期"
+          },
+          "departmentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "科室ID"
+          },
+          "departmentName": {
+            "type": "string",
+            "description": "科室名称"
+          },
+          "totalConversations": {
+            "type": "integer",
+            "format": "int64",
+            "description": "总会话数"
+          },
+          "totalReviews": {
+            "type": "integer",
+            "format": "int64",
+            "description": "总复核数"
+          },
+          "avgReviewScore": {
+            "type": "number",
+            "format": "double",
+            "description": "平均复核分"
+          },
+          "accuracyRate": {
+            "type": "number",
+            "format": "double",
+            "description": "采纳率"
+          }
+        }
+      },
+      "AiReviewResultResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiReviewResultDTO"
+          },
+          "traceId": {
+            "type": "string",
+            "description": "链路追踪ID"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "响应时间戳（毫秒）"
+          }
+        }
+      },
+      "AiOverviewMetricsResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiOverviewMetricsDTO"
+          },
+          "traceId": {
+            "type": "string",
+            "description": "链路追踪ID"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "响应时间戳（毫秒）"
+          }
+        }
+      },
+      "AiDepartmentMetricsListResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiDepartmentMetricsDTO"
+            }
+          },
+          "traceId": {
+            "type": "string",
+            "description": "链路追踪ID"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "响应时间戳（毫秒）"
+          }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "username": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "userType": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "description": "1=患者，2=医生，3=管理员"
+          },
+          "realName": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+              0,
+              1,
+              2
+            ],
+            "description": "0=未知，1=男，2=女"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "avatarUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "UserResultResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UserResponse"
+          },
+          "traceId": {
+            "type": "string",
+            "description": "链路追踪ID"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "响应时间戳（毫秒）"
           }
         }
       }

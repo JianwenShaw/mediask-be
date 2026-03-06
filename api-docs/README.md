@@ -34,7 +34,9 @@
 {
   "code": 0,           // 0=成功，非0=失败
   "msg": "success",    // 提示信息
-  "data": { ... }      // 响应数据
+  "data": { ... },      // 响应数据
+  "traceId": "...",    // 链路追踪ID
+  "timestamp": 1737000000000 // 响应时间戳（毫秒）
 }
 ```
 
@@ -66,7 +68,7 @@ Response: { code, msg, data: { token, refreshToken, refreshTokenId, expiresIn } 
 // 4. 登出（撤销 Refresh Token）
 POST /api/v1/auth/logout
 Headers: { Authorization: "Bearer {token}" }
-Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
+Body: 无（当前实现不读取请求体）
 ```
 
 ## 模块概览
@@ -80,14 +82,9 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 | POST | `/api/v1/auth/refresh` | 刷新 Token |
 | POST | `/api/v1/auth/logout` | 用户登出 |
 
-**登出请求示例**：
-```json
-// 登出当前设备
-{ "refreshTokenId": "550e8400-e29b-41d4-a716-446655440000" }
-
-// 登出所有设备
-{}
-```
+**登出说明（以当前 Controller 为准）**：
+- `POST /api/v1/auth/logout` 仅依赖请求头中的 Bearer Token，不读取请求体。
+- 该接口会按当前 Token 对应用户执行登出逻辑。
 
 **注册说明**：
 - `POST /api/v1/auth/register` 注册成功后会直接返回登录态（`data` 内含 `token`、`refreshToken`、`refreshTokenId`、`expiresIn`），无需再调用一次登录接口。
@@ -127,6 +124,9 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/v1/department/departments` | 查询科室列表 |
+
+**补充说明（当前实现）**：
+- 当前 `DepartmentController` 为占位实现，接口返回 `Result.ok()`，即 `data` 可能为 `null`。
 
 ### Schedule 排班模块 (12 接口)
 
@@ -231,7 +231,7 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/api/v1/appointments` | 创建预约 |
-| POST | `/api/v1/appointments/cancel` | 取消预约（支持管理员） |
+| POST | `/api/v1/appointments/cancel` | 取消预约（当前仅 patient 权限） |
 | POST | `/api/v1/appointments/{appointmentId}/pay` | 支付预约 |
 | POST | `/api/v1/appointments/{appointmentId}/visited` | 标记已就诊 |
 | POST | `/api/v1/appointments/{appointmentId}/absent` | 标记爽约（新增） |
@@ -256,26 +256,25 @@ Body: { refreshTokenId: string }  // 可选，为空则登出所有设备
 |------|------|
 | `openapi.json` | OpenAPI 3.0 规范，AI 解析生成代码 |
 | `README.md` | 此文件，接口快速索引 |
+| `API_CHANGELOG.md` | 按提交记录接口变更明细（前端 AI 对接主索引） |
 
 ## 提示
 
 - AI 读取 `openapi.json` 即可获得完整接口定义
-- 文件按模块分组（注释标记），便于查找
+- 所有接口都已补充 `operationId`，可直接用于前端 SDK/类型生成
 - 后续新增模块可在 `openapi.json` 中按相同模式扩展
+
+## 补充说明（严格按当前代码行为）
+
+- `/api/v1/auth/register`、`/api/v1/auth/login`、`/api/v1/auth/refresh`、`/api/test/**` 为公开接口，不需要 Bearer Token。
+- `/api/v1/auth/logout` 需要 Bearer Token，且当前实现不接收请求体。
+- `CancelAppointmentRequest` 中 `operatorId/operatorType` 字段在控制层保留，但 `POST /api/v1/appointments/cancel` 当前权限仍为 `patient`。
+- `GET /api/v1/schedules` 的 `departmentId` 参数当前版本暂未生效（参数已预留）。
+- 若后续服务实现与当前 Controller 行为发生变化，请优先更新 `openapi.json`，再同步本 README。
 
 ## 接口变更记录（供前端对接跟踪）
 
-说明：
-- 仅记录“新增/修改/删除”的接口变更，按时间倒序追加。
-- 前端完成联调后，可将“对接状态”从 `待对接` 改为 `已对接` 并补充备注。
-
-| 日期 | 变更类型 | 方法 | 路径 | 模块 | 对接状态 | 备注 |
-|------|----------|------|------|------|----------|------|
-| 2026-02-16 | 新增 | GET | `/api/v1/department/departments` | 科室数据 | 待对接 | 同步 Controller 到 OpenAPI，补齐缺失接口 |
-| 2026-02-16 | 修改 | POST | `/api/v1/schedules` | 排班 | 待对接 | 创建排班请求字段口径修正为 `scheduleDate/timePeriodCode` |
-| 2026-02-16 | 修改 | GET | `/api/v1/schedules` | 排班 | 待对接 | 明确 `departmentId` 当前版本暂未生效 |
-| 2026-02-16 | 修改 | POST | `/api/v1/schedules/auto` | 排班 | 待对接 | 明确仅保存 DRAFT，`generatedScheduleIds` 通常为空 |
-| 2026-02-12 | 新增 | GET | `/api/v1/admin/authz/roles` | 权限管理 | 待对接 | 查询角色列表（含权限编码） |
-| 2026-02-12 | 新增 | GET | `/api/v1/admin/authz/permissions` | 权限管理 | 待对接 | 查询权限列表 |
-| 2026-02-12 | 新增 | GET | `/api/v1/admin/authz/users/{userId}/roles` | 权限管理 | 待对接 | 查询用户角色 |
-| 2026-02-12 | 新增 | PUT | `/api/v1/admin/authz/users/{userId}/roles` | 权限管理 | 待对接 | 覆盖更新用户角色 |
+请改为维护 `api-docs/API_CHANGELOG.md`：
+- 按提交维度记录（每个 commit 一个条目）。
+- 必须细化到 endpoint（method + path + change_type + frontend_action + details）。
+- 无法 100% 确认的事项必须写 `uncertain` 注记。

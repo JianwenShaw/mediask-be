@@ -1,7 +1,7 @@
 package me.jianwen.mediask.infra.schedule.engine.dsl;
 
 import me.jianwen.mediask.common.util.JsonUtil;
-import me.jianwen.mediask.schedule.domain.optimization.model.DepartmentScheduleOptimizationRequest;
+import me.jianwen.mediask.schedule.domain.optimization.DepartmentScheduleOptimizationRequest;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

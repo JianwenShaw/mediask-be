@@ -1,8 +1,8 @@
 package me.jianwen.mediask.schedule.domain.repository;
 
-import me.jianwen.mediask.schedule.domain.optimization.model.SchedulePlan;
-import me.jianwen.mediask.schedule.domain.optimization.model.SchedulePlanConstraintSnapshot;
-import me.jianwen.mediask.schedule.domain.optimization.model.SchedulePlanItem;
+import me.jianwen.mediask.schedule.domain.plan.SchedulePlan;
+import me.jianwen.mediask.schedule.domain.plan.SchedulePlanConstraintSnapshot;
+import me.jianwen.mediask.schedule.domain.plan.SchedulePlanItem;
 
 import java.util.List;
 import java.util.Optional;

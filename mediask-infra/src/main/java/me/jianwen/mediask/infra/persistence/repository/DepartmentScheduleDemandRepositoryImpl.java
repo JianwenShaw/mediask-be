@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.dal.entity.DepartmentScheduleDemandDO;
 import me.jianwen.mediask.dal.mapper.DepartmentScheduleDemandMapper;
-import me.jianwen.mediask.schedule.domain.optimization.model.DepartmentScheduleDemand;
+import me.jianwen.mediask.schedule.domain.optimization.DepartmentScheduleDemand;
 import me.jianwen.mediask.schedule.domain.repository.DepartmentScheduleDemandRepository;
 import org.springframework.stereotype.Repository;
 

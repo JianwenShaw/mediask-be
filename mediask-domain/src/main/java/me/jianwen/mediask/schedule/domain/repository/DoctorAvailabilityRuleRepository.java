@@ -1,6 +1,6 @@
 package me.jianwen.mediask.schedule.domain.repository;
 
-import me.jianwen.mediask.schedule.domain.optimization.model.DoctorAvailabilityRule;
+import me.jianwen.mediask.schedule.domain.rule.DoctorAvailabilityRule;
 
 import java.util.List;
 

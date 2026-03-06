@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.dal.entity.DoctorAvailabilityRuleDO;
 import me.jianwen.mediask.dal.mapper.DoctorAvailabilityRuleMapper;
-import me.jianwen.mediask.schedule.domain.optimization.model.DoctorAvailabilityRule;
+import me.jianwen.mediask.schedule.domain.rule.DoctorAvailabilityRule;
 import me.jianwen.mediask.schedule.domain.repository.DoctorAvailabilityRuleRepository;
 import org.springframework.stereotype.Repository;
 

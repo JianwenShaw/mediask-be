@@ -1,18 +1,18 @@
 package me.jianwen.mediask.infra.schedule.engine.solver;
 
-import me.jianwen.mediask.schedule.domain.engine.SchedulingEngineRequest;
-import me.jianwen.mediask.schedule.domain.engine.constraint.CompiledConstraintModel;
-import me.jianwen.mediask.schedule.domain.engine.constraint.ConstraintExpression;
-import me.jianwen.mediask.schedule.domain.engine.constraint.ConstraintRule;
-import me.jianwen.mediask.schedule.domain.engine.solver.SolverPlugin;
-import me.jianwen.mediask.schedule.domain.engine.solver.SolverPluginResult;
-import me.jianwen.mediask.schedule.domain.optimization.model.DepartmentScheduleDemand;
-import me.jianwen.mediask.schedule.domain.optimization.model.DepartmentScheduleOptimizationResult;
-import me.jianwen.mediask.schedule.domain.optimization.model.DoctorAvailabilityRule;
-import me.jianwen.mediask.schedule.domain.optimization.model.DoctorTimeOff;
-import me.jianwen.mediask.schedule.domain.optimization.model.OptimizationAssignment;
-import me.jianwen.mediask.schedule.domain.optimization.model.OptimizationUnfilledSlot;
-import me.jianwen.mediask.schedule.domain.optimization.model.ScheduleDoctorProfile;
+import me.jianwen.mediask.schedule.domain.optimization.engine.SchedulingEngineRequest;
+import me.jianwen.mediask.schedule.domain.optimization.engine.constraint.CompiledConstraintModel;
+import me.jianwen.mediask.schedule.domain.optimization.engine.constraint.ConstraintExpression;
+import me.jianwen.mediask.schedule.domain.optimization.engine.constraint.ConstraintRule;
+import me.jianwen.mediask.schedule.domain.optimization.engine.solver.SolverPlugin;
+import me.jianwen.mediask.schedule.domain.optimization.engine.solver.SolverPluginResult;
+import me.jianwen.mediask.schedule.domain.optimization.DepartmentScheduleDemand;
+import me.jianwen.mediask.schedule.domain.optimization.DepartmentScheduleOptimizationResult;
+import me.jianwen.mediask.schedule.domain.rule.DoctorAvailabilityRule;
+import me.jianwen.mediask.schedule.domain.rule.DoctorTimeOff;
+import me.jianwen.mediask.schedule.domain.optimization.OptimizationAssignment;
+import me.jianwen.mediask.schedule.domain.optimization.OptimizationUnfilledSlot;
+import me.jianwen.mediask.schedule.domain.optimization.ScheduleDoctorProfile;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;

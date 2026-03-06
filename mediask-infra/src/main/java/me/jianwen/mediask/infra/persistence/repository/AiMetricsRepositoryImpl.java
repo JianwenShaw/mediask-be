@@ -3,8 +3,6 @@ package me.jianwen.mediask.infra.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.RequiredArgsConstructor;
-import me.jianwen.mediask.common.dto.ai.AiDepartmentMetricsDTO;
-import me.jianwen.mediask.common.dto.ai.AiOverviewMetricsDTO;
 import me.jianwen.mediask.dal.entity.AiConversationDO;
 import me.jianwen.mediask.dal.entity.AiFeedbackReviewDO;
 import me.jianwen.mediask.dal.entity.AiMessageDO;
@@ -14,6 +12,8 @@ import me.jianwen.mediask.dal.mapper.AiFeedbackReviewMapper;
 import me.jianwen.mediask.dal.mapper.AiMessageMapper;
 import me.jianwen.mediask.dal.mapper.DepartmentMapper;
 import me.jianwen.mediask.schedule.domain.entity.AiFeedbackReview;
+import me.jianwen.mediask.schedule.domain.readmodel.AiDepartmentMetrics;
+import me.jianwen.mediask.schedule.domain.readmodel.AiOverviewMetrics;
 import me.jianwen.mediask.schedule.domain.repository.AiMetricsRepository;
 import org.springframework.stereotype.Repository;
 
@@ -49,7 +49,7 @@ public class AiMetricsRepositoryImpl implements AiMetricsRepository {
     }
 
     @Override
-    public AiOverviewMetricsDTO getOverviewMetrics(LocalDate date) {
+    public AiOverviewMetrics getOverviewMetrics(LocalDate date) {
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.plusDays(1).atStartOfDay();
 
@@ -82,7 +82,7 @@ public class AiMetricsRepositoryImpl implements AiMetricsRepository {
             accuracyRate = toDecimal(map.get("avgAdoptRate")).multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
         }
 
-        return AiOverviewMetricsDTO.builder()
+        return AiOverviewMetrics.builder()
                 .metricDate(date)
                 .totalConversations(totalConversations)
                 .activeUsers(activeUsers)
@@ -94,7 +94,7 @@ public class AiMetricsRepositoryImpl implements AiMetricsRepository {
     }
 
     @Override
-    public List<AiDepartmentMetricsDTO> listDepartmentMetrics(LocalDate date) {
+    public List<AiDepartmentMetrics> listDepartmentMetrics(LocalDate date) {
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.plusDays(1).atStartOfDay();
 
@@ -108,13 +108,13 @@ public class AiMetricsRepositoryImpl implements AiMetricsRepository {
                 .lt("reviewed_at", end)
                 .groupBy("department_id"));
 
-        List<AiDepartmentMetricsDTO> result = new ArrayList<>();
+        List<AiDepartmentMetrics> result = new ArrayList<>();
         for (Map<String, Object> row : rows) {
             Long departmentId = toLong(row.get("departmentId"));
             DepartmentDO department = departmentId != null ? departmentMapper.selectById(departmentId) : null;
             BigDecimal adoptRate = toDecimal(row.get("avgAdoptRate")).multiply(BigDecimal.valueOf(100));
 
-            result.add(AiDepartmentMetricsDTO.builder()
+            result.add(AiDepartmentMetrics.builder()
                     .metricDate(date)
                     .departmentId(departmentId)
                     .departmentName(department != null ? department.getDeptName() : null)

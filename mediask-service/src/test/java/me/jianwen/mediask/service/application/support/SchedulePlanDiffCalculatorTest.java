@@ -1,6 +1,6 @@
 package me.jianwen.mediask.service.application.support;
 
-import me.jianwen.mediask.schedule.domain.optimization.model.SchedulePlanItem;
+import me.jianwen.mediask.schedule.domain.plan.SchedulePlanItem;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;

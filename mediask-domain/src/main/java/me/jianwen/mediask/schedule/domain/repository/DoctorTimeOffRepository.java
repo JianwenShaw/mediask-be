@@ -1,6 +1,6 @@
 package me.jianwen.mediask.schedule.domain.repository;
 
-import me.jianwen.mediask.schedule.domain.optimization.model.DoctorTimeOff;
+import me.jianwen.mediask.schedule.domain.rule.DoctorTimeOff;
 
 import java.time.LocalDate;
 import java.util.List;

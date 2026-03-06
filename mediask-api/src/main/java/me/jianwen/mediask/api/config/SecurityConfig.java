@@ -3,7 +3,7 @@ package me.jianwen.mediask.api.config;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.filter.TraceIdFilter;
 import me.jianwen.mediask.api.security.JwtAuthenticationEntryPoint;
-import me.jianwen.mediask.api.security.JwtAuthenticationFilter;
+import me.jianwen.mediask.api.filter.JwtAuthenticationFilter;
 import me.jianwen.mediask.api.security.JwtAccessDeniedHandler;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -41,9 +41,9 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/actuator/prometheus",
                                 "/v3/api-docs/**",
+                                "/webjars/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/webjars/**"
+                                "/swagger-ui.html"
                         ).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
@@ -52,8 +52,8 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
                 )
-                .addFilterBefore(traceIdFilter, JwtAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(traceIdFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

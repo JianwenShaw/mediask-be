@@ -2,7 +2,7 @@ package me.jianwen.mediask.api.controller;
 
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.common.result.Result;
-import me.jianwen.mediask.service.application.service.TestConnectionApplicationService;
+import me.jianwen.mediask.service.application.TestConnectionApplicationService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

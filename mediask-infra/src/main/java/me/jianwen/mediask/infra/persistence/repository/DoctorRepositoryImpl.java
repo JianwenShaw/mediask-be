@@ -13,9 +13,9 @@ import me.jianwen.mediask.dal.mapper.DepartmentMapper;
 import me.jianwen.mediask.dal.mapper.DoctorMapper;
 import me.jianwen.mediask.dal.mapper.HospitalMapper;
 import me.jianwen.mediask.dal.mapper.UserMapper;
-import me.jianwen.mediask.domain.repository.DoctorPageQuery;
-import me.jianwen.mediask.domain.repository.DoctorRepository;
 import me.jianwen.mediask.user.domain.entity.DoctorProfile;
+import me.jianwen.mediask.user.domain.query.DoctorPageQuery;
+import me.jianwen.mediask.user.domain.repository.DoctorRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 

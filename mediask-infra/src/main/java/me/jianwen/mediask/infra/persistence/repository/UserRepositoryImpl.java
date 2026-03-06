@@ -4,9 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.dal.entity.UserDO;
 import me.jianwen.mediask.dal.mapper.UserMapper;
-import me.jianwen.mediask.domain.repository.UserRepository;
 import me.jianwen.mediask.infra.persistence.converter.UserConverter;
 import me.jianwen.mediask.user.domain.entity.User;
+import me.jianwen.mediask.user.domain.repository.UserRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;

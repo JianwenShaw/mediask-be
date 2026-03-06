@@ -1,6 +1,6 @@
 package me.jianwen.mediask.schedule.domain.repository;
 
-import me.jianwen.mediask.schedule.domain.optimization.model.CalendarDayRule;
+import me.jianwen.mediask.schedule.domain.rule.CalendarDayRule;
 
 import java.time.LocalDate;
 import java.util.List;

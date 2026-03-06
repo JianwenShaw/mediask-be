@@ -1,11 +1,11 @@
 package me.jianwen.mediask.infra.schedule.engine.solver;
 
-import me.jianwen.mediask.schedule.domain.engine.SchedulingEngineRequest;
-import me.jianwen.mediask.schedule.domain.engine.SolverStrategy;
-import me.jianwen.mediask.schedule.domain.engine.constraint.CompiledConstraintModel;
-import me.jianwen.mediask.schedule.domain.engine.solver.SolverPlugin;
-import me.jianwen.mediask.schedule.domain.engine.solver.SolverPluginResult;
-import me.jianwen.mediask.schedule.domain.optimization.model.DepartmentScheduleOptimizationResult;
+import me.jianwen.mediask.schedule.domain.optimization.engine.SchedulingEngineRequest;
+import me.jianwen.mediask.schedule.domain.optimization.engine.SolverStrategy;
+import me.jianwen.mediask.schedule.domain.optimization.engine.constraint.CompiledConstraintModel;
+import me.jianwen.mediask.schedule.domain.optimization.engine.solver.SolverPlugin;
+import me.jianwen.mediask.schedule.domain.optimization.engine.solver.SolverPluginResult;
+import me.jianwen.mediask.schedule.domain.optimization.DepartmentScheduleOptimizationResult;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

@@ -3,11 +3,11 @@ package me.jianwen.mediask.worker.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.common.constant.LockKeys;
-import me.jianwen.mediask.domain.event.DomainEventPublisher;
 import me.jianwen.mediask.infra.lock.DistributedLock;
 import me.jianwen.mediask.infra.lock.DistributedLockFactory;
 import me.jianwen.mediask.schedule.domain.entity.Appointment;
 import me.jianwen.mediask.schedule.domain.entity.AppointmentSlot;
+import me.jianwen.mediask.schedule.domain.port.ScheduleDomainEventPublisher;
 import me.jianwen.mediask.schedule.domain.repository.AppointmentRepository;
 import me.jianwen.mediask.schedule.domain.repository.AppointmentSlotRepository;
 import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
@@ -47,7 +47,7 @@ public class AppointmentScheduler {
     private final DoctorScheduleRepository scheduleRepository;
     private final SlotManagementDomainService slotManagementDomainService;
     private final AppointmentStateMachineDomainService appointmentStateMachineDomainService;
-    private final DomainEventPublisher eventPublisher;
+    private final ScheduleDomainEventPublisher eventPublisher;
     private final DistributedLockFactory distributedLockFactory;
     private final TransactionTemplate transactionTemplate;
 

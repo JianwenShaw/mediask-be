@@ -1,16 +1,16 @@
 package me.jianwen.mediask.infra.config;
 
-import me.jianwen.mediask.schedule.domain.algorithm.solver.SolverFactory;
-import me.jianwen.mediask.schedule.domain.algorithm.solver.impl.GeneticAlgorithmSolver;
-import me.jianwen.mediask.schedule.domain.algorithm.solver.impl.GreedyLocalSearchSolver;
-import me.jianwen.mediask.schedule.domain.algorithm.solver.impl.GreedySolver;
-import me.jianwen.mediask.schedule.domain.algorithm.solver.impl.HybridSolver;
+import me.jianwen.mediask.schedule.domain.heuristic.solver.SolverFactory;
+import me.jianwen.mediask.schedule.domain.heuristic.solver.impl.GeneticAlgorithmSolver;
+import me.jianwen.mediask.schedule.domain.heuristic.solver.impl.GreedyLocalSearchSolver;
+import me.jianwen.mediask.schedule.domain.heuristic.solver.impl.GreedySolver;
+import me.jianwen.mediask.schedule.domain.heuristic.solver.impl.HybridSolver;
 import me.jianwen.mediask.schedule.domain.repository.AppointmentSlotRepository;
 import me.jianwen.mediask.schedule.domain.repository.DoctorScheduleRepository;
 import me.jianwen.mediask.schedule.domain.service.AutoScheduleDomainService;
 import me.jianwen.mediask.schedule.domain.service.AutoScheduleStrategy;
 import me.jianwen.mediask.schedule.domain.service.AppointmentStateMachineDomainService;
-import me.jianwen.mediask.schedule.domain.service.DepartmentScheduleOptimizationDomainService;
+import me.jianwen.mediask.schedule.domain.optimization.service.DepartmentScheduleOptimizationDomainService;
 import me.jianwen.mediask.schedule.domain.service.SlotManagementDomainService;
 import me.jianwen.mediask.schedule.domain.service.impl.CustomDateScheduleStrategy;
 import me.jianwen.mediask.schedule.domain.service.impl.PeriodicScheduleStrategy;

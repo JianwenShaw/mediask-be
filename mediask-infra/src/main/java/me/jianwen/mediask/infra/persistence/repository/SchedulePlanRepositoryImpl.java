@@ -10,9 +10,9 @@ import me.jianwen.mediask.dal.entity.SchedulePlanItemDO;
 import me.jianwen.mediask.dal.mapper.SchedulePlanConstraintSnapshotMapper;
 import me.jianwen.mediask.dal.mapper.SchedulePlanItemMapper;
 import me.jianwen.mediask.dal.mapper.SchedulePlanMapper;
-import me.jianwen.mediask.schedule.domain.optimization.model.SchedulePlan;
-import me.jianwen.mediask.schedule.domain.optimization.model.SchedulePlanConstraintSnapshot;
-import me.jianwen.mediask.schedule.domain.optimization.model.SchedulePlanItem;
+import me.jianwen.mediask.schedule.domain.plan.SchedulePlan;
+import me.jianwen.mediask.schedule.domain.plan.SchedulePlanConstraintSnapshot;
+import me.jianwen.mediask.schedule.domain.plan.SchedulePlanItem;
 import me.jianwen.mediask.schedule.domain.repository.SchedulePlanRepository;
 import org.springframework.stereotype.Repository;
 

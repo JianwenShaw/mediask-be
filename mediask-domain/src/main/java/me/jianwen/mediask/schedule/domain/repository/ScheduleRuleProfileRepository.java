@@ -1,6 +1,6 @@
 package me.jianwen.mediask.schedule.domain.repository;
 
-import me.jianwen.mediask.schedule.domain.optimization.model.ScheduleRuleProfile;
+import me.jianwen.mediask.schedule.domain.rule.ScheduleRuleProfile;
 
 import java.util.List;
 import java.util.Optional;

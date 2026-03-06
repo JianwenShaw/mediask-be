@@ -10,11 +10,11 @@ import me.jianwen.mediask.dal.mapper.PermissionMapper;
 import me.jianwen.mediask.dal.mapper.RoleMapper;
 import me.jianwen.mediask.dal.mapper.RolePermissionMapper;
 import me.jianwen.mediask.dal.mapper.UserRoleMapper;
-import me.jianwen.mediask.domain.repository.AuthzRepository;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.user.domain.entity.PermissionInfo;
 import me.jianwen.mediask.user.domain.entity.RoleInfo;
+import me.jianwen.mediask.user.domain.repository.AuthzRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 

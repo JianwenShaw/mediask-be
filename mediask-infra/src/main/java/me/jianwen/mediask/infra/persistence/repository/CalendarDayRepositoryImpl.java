@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.dal.entity.CalendarDayDO;
 import me.jianwen.mediask.dal.mapper.CalendarDayMapper;
-import me.jianwen.mediask.schedule.domain.optimization.model.CalendarDayRule;
+import me.jianwen.mediask.schedule.domain.rule.CalendarDayRule;
 import me.jianwen.mediask.schedule.domain.repository.CalendarDayRepository;
 import org.springframework.stereotype.Repository;
 

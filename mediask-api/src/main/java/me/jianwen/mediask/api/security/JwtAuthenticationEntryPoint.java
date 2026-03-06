@@ -3,6 +3,7 @@ package me.jianwen.mediask.api.security;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import me.jianwen.mediask.api.util.SecurityAuditUtil;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.result.Result;
 import me.jianwen.mediask.common.util.JsonUtil;
