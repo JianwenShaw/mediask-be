@@ -1,30 +1,22 @@
 package me.jianwen.mediask.service.application;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
+import me.jianwen.mediask.service.application.dto.user.UserDTO;
 import me.jianwen.mediask.user.domain.entity.User;
 import me.jianwen.mediask.user.domain.repository.UserRepository;
-import me.jianwen.mediask.service.application.dto.user.UserDTO;
 import org.springframework.stereotype.Service;
 
 /**
- * 用户应用服务
- * 负责用户信息查询等业务用例
- *
- * @author jianwen
+ * 用户查询服务
  */
 @Service
-@Slf4j
 @RequiredArgsConstructor
-public class UserApplicationService {
+public class UserQueryService {
 
     private final UserRepository userRepository;
 
-    /**
-     * 获取当前用户信息
-     */
     public UserDTO getCurrentUser(Long userId) {
         if (userId == null) {
             throw new BizException(ErrorCode.UNAUTHORIZED);

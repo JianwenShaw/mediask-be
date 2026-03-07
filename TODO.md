@@ -60,7 +60,7 @@
 
 - [ ] **[S-5] 确认 replaceUserRolesByCodes 事务保护** — `AuthzRepositoryImpl.java:195-227`
   - 该方法先 delete 所有旧角色关联再逐条 insert 新关联
-  - 需确认调用方 `AuthzApplicationService.updateUserRoles` 的 `@Transactional` 能完全覆盖
+  - 需确认调用方 `UserRoleApplicationService.updateUserRoles` 的 `@Transactional` 能完全覆盖
   - 否则 delete 成功但 insert 失败会导致用户丧失所有角色
 
 - [ ] **[m-6] EMR_ACCESS_DENIED 枚举是否还有其他使用方** — `ErrorCode.java:84`
@@ -208,7 +208,7 @@
   - 配伍禁忌校验
 
 - [ ] **医生/医院管理**
-  - `DoctorApplicationService`
+  - `DoctorApplicationService` / `DoctorQueryService`
   - `HospitalApplicationService`
   - 科室管理
 
@@ -297,7 +297,7 @@
   - [C-3] SysException handler 不再暴露内部错误消息，返回通用 SYSTEM_ERROR
   - [M-1] IllegalArgumentException handler 返回固定消息，error 级别记录堆栈
   - [M-2] 移除 IllegalStateException 全局拦截，走 handleOther 兜底
-  - [M-3] 清理 AuthzApplicationService 死代码 catch(IllegalArgumentException) 块
+  - [M-3] 清理 UserRoleApplicationService 相关死代码 catch(IllegalArgumentException) 块
   - [M-5] FilterRegistrationBean 禁用 TraceIdFilter Servlet 容器自动注册
   - [M-6] 新增 HttpRequestMethodNotSupported/HttpMediaTypeNotSupported 异常处理
   - [M-7] 校验异常返回所有错误信息（Collectors.joining）

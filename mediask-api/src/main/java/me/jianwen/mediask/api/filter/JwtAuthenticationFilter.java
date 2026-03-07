@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.api.util.SecurityAuditUtil;
 import me.jianwen.mediask.service.application.dto.auth.AccessTokenPrincipalDTO;
-import me.jianwen.mediask.service.application.TokenApplicationService;
+import me.jianwen.mediask.service.application.AccessTokenService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -31,7 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final TokenApplicationService tokenApplicationService;
+    private final AccessTokenService accessTokenService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -46,7 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = header.substring(BEARER_PREFIX.length());
         try {
-            AccessTokenPrincipalDTO principal = tokenApplicationService.parseAccessToken(token).orElse(null);
+            AccessTokenPrincipalDTO principal = accessTokenService.parseAccessToken(token).orElse(null);
             if (principal == null) {
                 // refresh token 不允许作为 API 访问凭证
                 log.warn("JWT 解析为空，拒绝建立认证上下文: method={}, path={}, ip={}",

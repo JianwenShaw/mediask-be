@@ -12,7 +12,8 @@ import me.jianwen.mediask.schedule.domain.readmodel.AiDepartmentMetrics;
 import me.jianwen.mediask.schedule.domain.readmodel.AiOverviewMetrics;
 import me.jianwen.mediask.service.application.command.SubmitAiReviewCommand;
 import me.jianwen.mediask.service.application.dto.ai.AiReviewResultDTO;
-import me.jianwen.mediask.service.application.AiMetricsApplicationService;
+import me.jianwen.mediask.service.application.AiMetricsQueryService;
+import me.jianwen.mediask.service.application.AiReviewApplicationService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,7 +32,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiMetricsController {
 
-    private final AiMetricsApplicationService aiMetricsApplicationService;
+    private final AiReviewApplicationService aiReviewApplicationService;
+    private final AiMetricsQueryService aiMetricsQueryService;
     private final CurrentUserProvider currentUserProvider;
 
     @PostMapping("/reviews")
@@ -44,7 +46,7 @@ public class AiMetricsController {
         command.setReviewScore(request.getReviewScore());
         command.setAdopted(request.getAdopted());
         command.setReviewComment(request.getReviewComment());
-        return Result.ok(aiMetricsApplicationService.submitReview(userId, command));
+        return Result.ok(aiReviewApplicationService.submitReview(userId, command));
     }
 
     @GetMapping("/metrics/overview")
@@ -53,7 +55,7 @@ public class AiMetricsController {
     public Result<AiOverviewMetrics> getOverview(
             @Parameter(description = "统计日期，默认当天")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return Result.ok(aiMetricsApplicationService.getOverviewMetrics(date));
+        return Result.ok(aiMetricsQueryService.getOverviewMetrics(date));
     }
 
     @GetMapping("/metrics/departments")
@@ -62,6 +64,6 @@ public class AiMetricsController {
     public Result<List<AiDepartmentMetrics>> getDepartmentMetrics(
             @Parameter(description = "统计日期，默认当天")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return Result.ok(aiMetricsApplicationService.listDepartmentMetrics(date));
+        return Result.ok(aiMetricsQueryService.listDepartmentMetrics(date));
     }
 }

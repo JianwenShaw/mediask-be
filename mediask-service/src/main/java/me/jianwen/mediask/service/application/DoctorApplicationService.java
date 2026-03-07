@@ -4,20 +4,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
-import me.jianwen.mediask.common.model.PageResult;
 import me.jianwen.mediask.service.application.command.CreateDoctorCommand;
-import me.jianwen.mediask.service.application.command.DoctorPageQueryCommand;
-import me.jianwen.mediask.service.application.dto.doctor.DoctorDTO;
 import me.jianwen.mediask.service.application.command.UpdateDoctorCommand;
 import me.jianwen.mediask.user.domain.entity.DoctorProfile;
 import me.jianwen.mediask.user.domain.enums.UserType;
-import me.jianwen.mediask.user.domain.query.DoctorPageQuery;
 import me.jianwen.mediask.user.domain.repository.DoctorRepository;
 import me.jianwen.mediask.user.domain.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Slf4j
@@ -100,28 +94,6 @@ public class DoctorApplicationService {
         log.info("更新医生状态成功: doctorId={}, status={}", doctorId, status);
     }
 
-    public DoctorDTO getDoctor(Long doctorId) {
-        DoctorProfile profile = doctorRepository.findById(doctorId)
-                .orElseThrow(() -> new BizException(ErrorCode.DOCTOR_NOT_FOUND));
-        return toDTO(profile);
-    }
-
-    public PageResult<DoctorDTO> pageDoctors(DoctorPageQueryCommand command) {
-        DoctorPageQuery query = DoctorPageQuery.builder()
-                .userId(command.getUserId())
-                .doctorCode(command.getDoctorCode())
-                .hospitalId(command.getHospitalId())
-                .departmentId(command.getDepartmentId())
-                .status(command.getStatus())
-                .keyword(command.getKeyword())
-                .pageNum(command.getPageNum())
-                .pageSize(command.getPageSize())
-                .build();
-        PageResult<DoctorProfile> pageResult = doctorRepository.page(query);
-        List<DoctorDTO> list = pageResult.getList().stream().map(this::toDTO).toList();
-        return PageResult.of(pageResult.getTotal(), pageResult.getPageNum(), pageResult.getPageSize(), list);
-    }
-
     private void validateUser(Long userId) {
         var user = userRepository.findById(userId).orElseThrow(() -> new BizException(ErrorCode.USER_NOT_FOUND));
         if (user.getUserType() == null || user.getUserType().code() != UserType.DOCTOR.code()) {
@@ -154,28 +126,5 @@ public class DoctorApplicationService {
         if (status != 0 && status != 1) {
             throw new BizException(ErrorCode.PARAM_ERROR, "状态仅支持0或1");
         }
-    }
-
-    private DoctorDTO toDTO(DoctorProfile profile) {
-        return DoctorDTO.builder()
-                .doctorId(profile.getDoctorId())
-                .userId(profile.getUserId())
-                .username(profile.getUsername())
-                .realName(profile.getRealName())
-                .phone(profile.getPhone())
-                .hospitalId(profile.getHospitalId())
-                .hospitalName(profile.getHospitalName())
-                .departmentId(profile.getDepartmentId())
-                .departmentName(profile.getDepartmentName())
-                .doctorCode(profile.getDoctorCode())
-                .title(profile.getTitle())
-                .specialty(profile.getSpecialty())
-                .introduction(profile.getIntroduction())
-                .consultationFee(profile.getConsultationFee())
-                .licenseNumber(profile.getLicenseNumber())
-                .status(profile.getStatus())
-                .createdAt(profile.getCreatedAt())
-                .updatedAt(profile.getUpdatedAt())
-                .build();
     }
 }

@@ -97,6 +97,7 @@ Prohibited:
 - API contracts: `XxxRequest`, `XxxResponse`
 - Service data: `XxxDTO`
 - Application service: `XxxApplicationService`
+- Query service: `XxxQueryService`
 - Domain service: `XxxDomainService`
 - Domain models/VOs: business names (`DoctorSchedule`, `DoctorId`)
 - DAL: `XxxDO`, `XxxMapper`
@@ -104,6 +105,11 @@ Prohibited:
 - Converter: `XxxConverter`
 - Helpers/utilities: `XxxHelper`, `XxxUtils`
 - Avoid pinyin, cryptic abbreviations, and generic names like `data`, `obj`, `tmp`.
+
+Service naming rule:
+- Use `XxxApplicationService` for write use cases, transaction boundaries, orchestration across aggregates, and domain event publishing.
+- Use `XxxQueryService` for read-only queries and DTO/view-model assembly.
+- Use plain `XxxService` or a more specific suffix such as `XxxDiagnosticService` / `XxxParser` for technical capabilities that are not business use-case orchestration.
 
 ## 7) Code Style
 - Follow Alibaba Java coding conventions.

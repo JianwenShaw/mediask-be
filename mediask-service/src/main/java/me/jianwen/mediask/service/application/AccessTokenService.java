@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Token 应用服务
+ * Access Token 解析服务
  */
 @Service
 @RequiredArgsConstructor
-public class TokenApplicationService {
+public class AccessTokenService {
 
     private final JwtService jwtService;
 

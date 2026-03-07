@@ -6,8 +6,6 @@ import me.jianwen.mediask.common.constant.ErrorCode;
 import me.jianwen.mediask.common.exception.BizException;
 import me.jianwen.mediask.schedule.domain.entity.AiFeedbackReview;
 import me.jianwen.mediask.schedule.domain.entity.DoctorProfileLite;
-import me.jianwen.mediask.schedule.domain.readmodel.AiDepartmentMetrics;
-import me.jianwen.mediask.schedule.domain.readmodel.AiOverviewMetrics;
 import me.jianwen.mediask.schedule.domain.repository.AiMetricsRepository;
 import me.jianwen.mediask.schedule.domain.repository.DoctorProfileRepository;
 import me.jianwen.mediask.service.application.command.SubmitAiReviewCommand;
@@ -15,14 +13,15 @@ import me.jianwen.mediask.service.application.dto.ai.AiReviewResultDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
+/**
+ * AI 复核应用服务
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class AiMetricsApplicationService {
+public class AiReviewApplicationService {
 
     private final AiMetricsRepository aiMetricsRepository;
     private final DoctorProfileRepository doctorProfileRepository;
@@ -49,15 +48,5 @@ public class AiMetricsApplicationService {
         log.info("医生提交AI复核: userId={}, doctorId={}, conversationId={}, score={}",
                 reviewerUserId, doctor.getDoctorId(), command.getConversationId(), command.getReviewScore());
         return AiReviewResultDTO.builder().reviewId(review.getId()).build();
-    }
-
-    public AiOverviewMetrics getOverviewMetrics(LocalDate date) {
-        LocalDate targetDate = date != null ? date : LocalDate.now();
-        return aiMetricsRepository.getOverviewMetrics(targetDate);
-    }
-
-    public List<AiDepartmentMetrics> listDepartmentMetrics(LocalDate date) {
-        LocalDate targetDate = date != null ? date : LocalDate.now();
-        return aiMetricsRepository.listDepartmentMetrics(targetDate);
     }
 }

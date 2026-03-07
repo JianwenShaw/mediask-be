@@ -2,7 +2,7 @@ package me.jianwen.mediask.api.controller;
 
 import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.common.result.Result;
-import me.jianwen.mediask.service.application.TestConnectionApplicationService;
+import me.jianwen.mediask.service.application.ConnectionDiagnosticService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,14 +20,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TestConnectionController {
 
-    private final TestConnectionApplicationService testConnectionApplicationService;
+    private final ConnectionDiagnosticService connectionDiagnosticService;
 
     /**
      * 健康检查
      */
     @GetMapping("/health")
     public Result<Map<String, Object>> health() {
-        return Result.ok(testConnectionApplicationService.health());
+        return Result.ok(connectionDiagnosticService.health());
     }
 
     /**
@@ -36,7 +36,7 @@ public class TestConnectionController {
     @PostMapping("/mysql")
     public Result<Map<String, Object>> testMysqlWrite(
             @RequestParam(name = "message", defaultValue = "Hello MediAsk!") String message) {
-        return toResult(testConnectionApplicationService.testMysqlWrite(message));
+        return toResult(connectionDiagnosticService.testMysqlWrite(message));
     }
 
     /**
@@ -44,7 +44,7 @@ public class TestConnectionController {
      */
     @GetMapping("/mysql")
     public Result<Map<String, Object>> testMysqlRead() {
-        return toResult(testConnectionApplicationService.testMysqlRead());
+        return toResult(connectionDiagnosticService.testMysqlRead());
     }
 
     /**
@@ -54,7 +54,7 @@ public class TestConnectionController {
     public Result<Map<String, Object>> testRedisWrite(
             @RequestParam(name = "key", defaultValue = "test:key") String key,
             @RequestParam(name = "value", defaultValue = "Hello Redis!") String value) {
-        return toResult(testConnectionApplicationService.testRedisWrite(key, value));
+        return toResult(connectionDiagnosticService.testRedisWrite(key, value));
     }
 
     /**
@@ -62,7 +62,7 @@ public class TestConnectionController {
      */
     @GetMapping("/redis")
     public Result<Map<String, Object>> testRedisRead(@RequestParam(name = "key", defaultValue = "test:key") String key) {
-        return toResult(testConnectionApplicationService.testRedisRead(key));
+        return toResult(connectionDiagnosticService.testRedisRead(key));
     }
 
     /**
@@ -70,7 +70,7 @@ public class TestConnectionController {
      */
     @GetMapping("/all")
     public Result<Map<String, Object>> testAll() {
-        return toResult(testConnectionApplicationService.testAll());
+        return toResult(connectionDiagnosticService.testAll());
     }
 
     private Result<Map<String, Object>> toResult(Map<String, Object> payload) {

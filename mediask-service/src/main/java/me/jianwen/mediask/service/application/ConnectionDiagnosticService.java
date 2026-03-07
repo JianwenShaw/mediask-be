@@ -11,12 +11,12 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 连接测试应用服务
+ * 连接诊断服务
  */
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class TestConnectionApplicationService {
+public class ConnectionDiagnosticService {
 
     private final TestConnectionInfraService testConnectionInfraService;
 

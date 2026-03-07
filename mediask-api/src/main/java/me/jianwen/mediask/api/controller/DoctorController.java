@@ -13,6 +13,7 @@ import me.jianwen.mediask.common.result.Result;
 import me.jianwen.mediask.service.application.command.DoctorPageQueryCommand;
 import me.jianwen.mediask.service.application.dto.doctor.DoctorDTO;
 import me.jianwen.mediask.service.application.DoctorApplicationService;
+import me.jianwen.mediask.service.application.DoctorQueryService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,6 +34,7 @@ import java.util.List;
 public class DoctorController {
 
     private final DoctorApplicationService doctorApplicationService;
+    private final DoctorQueryService doctorQueryService;
     private final DoctorApiMapper doctorApiMapper;
 
     @PostMapping
@@ -67,7 +69,7 @@ public class DoctorController {
     @PreAuthorize("hasAuthority('admin')")
     public Result<DoctorResponse> getDoctor(
             @Parameter(description = "医生ID") @PathVariable Long doctorId) {
-        DoctorDTO doctorDTO = doctorApplicationService.getDoctor(doctorId);
+        DoctorDTO doctorDTO = doctorQueryService.getDoctor(doctorId);
         return Result.ok(doctorApiMapper.toResponse(doctorDTO));
     }
 
@@ -93,7 +95,7 @@ public class DoctorController {
         command.setPageNum(pageNum);
         command.setPageSize(pageSize);
 
-        PageResult<DoctorDTO> page = doctorApplicationService.pageDoctors(command);
+        PageResult<DoctorDTO> page = doctorQueryService.pageDoctors(command);
         List<DoctorResponse> list = page.getList().stream().map(doctorApiMapper::toResponse).toList();
         return Result.ok(PageResult.of(page.getTotal(), page.getPageNum(), page.getPageSize(), list));
     }

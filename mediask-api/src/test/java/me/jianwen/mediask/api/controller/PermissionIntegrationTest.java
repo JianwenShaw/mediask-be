@@ -3,7 +3,7 @@ package me.jianwen.mediask.api.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import me.jianwen.mediask.infra.security.JwtService;
 import me.jianwen.mediask.service.application.dto.auth.AccessTokenPrincipalDTO;
-import me.jianwen.mediask.service.application.TokenApplicationService;
+import me.jianwen.mediask.service.application.AccessTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Disabled;
@@ -43,7 +43,7 @@ class PermissionIntegrationTest {
     private JwtService jwtService;
 
     @Autowired
-    private TokenApplicationService tokenApplicationService;
+    private AccessTokenService accessTokenService;
 
     // 测试用户数据
     private static final Long ADMIN_USER_ID = 1L;
@@ -178,7 +178,7 @@ class PermissionIntegrationTest {
         @Test
         @DisplayName("应该能正确解析管理员 Token 的权限")
         void should_parse_admin_token_correctly() {
-            AccessTokenPrincipalDTO principal = tokenApplicationService.parseAccessToken(adminToken).orElse(null);
+            AccessTokenPrincipalDTO principal = accessTokenService.parseAccessToken(adminToken).orElse(null);
 
             assert principal != null;
             assert principal.getUserId().equals(ADMIN_USER_ID);
@@ -189,7 +189,7 @@ class PermissionIntegrationTest {
         @Test
         @DisplayName("应该能正确解析普通用户 Token 的权限")
         void should_parse_normal_user_token_correctly() {
-            AccessTokenPrincipalDTO principal = tokenApplicationService.parseAccessToken(normalUserToken).orElse(null);
+            AccessTokenPrincipalDTO principal = accessTokenService.parseAccessToken(normalUserToken).orElse(null);
 
             assert principal != null;
             assert principal.getUserId().equals(NORMAL_USER_ID);
@@ -200,7 +200,7 @@ class PermissionIntegrationTest {
         @Test
         @DisplayName("应该能正确解析患者 Token 的权限")
         void should_parse_patient_token_correctly() {
-            AccessTokenPrincipalDTO principal = tokenApplicationService.parseAccessToken(patientToken).orElse(null);
+            AccessTokenPrincipalDTO principal = accessTokenService.parseAccessToken(patientToken).orElse(null);
 
             assert principal != null;
             assert principal.getUserId().equals(PATIENT_USER_ID);

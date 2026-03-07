@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import me.jianwen.mediask.api.security.CurrentUserProvider;
 import me.jianwen.mediask.common.result.Result;
 import me.jianwen.mediask.service.application.dto.user.UserDTO;
-import me.jianwen.mediask.service.application.UserApplicationService;
+import me.jianwen.mediask.service.application.UserQueryService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,14 +20,14 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "用户", description = "用户信息相关接口")
 public class UserController {
 
-    private final UserApplicationService userApplicationService;
+    private final UserQueryService userQueryService;
     private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/me")
     @Operation(summary = "获取当前登录用户信息")
     public Result<UserDTO> me() {
         Long userId = currentUserId();
-        UserDTO dto = userApplicationService.getCurrentUser(userId);
+        UserDTO dto = userQueryService.getCurrentUser(userId);
         return Result.ok(dto);
     }
 

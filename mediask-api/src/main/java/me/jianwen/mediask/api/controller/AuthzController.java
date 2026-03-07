@@ -11,7 +11,8 @@ import me.jianwen.mediask.api.response.authz.PermissionResponse;
 import me.jianwen.mediask.api.response.authz.RoleResponse;
 import me.jianwen.mediask.api.response.authz.UserRolesResponse;
 import me.jianwen.mediask.common.result.Result;
-import me.jianwen.mediask.service.application.AuthzApplicationService;
+import me.jianwen.mediask.service.application.AuthorizationQueryService;
+import me.jianwen.mediask.service.application.UserRoleApplicationService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,14 +29,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuthzController {
 
-    private final AuthzApplicationService authzApplicationService;
+    private final AuthorizationQueryService authorizationQueryService;
+    private final UserRoleApplicationService userRoleApplicationService;
     private final AuthzApiMapper authzApiMapper;
 
     @GetMapping("/roles")
     @Operation(summary = "查询角色列表", description = "返回角色基础信息及绑定的权限编码")
     @PreAuthorize("hasAuthority('admin')")
     public Result<List<RoleResponse>> listRoles() {
-        List<RoleResponse> response = authzApplicationService.listRoles().stream()
+        List<RoleResponse> response = authorizationQueryService.listRoles().stream()
                 .map(authzApiMapper::toResponse)
                 .toList();
         return Result.ok(response);
@@ -45,7 +47,7 @@ public class AuthzController {
     @Operation(summary = "查询权限列表", description = "返回系统内全部权限编码定义")
     @PreAuthorize("hasAuthority('admin')")
     public Result<List<PermissionResponse>> listPermissions() {
-        List<PermissionResponse> response = authzApplicationService.listPermissions().stream()
+        List<PermissionResponse> response = authorizationQueryService.listPermissions().stream()
                 .map(authzApiMapper::toResponse)
                 .toList();
         return Result.ok(response);
@@ -56,7 +58,7 @@ public class AuthzController {
     @PreAuthorize("hasAuthority('admin')")
     public Result<UserRolesResponse> getUserRoles(
             @Parameter(description = "用户ID") @PathVariable Long userId) {
-        return Result.ok(authzApiMapper.toResponse(authzApplicationService.getUserRoles(userId)));
+        return Result.ok(authzApiMapper.toResponse(authorizationQueryService.getUserRoles(userId)));
     }
 
     @PutMapping("/users/{userId}/roles")
@@ -65,7 +67,7 @@ public class AuthzController {
     public Result<Void> updateUserRoles(
             @Parameter(description = "用户ID") @PathVariable Long userId,
             @Valid @RequestBody UpdateUserRolesRequest request) {
-        authzApplicationService.updateUserRoles(userId, authzApiMapper.toService(request));
+        userRoleApplicationService.updateUserRoles(userId, authzApiMapper.toService(request));
         return Result.ok();
     }
 }
