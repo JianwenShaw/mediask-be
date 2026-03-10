@@ -1,202 +1,262 @@
 -- ============================================================
--- 03-scheduling.sql  —  排班管理
+-- 03-scheduling.sql  --  Scheduling planning domain (V3)
 -- ============================================================
--- 包含：doctor_availability_rules, doctor_time_off,
---       department_schedule_demand (改为周模板),
---       calendar_day, doctor_schedules (增强),
---       appointment_slots, schedule_plan (内联快照),
---       schedule_plan_items, schedule_rule_profile
---
--- 变更说明：
---   1. 删除 schedule_templates / schedule_template_rules（与 availability_rules 重叠）
---   2. 删除 schedule_exceptions（合并入 doctor_time_off）
---   3. 删除 schedule_plan_constraint_snapshot（内联入 schedule_plan）
---   4. department_schedule_demand 从按日需求改为周模板
---   5. doctor_schedules.source_type 改为 plan_item_id 精确关联
---   6. doctor_time_off 新增 off_type 区分请假/停诊/调班
 
--- ----- 医生可排班规则（偏好矩阵，不变） -----
-CREATE TABLE `doctor_availability_rules` (
-    `id`           BIGINT   NOT NULL                                              COMMENT '雪花ID',
-    `doctor_id`    BIGINT   NOT NULL                                              COMMENT '医生ID',
-    `weekday`      TINYINT  NOT NULL                                              COMMENT '周几 1-7（周一~周日）',
-    `period_code`  TINYINT  NOT NULL                                              COMMENT '时段编码 1-上午 2-下午 3-晚上',
-    `is_available` TINYINT  NOT NULL DEFAULT 1                                    COMMENT '是否可排班 0-不可 1-可',
-    `priority`     INT      NOT NULL DEFAULT 0                                    COMMENT '偏好优先级，越大越偏好',
-    `status`       TINYINT  NOT NULL DEFAULT 1                                    COMMENT '状态 0-停用 1-启用',
-    `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`   DATETIME DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `schedule_ruleset` (
+    `id`             BIGINT       NOT NULL COMMENT 'Snowflake ID',
+    `department_id`  BIGINT       NOT NULL COMMENT 'Department ID',
+    `ruleset_code`   VARCHAR(64)  NOT NULL COMMENT 'Ruleset code',
+    `ruleset_name`   VARCHAR(128) NOT NULL COMMENT 'Ruleset name',
+    `version_no`     INT          NOT NULL DEFAULT 1 COMMENT 'Version number',
+    `ruleset_status` VARCHAR(16)  NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT/PUBLISHED/ARCHIVED',
+    `description`    VARCHAR(255) DEFAULT NULL COMMENT 'Description',
+    `published_at`   DATETIME     DEFAULT NULL COMMENT 'Published at',
+    `created_by`     BIGINT       DEFAULT NULL COMMENT 'Created by user',
+    `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_doc_weekday_period` (`doctor_id`, `weekday`, `period_code`),
-    KEY `idx_doc_availability_status` (`doctor_id`, `status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='医生可排班规则';
+    UNIQUE KEY `uk_schedule_ruleset_code_version` (`department_id`, `ruleset_code`, `version_no`),
+    KEY `idx_schedule_ruleset_status` (`department_id`, `ruleset_status`),
+    CONSTRAINT `fk_schedule_ruleset_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
+    CONSTRAINT `fk_schedule_ruleset_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
+    CONSTRAINT `chk_schedule_ruleset_status` CHECK (`ruleset_status` IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Scheduling ruleset header';
 
--- ----- 医生请假/停诊（增强：新增 off_type 吸收原 schedule_exceptions） -----
-CREATE TABLE `doctor_time_off` (
-    `id`          BIGINT       NOT NULL                                              COMMENT '雪花ID',
-    `doctor_id`   BIGINT       NOT NULL                                              COMMENT '医生ID',
-    `off_type`    VARCHAR(16)  NOT NULL DEFAULT 'LEAVE'                              COMMENT '类型 LEAVE-请假 CLOSE-停诊 SWAP-调班',
-    `start_date`  DATE         NOT NULL                                              COMMENT '开始日期',
-    `end_date`    DATE         NOT NULL                                              COMMENT '结束日期',
-    `period_code` TINYINT      DEFAULT NULL                                          COMMENT '时段编码，NULL=全天',
-    `reason`      VARCHAR(255) DEFAULT NULL                                          COMMENT '原因',
-    `status`      TINYINT      NOT NULL DEFAULT 1                                    COMMENT '状态 0-已撤销 1-生效',
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`  DATETIME     DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `schedule_ruleset_item` (
+    `id`                 BIGINT       NOT NULL COMMENT 'Snowflake ID',
+    `ruleset_id`         BIGINT       NOT NULL COMMENT 'Ruleset ID',
+    `rule_code`          VARCHAR(64)  NOT NULL COMMENT 'Rule code',
+    `rule_type`          VARCHAR(64)  NOT NULL COMMENT 'Rule type',
+    `rule_scope`         VARCHAR(32)  NOT NULL COMMENT 'GLOBAL/DEPARTMENT/DOCTOR',
+    `is_hard_constraint` TINYINT      NOT NULL DEFAULT 1 COMMENT 'Hard constraint flag',
+    `priority`           INT          NOT NULL DEFAULT 0 COMMENT 'Priority',
+    `weight`             DECIMAL(8,2) NOT NULL DEFAULT 1.00 COMMENT 'Score weight',
+    `rule_expr_json`     JSON         NOT NULL COMMENT 'Rule expression',
+    `description`        VARCHAR(255) DEFAULT NULL COMMENT 'Description',
+    `status`             VARCHAR(16)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/INACTIVE',
+    `created_at`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
-    KEY `idx_doc_time_off_range` (`doctor_id`, `start_date`, `end_date`),
-    KEY `idx_doc_time_off_status` (`doctor_id`, `status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='医生请假/停诊表';
+    UNIQUE KEY `uk_schedule_ruleset_item_code` (`ruleset_id`, `rule_code`),
+    KEY `idx_schedule_ruleset_item_type` (`ruleset_id`, `rule_type`, `status`),
+    CONSTRAINT `fk_schedule_ruleset_item_ruleset` FOREIGN KEY (`ruleset_id`) REFERENCES `schedule_ruleset` (`id`),
+    CONSTRAINT `chk_schedule_ruleset_item_scope` CHECK (`rule_scope` IN ('GLOBAL', 'DEPARTMENT', 'DOCTOR')),
+    CONSTRAINT `chk_schedule_ruleset_item_status` CHECK (`status` IN ('ACTIVE', 'INACTIVE')),
+    CONSTRAINT `chk_schedule_ruleset_item_weight` CHECK (`weight` >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Scheduling ruleset item';
 
--- ----- 科室排班需求（改为周模板，不再按日） -----
--- 设计变更：去除 demand_date，改为 weekday 周模板模式。
--- 排班引擎按 weekday 匹配当周日期来确定每日需求。
-CREATE TABLE `department_schedule_demand` (
-    `id`                 BIGINT   NOT NULL                                              COMMENT '雪花ID',
-    `department_id`      BIGINT   NOT NULL                                              COMMENT '科室ID',
-    `weekday`            TINYINT  NOT NULL                                              COMMENT '周几 1-7',
-    `period_code`        TINYINT  NOT NULL                                              COMMENT '时段编码 1-上午 2-下午 3-晚上',
-    `required_doctors`   INT      NOT NULL                                              COMMENT '最少排班医生数',
-    `min_senior_doctors` INT      NOT NULL DEFAULT 0                                    COMMENT '最少资深医生数',
-    `status`             TINYINT  NOT NULL DEFAULT 1                                    COMMENT '状态 0-停用 1-启用',
-    `created_at`         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`         DATETIME DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `doctor_availability_rule` (
+    `id`              BIGINT      NOT NULL COMMENT 'Snowflake ID',
+    `doctor_id`       BIGINT      NOT NULL COMMENT 'Doctor ID',
+    `department_id`   BIGINT      NOT NULL COMMENT 'Department ID',
+    `weekday`         TINYINT     NOT NULL COMMENT '1-7 for Monday-Sunday',
+    `period_code`     TINYINT     NOT NULL COMMENT '1 morning 2 afternoon 3 evening',
+    `clinic_type`     VARCHAR(20) NOT NULL DEFAULT 'GENERAL' COMMENT 'GENERAL/SPECIAL/EXPERT',
+    `is_available`    TINYINT     NOT NULL DEFAULT 1 COMMENT 'Availability flag',
+    `priority`        INT         NOT NULL DEFAULT 0 COMMENT 'Preference priority',
+    `effective_from`  DATE        NOT NULL DEFAULT '1970-01-01' COMMENT 'Effective from date',
+    `effective_until` DATE        NOT NULL DEFAULT '9999-12-31' COMMENT 'Effective until date',
+    `status`          VARCHAR(16) NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/INACTIVE',
+    `created_at`      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_dept_demand_weekday_period` (`department_id`, `weekday`, `period_code`),
-    KEY `idx_dept_demand_status` (`department_id`, `status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='科室排班需求（周模板）';
+    UNIQUE KEY `uk_doctor_availability_rule` (`doctor_id`, `department_id`, `weekday`, `period_code`, `clinic_type`, `effective_from`),
+    KEY `idx_doctor_availability_department` (`department_id`, `weekday`, `period_code`, `status`),
+    CONSTRAINT `fk_doctor_availability_rule_doctor` FOREIGN KEY (`doctor_id`) REFERENCES `doctors` (`id`),
+    CONSTRAINT `fk_doctor_availability_rule_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
+    CONSTRAINT `chk_doctor_availability_rule_weekday` CHECK (`weekday` BETWEEN 1 AND 7),
+    CONSTRAINT `chk_doctor_availability_rule_period` CHECK (`period_code` BETWEEN 1 AND 3),
+    CONSTRAINT `chk_doctor_availability_rule_type` CHECK (`clinic_type` IN ('GENERAL', 'SPECIAL', 'EXPERT')),
+    CONSTRAINT `chk_doctor_availability_rule_status` CHECK (`status` IN ('ACTIVE', 'INACTIVE')),
+    CONSTRAINT `chk_doctor_availability_rule_time` CHECK (`effective_until` IS NULL OR `effective_from` IS NULL OR `effective_until` >= `effective_from`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Doctor availability rule';
 
--- ----- 法定节假日与调休日历（不变） -----
+CREATE TABLE `doctor_unavailability` (
+    `id`               BIGINT       NOT NULL COMMENT 'Snowflake ID',
+    `doctor_id`        BIGINT       NOT NULL COMMENT 'Doctor ID',
+    `department_id`    BIGINT       DEFAULT NULL COMMENT 'Department ID',
+    `unavailable_type` VARCHAR(20)  NOT NULL COMMENT 'LEAVE/TRAINING/MEETING/CLOSE_CLINIC/MANUAL_BLOCK',
+    `start_datetime`   DATETIME     NOT NULL COMMENT 'Start datetime',
+    `end_datetime`     DATETIME     NOT NULL COMMENT 'End datetime',
+    `reason`           VARCHAR(255) DEFAULT NULL COMMENT 'Reason',
+    `source_type`      VARCHAR(32)  DEFAULT NULL COMMENT 'Source type',
+    `source_ref_id`    BIGINT       DEFAULT NULL COMMENT 'Source business ID',
+    `status`           VARCHAR(16)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/CANCELLED',
+    `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
+    PRIMARY KEY (`id`),
+    KEY `idx_doctor_unavailability_doctor` (`doctor_id`, `start_datetime`, `end_datetime`, `status`),
+    KEY `idx_doctor_unavailability_department` (`department_id`, `start_datetime`, `end_datetime`),
+    CONSTRAINT `fk_doctor_unavailability_doctor` FOREIGN KEY (`doctor_id`) REFERENCES `doctors` (`id`),
+    CONSTRAINT `fk_doctor_unavailability_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
+    CONSTRAINT `chk_doctor_unavailability_type` CHECK (`unavailable_type` IN ('LEAVE', 'TRAINING', 'MEETING', 'CLOSE_CLINIC', 'MANUAL_BLOCK')),
+    CONSTRAINT `chk_doctor_unavailability_status` CHECK (`status` IN ('ACTIVE', 'CANCELLED')),
+    CONSTRAINT `chk_doctor_unavailability_time` CHECK (`end_datetime` > `start_datetime`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Doctor unavailable window';
+
 CREATE TABLE `calendar_day` (
-    `id`                 BIGINT      NOT NULL                                              COMMENT '雪花ID',
-    `calendar_date`      DATE        NOT NULL                                              COMMENT '自然日',
-    `is_holiday`         TINYINT     NOT NULL DEFAULT 0                                    COMMENT '是否法定节假日',
-    `is_makeup_workday`  TINYINT     NOT NULL DEFAULT 0                                    COMMENT '是否调休工作日',
-    `holiday_name`       VARCHAR(64) DEFAULT NULL                                          COMMENT '节假日名称',
-    `region_code`        VARCHAR(32) NOT NULL DEFAULT 'CN-NATIONAL'                        COMMENT '地区编码',
-    `status`             TINYINT     NOT NULL DEFAULT 1                                    COMMENT '状态',
-    `created_at`         DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`         DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`         DATETIME    DEFAULT NULL                                          COMMENT '软删除时间',
+    `id`                BIGINT      NOT NULL COMMENT 'Snowflake ID',
+    `calendar_date`     DATE        NOT NULL COMMENT 'Calendar date',
+    `region_code`       VARCHAR(32) NOT NULL DEFAULT 'CN-NATIONAL' COMMENT 'Region code',
+    `day_type`          VARCHAR(20) NOT NULL COMMENT 'WORKDAY/WEEKEND/HOLIDAY/MAKEUP_WORKDAY',
+    `is_holiday`        TINYINT     NOT NULL DEFAULT 0 COMMENT 'Holiday flag',
+    `is_makeup_workday` TINYINT     NOT NULL DEFAULT 0 COMMENT 'Makeup workday flag',
+    `holiday_name`      VARCHAR(64) DEFAULT NULL COMMENT 'Holiday name',
+    `status`            VARCHAR(16) NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/INACTIVE',
+    `created_at`        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_calendar_day_region` (`calendar_date`, `region_code`),
-    KEY `idx_calendar_day_flags` (`calendar_date`, `is_holiday`, `is_makeup_workday`, `status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='法定节假日与调休日历';
+    CONSTRAINT `chk_calendar_day_type` CHECK (`day_type` IN ('WORKDAY', 'WEEKEND', 'HOLIDAY', 'MAKEUP_WORKDAY')),
+    CONSTRAINT `chk_calendar_day_status` CHECK (`status` IN ('ACTIVE', 'INACTIVE')),
+    CONSTRAINT `chk_calendar_day_flags` CHECK (
+        (`day_type` = 'HOLIDAY' AND `is_holiday` = 1 AND `is_makeup_workday` = 0)
+        OR (`day_type` = 'MAKEUP_WORKDAY' AND `is_holiday` = 0 AND `is_makeup_workday` = 1)
+        OR (`day_type` = 'WORKDAY' AND `is_holiday` = 0 AND `is_makeup_workday` = 0)
+        OR (`day_type` = 'WEEKEND' AND `is_holiday` = 0 AND `is_makeup_workday` = 0)
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Calendar day table';
 
--- ----- 医生排班表（增强：source_type → plan_item_id） -----
-CREATE TABLE `doctor_schedules` (
-    `id`                    BIGINT         NOT NULL                                              COMMENT '雪花ID',
-    `doctor_id`             BIGINT         NOT NULL                                              COMMENT '医生ID',
-    `schedule_date`         DATE           NOT NULL                                              COMMENT '排班日期',
-    `time_period`           TINYINT        NOT NULL                                              COMMENT '时段 1-上午 2-下午 3-晚上',
-    `period_start_time`     TIME           NOT NULL                                              COMMENT '时段开始时间',
-    `period_end_time`       TIME           NOT NULL                                              COMMENT '时段结束时间',
-    `slot_duration_minutes` INT            NOT NULL DEFAULT 15                                   COMMENT '号源时长（分钟）',
-    `total_slots`           INT            NOT NULL DEFAULT 0                                    COMMENT '总号源数',
-    `available_slots`       INT            NOT NULL DEFAULT 0                                    COMMENT '剩余号源',
-    `fee`                   DECIMAL(10, 2) NOT NULL DEFAULT 50.00                                COMMENT '挂号费',
-    `status`                TINYINT        NOT NULL DEFAULT 1                                    COMMENT '状态 0-停诊 1-开放 2-约满 3-过期',
-    `plan_item_id`          BIGINT         DEFAULT NULL                                          COMMENT '关联排班方案明细ID（NULL=手动创建）',
-    `version`               INT            NOT NULL DEFAULT 0                                    COMMENT '乐观锁版本',
-    `created_at`            DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`            DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`            DATETIME       DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `schedule_demand_template` (
+    `id`                        BIGINT       NOT NULL COMMENT 'Snowflake ID',
+    `department_id`             BIGINT       NOT NULL COMMENT 'Department ID',
+    `weekday`                   TINYINT      NOT NULL COMMENT '1-7',
+    `period_code`               TINYINT      NOT NULL COMMENT '1 morning 2 afternoon 3 evening',
+    `clinic_type`               VARCHAR(20)  NOT NULL DEFAULT 'GENERAL' COMMENT 'GENERAL/SPECIAL/EXPERT',
+    `required_doctor_count`     INT          NOT NULL COMMENT 'Required doctor count',
+    `required_senior_count`     INT          NOT NULL DEFAULT 0 COMMENT 'Required senior doctor count',
+    `suggested_slot_count`      INT          NOT NULL DEFAULT 0 COMMENT 'Suggested slot count',
+    `min_slot_interval_minutes` INT          NOT NULL DEFAULT 15 COMMENT 'Suggested slot interval',
+    `effective_from`            DATE         NOT NULL DEFAULT '1970-01-01' COMMENT 'Effective from date',
+    `effective_until`           DATE         NOT NULL DEFAULT '9999-12-31' COMMENT 'Effective until date',
+    `status`                    VARCHAR(16)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/INACTIVE',
+    `created_at`                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_doctor_date_period` (`doctor_id`, `schedule_date`, `time_period`),
-    KEY `idx_schedule_doctor` (`doctor_id`),
-    KEY `idx_schedule_date` (`schedule_date`),
-    KEY `idx_schedule_doctor_date` (`doctor_id`, `schedule_date`),
-    KEY `idx_schedule_date_status` (`schedule_date`, `status`),
-    KEY `idx_schedule_plan_item` (`plan_item_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='医生排班表';
+    UNIQUE KEY `uk_schedule_demand_template` (`department_id`, `weekday`, `period_code`, `clinic_type`, `effective_from`),
+    CONSTRAINT `fk_schedule_demand_template_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
+    CONSTRAINT `chk_schedule_demand_template_weekday` CHECK (`weekday` BETWEEN 1 AND 7),
+    CONSTRAINT `chk_schedule_demand_template_period` CHECK (`period_code` BETWEEN 1 AND 3),
+    CONSTRAINT `chk_schedule_demand_template_type` CHECK (`clinic_type` IN ('GENERAL', 'SPECIAL', 'EXPERT')),
+    CONSTRAINT `chk_schedule_demand_template_status` CHECK (`status` IN ('ACTIVE', 'INACTIVE')),
+    CONSTRAINT `chk_schedule_demand_template_count` CHECK (`required_doctor_count` >= 0 AND `required_senior_count` >= 0 AND `suggested_slot_count` >= 0),
+    CONSTRAINT `chk_schedule_demand_template_interval` CHECK (`min_slot_interval_minutes` > 0),
+    CONSTRAINT `chk_schedule_demand_template_time` CHECK (`effective_until` IS NULL OR `effective_from` IS NULL OR `effective_until` >= `effective_from`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Scheduling demand template';
 
--- ----- 号源时段表（不变） -----
-CREATE TABLE `appointment_slots` (
-    `id`            BIGINT   NOT NULL                                              COMMENT '雪花ID',
-    `schedule_id`   BIGINT   NOT NULL                                              COMMENT '排班ID',
-    `slot_time`     TIME     NOT NULL                                              COMMENT '时段开始（如09:00）',
-    `slot_end_time` TIME     NOT NULL                                              COMMENT '时段结束',
-    `is_occupied`   TINYINT  NOT NULL DEFAULT 0                                    COMMENT '是否占用 0-空闲 1-占用',
-    `appt_id`       BIGINT   DEFAULT NULL                                          COMMENT '关联预约ID',
-    `version`       INT      NOT NULL DEFAULT 0                                    COMMENT '乐观锁版本',
-    `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`    DATETIME DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `schedule_demand_override` (
+    `id`                        BIGINT       NOT NULL COMMENT 'Snowflake ID',
+    `department_id`             BIGINT       NOT NULL COMMENT 'Department ID',
+    `target_date`               DATE         NOT NULL COMMENT 'Target date',
+    `period_code`               TINYINT      NOT NULL COMMENT '1 morning 2 afternoon 3 evening',
+    `clinic_type`               VARCHAR(20)  NOT NULL DEFAULT 'GENERAL' COMMENT 'GENERAL/SPECIAL/EXPERT',
+    `required_doctor_count`     INT          NOT NULL COMMENT 'Required doctor count',
+    `required_senior_count`     INT          NOT NULL DEFAULT 0 COMMENT 'Required senior doctor count',
+    `suggested_slot_count`      INT          NOT NULL DEFAULT 0 COMMENT 'Suggested slot count',
+    `override_reason`           VARCHAR(255) DEFAULT NULL COMMENT 'Override reason',
+    `priority`                  INT          NOT NULL DEFAULT 0 COMMENT 'Priority',
+    `status`                    VARCHAR(16)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/CANCELLED',
+    `created_at`                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_schedule_slot` (`schedule_id`, `slot_time`),
-    KEY `idx_slot_schedule` (`schedule_id`),
-    KEY `idx_slot_time` (`slot_time`),
-    KEY `idx_slot_schedule_occupied` (`schedule_id`, `is_occupied`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='号源时段表';
+    UNIQUE KEY `uk_schedule_demand_override` (`department_id`, `target_date`, `period_code`, `clinic_type`),
+    CONSTRAINT `fk_schedule_demand_override_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
+    CONSTRAINT `chk_schedule_demand_override_period` CHECK (`period_code` BETWEEN 1 AND 3),
+    CONSTRAINT `chk_schedule_demand_override_type` CHECK (`clinic_type` IN ('GENERAL', 'SPECIAL', 'EXPERT')),
+    CONSTRAINT `chk_schedule_demand_override_status` CHECK (`status` IN ('ACTIVE', 'CANCELLED')),
+    CONSTRAINT `chk_schedule_demand_override_count` CHECK (`required_doctor_count` >= 0 AND `required_senior_count` >= 0 AND `suggested_slot_count` >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Scheduling demand override';
 
--- ----- 排班方案主表（增强：内联约束快照） -----
--- 设计变更：将原独立的 schedule_plan_constraint_snapshot 表合并为 JSON 字段，
--- 包括 doctor_rules_snapshot, time_off_snapshot, demand_snapshot, calendar_snapshot, dsl_snapshot, solver_meta
-CREATE TABLE `schedule_plan` (
-    `id`                     BIGINT         NOT NULL                                              COMMENT '雪花ID',
-    `plan_code`              VARCHAR(64)    NOT NULL                                              COMMENT '方案编码',
-    `department_id`          BIGINT         NOT NULL                                              COMMENT '科室ID',
-    `start_date`             DATE           NOT NULL                                              COMMENT '排班开始日期',
-    `end_date`               DATE           NOT NULL                                              COMMENT '排班结束日期',
-    `version_no`             INT            NOT NULL DEFAULT 1                                    COMMENT '版本号',
-    `plan_status`            VARCHAR(16)    NOT NULL DEFAULT 'DRAFT'                              COMMENT '状态 DRAFT/PUBLISHED/ARCHIVED',
-    `solver_strategy`        VARCHAR(32)    DEFAULT NULL                                          COMMENT '求解策略 RULE_GREEDY/LOCAL_SEARCH/CP_SAT/AUTO',
-    `generated_by`           BIGINT         DEFAULT NULL                                          COMMENT '生成人ID',
-    `total_score`            DECIMAL(8, 2)  DEFAULT NULL                                          COMMENT '方案总分',
-    `hard_violation_count`   INT            NOT NULL DEFAULT 0                                    COMMENT '硬约束违例数',
-    `warnings_json`          JSON           DEFAULT NULL                                          COMMENT '告警信息',
-    `doctor_rules_snapshot`  JSON           DEFAULT NULL                                          COMMENT '快照：医生可排班规则',
-    `time_off_snapshot`      JSON           DEFAULT NULL                                          COMMENT '快照：医生请假/停诊',
-    `demand_snapshot`        JSON           DEFAULT NULL                                          COMMENT '快照：科室需求模板',
-    `calendar_snapshot`      JSON           DEFAULT NULL                                          COMMENT '快照：节假日日历',
-    `dsl_snapshot`           JSON           DEFAULT NULL                                          COMMENT '快照：约束DSL源文',
-    `solver_meta`            JSON           DEFAULT NULL                                          COMMENT '求解元信息（seed, inputHash, dslHash, actualSolver, fallbackReason等）',
-    `conflict_report`        JSON           DEFAULT NULL                                          COMMENT '无解诊断/冲突报告',
-    `created_at`             DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`             DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`             DATETIME       DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `schedule_generation_job` (
+    `id`                  BIGINT       NOT NULL COMMENT 'Snowflake ID',
+    `department_id`       BIGINT       NOT NULL COMMENT 'Department ID',
+    `ruleset_id`          BIGINT       NOT NULL COMMENT 'Ruleset ID',
+    `job_type`            VARCHAR(16)  NOT NULL DEFAULT 'FORMAL' COMMENT 'TRIAL/FORMAL/REGENERATE',
+    `start_date`          DATE         NOT NULL COMMENT 'Planning start date',
+    `end_date`            DATE         NOT NULL COMMENT 'Planning end date',
+    `solver_strategy`     VARCHAR(32)  DEFAULT NULL COMMENT 'Solver strategy',
+    `job_status`          VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/RUNNING/SUCCEEDED/FAILED/CANCELLED',
+    `submitted_by`        BIGINT       DEFAULT NULL COMMENT 'Submitted by user',
+    `submitted_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Submitted at',
+    `started_at`          DATETIME     DEFAULT NULL COMMENT 'Started at',
+    `finished_at`         DATETIME     DEFAULT NULL COMMENT 'Finished at',
+    `fail_reason`         VARCHAR(500) DEFAULT NULL COMMENT 'Failure reason',
+    `input_snapshot_hash` VARCHAR(64)  DEFAULT NULL COMMENT 'Input snapshot hash',
+    `created_at`          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_schedule_plan_code_ver` (`plan_code`, `version_no`),
-    KEY `idx_schedule_plan_dept_range` (`department_id`, `start_date`, `end_date`, `plan_status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班方案主表';
+    KEY `idx_schedule_generation_job_status` (`department_id`, `start_date`, `end_date`, `job_status`),
+    CONSTRAINT `fk_schedule_generation_job_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
+    CONSTRAINT `fk_schedule_generation_job_ruleset` FOREIGN KEY (`ruleset_id`) REFERENCES `schedule_ruleset` (`id`),
+    CONSTRAINT `fk_schedule_generation_job_submitted_by` FOREIGN KEY (`submitted_by`) REFERENCES `users` (`id`),
+    CONSTRAINT `chk_schedule_generation_job_type` CHECK (`job_type` IN ('TRIAL', 'FORMAL', 'REGENERATE')),
+    CONSTRAINT `chk_schedule_generation_job_status` CHECK (`job_status` IN ('PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELLED')),
+    CONSTRAINT `chk_schedule_generation_job_time` CHECK (`end_date` >= `start_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Scheduling generation job';
 
--- ----- 排班方案明细（不变） -----
-CREATE TABLE `schedule_plan_items` (
-    `id`            BIGINT        NOT NULL                                              COMMENT '雪花ID',
-    `plan_id`       BIGINT        NOT NULL                                              COMMENT '方案ID',
-    `schedule_date` DATE          NOT NULL                                              COMMENT '排班日期',
-    `period_code`   TINYINT       NOT NULL                                              COMMENT '时段编码',
-    `doctor_id`     BIGINT        NOT NULL                                              COMMENT '医生ID',
-    `is_senior`     TINYINT       NOT NULL DEFAULT 0                                    COMMENT '是否资深医生',
-    `reason_json`   JSON          DEFAULT NULL                                          COMMENT '分配原因',
-    `penalty_json`  JSON          DEFAULT NULL                                          COMMENT '惩罚项',
-    `score_delta`   DECIMAL(8, 2) DEFAULT NULL                                          COMMENT '分配增量分',
-    `created_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`    DATETIME      DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `schedule_generation_result` (
+    `id`                   BIGINT        NOT NULL COMMENT 'Snowflake ID',
+    `job_id`               BIGINT        NOT NULL COMMENT 'Job ID',
+    `result_no`            INT           NOT NULL DEFAULT 1 COMMENT 'Result ordinal',
+    `result_status`        VARCHAR(16)   NOT NULL DEFAULT 'GENERATED' COMMENT 'GENERATED/SELECTED/PUBLISHED/DISCARDED',
+    `score`                DECIMAL(10,2) DEFAULT NULL COMMENT 'Total score',
+    `hard_violation_count` INT           NOT NULL DEFAULT 0 COMMENT 'Hard violation count',
+    `soft_violation_score` DECIMAL(10,2) DEFAULT NULL COMMENT 'Soft violation score',
+    `warning_count`        INT           NOT NULL DEFAULT 0 COMMENT 'Warning count',
+    `summary_json`         JSON          DEFAULT NULL COMMENT 'Summary payload',
+    `diagnostics_json`     JSON          DEFAULT NULL COMMENT 'Diagnostics payload',
+    `is_selected`          TINYINT       NOT NULL DEFAULT 0 COMMENT 'Selected result flag',
+    `selected_job_id`      BIGINT GENERATED ALWAYS AS (CASE WHEN `result_status` = 'SELECTED' THEN `job_id` ELSE NULL END) STORED COMMENT 'Selected result helper',
+    `published_job_id`     BIGINT GENERATED ALWAYS AS (CASE WHEN `result_status` = 'PUBLISHED' THEN `job_id` ELSE NULL END) STORED COMMENT 'Published result helper',
+    `published_at`         DATETIME      DEFAULT NULL COMMENT 'Published at',
+    `created_at`           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_plan_slot_doctor` (`plan_id`, `schedule_date`, `period_code`, `doctor_id`),
-    KEY `idx_plan_item_slot` (`plan_id`, `schedule_date`, `period_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班方案明细';
+    UNIQUE KEY `uk_schedule_generation_result_no` (`job_id`, `result_no`),
+    UNIQUE KEY `uk_schedule_generation_result_selected` (`selected_job_id`),
+    UNIQUE KEY `uk_schedule_generation_result_published` (`published_job_id`),
+    KEY `idx_schedule_generation_result_status` (`job_id`, `result_status`, `score`),
+    CONSTRAINT `fk_schedule_generation_result_job` FOREIGN KEY (`job_id`) REFERENCES `schedule_generation_job` (`id`),
+    CONSTRAINT `chk_schedule_generation_result_status` CHECK (`result_status` IN ('GENERATED', 'SELECTED', 'PUBLISHED', 'DISCARDED')),
+    CONSTRAINT `chk_schedule_generation_result_selected` CHECK (
+        (`result_status` IN ('SELECTED', 'PUBLISHED') AND `is_selected` = 1)
+        OR (`result_status` IN ('GENERATED', 'DISCARDED') AND `is_selected` = 0)
+    ),
+    CONSTRAINT `chk_schedule_generation_result_published_at` CHECK (
+        (`result_status` = 'PUBLISHED' AND `published_at` IS NOT NULL)
+        OR (`result_status` <> 'PUBLISHED' AND `published_at` IS NULL)
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Scheduling generation result';
 
--- ----- 排班规则配置版本表（不变） -----
-CREATE TABLE `schedule_rule_profile` (
-    `id`                  BIGINT       NOT NULL                                              COMMENT '雪花ID',
-    `department_id`       BIGINT       NOT NULL                                              COMMENT '科室ID',
-    `profile_code`        VARCHAR(64)  NOT NULL                                              COMMENT '规则配置编码',
-    `profile_name`        VARCHAR(128) NOT NULL                                              COMMENT '规则配置名称',
-    `version_no`          INT          NOT NULL DEFAULT 1                                    COMMENT '版本号',
-    `profile_status`      VARCHAR(16)  NOT NULL DEFAULT 'DRAFT'                              COMMENT '状态 DRAFT/PUBLISHED/ARCHIVED',
-    `constraint_dsl_json` JSON         NOT NULL                                              COMMENT 'JSON DSL 约束配置',
-    `description`         VARCHAR(255) DEFAULT NULL                                          COMMENT '描述',
-    `updated_by`          BIGINT       DEFAULT NULL                                          COMMENT '最近操作人',
-    `created_at`          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`          DATETIME     DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `schedule_generation_assignment` (
+    `id`                   BIGINT         NOT NULL COMMENT 'Snowflake ID',
+    `result_id`            BIGINT         NOT NULL COMMENT 'Result ID',
+    `doctor_id`            BIGINT         NOT NULL COMMENT 'Doctor ID',
+    `department_id`        BIGINT         NOT NULL COMMENT 'Department ID',
+    `schedule_date`        DATE           NOT NULL COMMENT 'Schedule date',
+    `period_code`          TINYINT        NOT NULL COMMENT '1 morning 2 afternoon 3 evening',
+    `clinic_type`          VARCHAR(20)    NOT NULL DEFAULT 'GENERAL' COMMENT 'GENERAL/SPECIAL/EXPERT',
+    `is_senior_slot`       TINYINT        NOT NULL DEFAULT 0 COMMENT 'Senior doctor slot',
+    `suggested_start_time` TIME           NOT NULL COMMENT 'Suggested start time',
+    `suggested_end_time`   TIME           NOT NULL COMMENT 'Suggested end time',
+    `suggested_fee`        DECIMAL(10, 2) NOT NULL DEFAULT 0.00 COMMENT 'Suggested fee',
+    `suggested_capacity`   INT            NOT NULL DEFAULT 0 COMMENT 'Suggested slot count',
+    `assignment_status`    VARCHAR(16)    NOT NULL DEFAULT 'PLANNED' COMMENT 'PLANNED/SKIPPED/PUBLISHED',
+    `reason_json`          JSON           DEFAULT NULL COMMENT 'Allocation reasons',
+    `score_delta`          DECIMAL(10,2)  DEFAULT NULL COMMENT 'Score delta',
+    `created_at`           DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`           DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_rule_profile_code_ver` (`department_id`, `profile_code`, `version_no`),
-    KEY `idx_rule_profile_status` (`department_id`, `profile_code`, `profile_status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='排班规则配置版本表';
+    UNIQUE KEY `uk_schedule_generation_assignment` (`result_id`, `doctor_id`, `department_id`, `schedule_date`, `period_code`, `clinic_type`),
+    UNIQUE KEY `uk_schedule_generation_assignment_doctor_period` (`result_id`, `doctor_id`, `schedule_date`, `period_code`),
+    KEY `idx_schedule_generation_assignment_department` (`department_id`, `schedule_date`, `period_code`),
+    KEY `idx_schedule_generation_assignment_doctor` (`doctor_id`, `schedule_date`),
+    CONSTRAINT `fk_schedule_generation_assignment_result` FOREIGN KEY (`result_id`) REFERENCES `schedule_generation_result` (`id`),
+    CONSTRAINT `fk_schedule_generation_assignment_doctor` FOREIGN KEY (`doctor_id`) REFERENCES `doctors` (`id`),
+    CONSTRAINT `fk_schedule_generation_assignment_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
+    CONSTRAINT `chk_schedule_generation_assignment_period` CHECK (`period_code` BETWEEN 1 AND 3),
+    CONSTRAINT `chk_schedule_generation_assignment_type` CHECK (`clinic_type` IN ('GENERAL', 'SPECIAL', 'EXPERT')),
+    CONSTRAINT `chk_schedule_generation_assignment_status` CHECK (`assignment_status` IN ('PLANNED', 'SKIPPED', 'PUBLISHED')),
+    CONSTRAINT `chk_schedule_generation_assignment_time` CHECK (`suggested_end_time` > `suggested_start_time`),
+    CONSTRAINT `chk_schedule_generation_assignment_capacity` CHECK (`suggested_capacity` >= 0 AND `suggested_fee` >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Scheduling assignment result';

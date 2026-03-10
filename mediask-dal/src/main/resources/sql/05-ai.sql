@@ -1,122 +1,233 @@
 -- ============================================================
--- 05-ai.sql  —  AI 问诊会话与知识库
+-- 05-ai.sql  --  AI session, model run, knowledge (V3)
 -- ============================================================
--- 包含：ai_conversations (增强), ai_messages (增强),
---       ai_feedback_reviews (增强),
---       knowledge_documents (新增), knowledge_chunks (新增)
---
--- 删除表：ai_metrics_daily, ai_metrics_dept_daily（按需从明细表实时聚合）
+-- Core assumption:
+--   Python service owns LLM/RAG execution.
+--   Java system owns business identity, access control, durable indexes,
+--   review workflow, and minimal traceable run metadata.
 
--- ----- AI会话表（增强：+dept_id, chief_complaint, model, total_tokens） -----
-CREATE TABLE `ai_conversations` (
-    `id`                BIGINT        NOT NULL                                              COMMENT '雪花ID',
-    `conversation_uuid` VARCHAR(64)   NOT NULL                                              COMMENT '业务会话UUID',
-    `user_id`           BIGINT        NOT NULL                                              COMMENT '用户ID',
-    `dept_id`           BIGINT        DEFAULT NULL                                          COMMENT '关联科室ID（问诊导诊场景）',
-    `scene_type`        VARCHAR(32)   NOT NULL                                              COMMENT '场景类型 pre_diagnosis/health_consult/follow_up',
-    `chief_complaint`   VARCHAR(500)  DEFAULT NULL                                          COMMENT '主诉摘要（AI提取）',
-    `summary`           VARCHAR(2000) DEFAULT NULL                                          COMMENT '会话摘要',
-    `model`             VARCHAR(64)   DEFAULT NULL                                          COMMENT '主要使用的LLM模型',
-    `total_tokens`      INT           DEFAULT 0                                             COMMENT '会话累计Token消耗',
-    `status`            TINYINT       NOT NULL DEFAULT 1                                    COMMENT '状态 1-进行中 2-已结束 3-异常终止',
-    `started_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '开始时间',
-    `ended_at`          DATETIME      DEFAULT NULL                                          COMMENT '结束时间',
-    `updated_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`        DATETIME      DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `ai_session` (
+    `id`                      BIGINT        NOT NULL COMMENT 'Snowflake ID',
+    `session_uuid`            VARCHAR(64)   NOT NULL COMMENT 'Business session UUID',
+    `patient_id`              BIGINT        NOT NULL COMMENT 'Patient user ID',
+    `department_id`           BIGINT        DEFAULT NULL COMMENT 'Related department ID',
+    `related_order_id`        BIGINT        DEFAULT NULL COMMENT 'Related registration order ID',
+    `scene_type`              VARCHAR(32)   NOT NULL COMMENT 'PRE_DIAGNOSIS/HEALTH_CONSULT/FOLLOW_UP',
+    `session_status`          VARCHAR(16)   NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/CLOSED/ABORTED',
+    `entrypoint`              VARCHAR(16)   NOT NULL DEFAULT 'JAVA' COMMENT 'JAVA/PYTHON',
+    `chief_complaint_summary` VARCHAR(500)  DEFAULT NULL COMMENT 'Chief complaint summary',
+    `summary`                 VARCHAR(2000) DEFAULT NULL COMMENT 'Conversation summary',
+    `started_at`              DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Started at',
+    `ended_at`                DATETIME      DEFAULT NULL COMMENT 'Ended at',
+    `created_at`              DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`              DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_conversation_uuid` (`conversation_uuid`),
-    KEY `idx_ai_conv_user` (`user_id`),
-    KEY `idx_ai_conv_dept` (`dept_id`),
-    KEY `idx_ai_conv_started` (`started_at`),
-    KEY `idx_ai_conv_status` (`status`, `started_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI会话表';
+    UNIQUE KEY `uk_ai_session_uuid` (`session_uuid`),
+    KEY `idx_ai_session_patient` (`patient_id`, `started_at`),
+    KEY `idx_ai_session_department` (`department_id`, `started_at`),
+    CONSTRAINT `fk_ai_session_patient` FOREIGN KEY (`patient_id`) REFERENCES `users` (`id`),
+    CONSTRAINT `fk_ai_session_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
+    CONSTRAINT `fk_ai_session_order` FOREIGN KEY (`related_order_id`) REFERENCES `registration_order` (`id`),
+    CONSTRAINT `chk_ai_session_scene` CHECK (`scene_type` IN ('PRE_DIAGNOSIS', 'HEALTH_CONSULT', 'FOLLOW_UP')),
+    CONSTRAINT `chk_ai_session_status` CHECK (`session_status` IN ('ACTIVE', 'CLOSED', 'ABORTED')),
+    CONSTRAINT `chk_ai_session_entrypoint` CHECK (`entrypoint` IN ('JAVA', 'PYTHON'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI session header';
 
--- ----- AI消息表（增强：+审计追踪字段，支持护栏方案） -----
-CREATE TABLE `ai_messages` (
-    `id`              BIGINT      NOT NULL                                              COMMENT '雪花ID',
-    `conversation_id` BIGINT      NOT NULL                                              COMMENT '会话ID',
-    `role`            TINYINT     NOT NULL                                              COMMENT '消息角色 1-user 2-assistant 3-system',
-    `content`         TEXT        NOT NULL                                              COMMENT '消息内容',
-    `context`         JSON        DEFAULT NULL                                          COMMENT 'RAG检索上下文（JSON）',
-    `citations_json`  JSON        DEFAULT NULL                                          COMMENT '引用来源（doc_id/page/section/score）',
-    `tokens_used`     INT         DEFAULT NULL                                          COMMENT '本条消息Token消耗',
-    -- 审计与安全字段（对应 AI_GUARDRAILS_PLAN）
-    `trace_id`        VARCHAR(64) DEFAULT NULL                                          COMMENT '链路追踪ID',
-    `risk_level`      VARCHAR(10) DEFAULT NULL                                          COMMENT '风险等级 LOW/MEDIUM/HIGH',
-    `model`           VARCHAR(64) DEFAULT NULL                                          COMMENT '使用的LLM模型',
-    `latency_ms`      INT         DEFAULT NULL                                          COMMENT '响应延迟（毫秒）',
-    `is_degraded`     TINYINT     NOT NULL DEFAULT 0                                    COMMENT '是否降级响应 0-否 1-是',
-    `guardrail_action` VARCHAR(20) DEFAULT NULL                                         COMMENT '护栏动作 PASS/CAUTION/REFUSE',
-    `matched_rules`   JSON        DEFAULT NULL                                          COMMENT '命中的护栏规则ID列表',
-    `created_at`      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `deleted_at`      DATETIME    DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `ai_turn` (
+    `id`               BIGINT      NOT NULL COMMENT 'Snowflake ID',
+    `session_id`       BIGINT      NOT NULL COMMENT 'AI session ID',
+    `turn_no`          INT         NOT NULL COMMENT 'Turn number',
+    `turn_status`      VARCHAR(16) NOT NULL DEFAULT 'COMPLETED' COMMENT 'PENDING/COMPLETED/FAILED',
+    `input_hash`       VARCHAR(64) DEFAULT NULL COMMENT 'Masked input hash',
+    `output_hash`      VARCHAR(64) DEFAULT NULL COMMENT 'Masked output hash',
+    `started_at`       DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Started at',
+    `finished_at`      DATETIME    DEFAULT NULL COMMENT 'Finished at',
+    `created_at`       DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`       DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
     PRIMARY KEY (`id`),
-    KEY `idx_ai_msg_conv` (`conversation_id`),
-    KEY `idx_ai_msg_created` (`created_at`),
-    KEY `idx_ai_msg_trace` (`trace_id`),
-    KEY `idx_ai_msg_risk` (`risk_level`, `created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI消息表';
+    UNIQUE KEY `uk_ai_turn_session_no` (`session_id`, `turn_no`),
+    KEY `idx_ai_turn_status` (`session_id`, `turn_status`),
+    CONSTRAINT `fk_ai_turn_session` FOREIGN KEY (`session_id`) REFERENCES `ai_session` (`id`),
+    CONSTRAINT `chk_ai_turn_status` CHECK (`turn_status` IN ('PENDING', 'COMPLETED', 'FAILED')),
+    CONSTRAINT `chk_ai_turn_no` CHECK (`turn_no` > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI dialog turn';
 
--- ----- AI复核记录表（增强：+message_id, feedback_type, correction_content, -department_id冗余） -----
-CREATE TABLE `ai_feedback_reviews` (
-    `id`                  BIGINT        NOT NULL                                              COMMENT '雪花ID',
-    `conversation_id`     BIGINT        NOT NULL                                              COMMENT '会话ID',
-    `message_id`          BIGINT        DEFAULT NULL                                          COMMENT '针对的消息ID（精确到条）',
-    `doctor_id`           BIGINT        NOT NULL                                              COMMENT '复核医生ID',
-    `feedback_type`       VARCHAR(20)   NOT NULL DEFAULT 'REVIEW'                             COMMENT '反馈类型 REVIEW-专业复核 THUMBS-点赞点踩 CORRECTION-纠错',
-    `review_score`        TINYINT       DEFAULT NULL                                          COMMENT '复核评分 1-5（REVIEW类型必填）',
-    `is_adopted`          TINYINT       DEFAULT NULL                                          COMMENT '是否采纳AI建议 0-否 1-是',
-    `correction_content`  VARCHAR(2000) DEFAULT NULL                                          COMMENT '纠正内容（CORRECTION类型）',
-    `review_comment`      VARCHAR(1000) DEFAULT NULL                                          COMMENT '复核意见',
-    `reviewed_at`         DATETIME      NOT NULL                                              COMMENT '复核时间',
-    `created_at`          DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`          DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`          DATETIME      DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `ai_turn_content` (
+    `id`                 BIGINT      NOT NULL COMMENT 'Snowflake ID',
+    `turn_id`            BIGINT      NOT NULL COMMENT 'Turn ID',
+    `content_role`       VARCHAR(16) NOT NULL COMMENT 'USER/ASSISTANT/SYSTEM',
+    `content_encrypted`  MEDIUMTEXT  NOT NULL COMMENT 'Encrypted raw content',
+    `content_masked`     TEXT        DEFAULT NULL COMMENT 'Masked content for preview',
+    `content_hash`       VARCHAR(64) DEFAULT NULL COMMENT 'Content hash',
+    `created_at`         DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
     PRIMARY KEY (`id`),
-    KEY `idx_ai_review_conv` (`conversation_id`),
-    KEY `idx_ai_review_msg` (`message_id`),
-    KEY `idx_ai_review_doctor` (`doctor_id`, `reviewed_at`),
-    KEY `idx_ai_review_date` (`reviewed_at`),
-    KEY `idx_ai_review_type` (`feedback_type`, `reviewed_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI复核记录表';
+    KEY `idx_ai_turn_content_turn` (`turn_id`, `content_role`),
+    CONSTRAINT `fk_ai_turn_content_turn` FOREIGN KEY (`turn_id`) REFERENCES `ai_turn` (`id`),
+    CONSTRAINT `chk_ai_turn_content_role` CHECK (`content_role` IN ('USER', 'ASSISTANT', 'SYSTEM'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI encrypted content payload';
 
--- ----- 知识文档表（新增，对应 RAG 入库流程） -----
-CREATE TABLE `knowledge_documents` (
-    `id`              BIGINT        NOT NULL                                              COMMENT '雪花ID',
-    `doc_uuid`        VARCHAR(64)   NOT NULL                                              COMMENT '文档UUID',
-    `title`           VARCHAR(255)  NOT NULL                                              COMMENT '文档标题',
-    `source`          VARCHAR(255)  DEFAULT NULL                                          COMMENT '来源（文件路径/URL）',
-    `doc_type`        VARCHAR(20)   NOT NULL DEFAULT 'MARKDOWN'                           COMMENT '文档类型 MARKDOWN/PDF/TEXT',
-    `category`        VARCHAR(64)   DEFAULT NULL                                          COMMENT '分类（科室/病种/药品等）',
-    `content_hash`    VARCHAR(64)   DEFAULT NULL                                          COMMENT '内容SHA256（去重用）',
-    `chunk_count`     INT           NOT NULL DEFAULT 0                                    COMMENT '分块数量',
-    `status`          TINYINT       NOT NULL DEFAULT 1                                    COMMENT '状态 0-已下线 1-已入库 2-入库中 3-入库失败',
-    `ingested_at`     DATETIME      DEFAULT NULL                                          COMMENT '入库完成时间',
-    `created_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at`      DATETIME      DEFAULT NULL                                          COMMENT '软删除时间',
+CREATE TABLE `ai_model_run` (
+    `id`                     BIGINT      NOT NULL COMMENT 'Snowflake ID',
+    `turn_id`                BIGINT      NOT NULL COMMENT 'Turn ID',
+    `provider_run_id`        VARCHAR(128) DEFAULT NULL COMMENT 'Python service run ID',
+    `provider_name`          VARCHAR(32) NOT NULL COMMENT 'PYTHON_AI/DEEPSEEK/OPENAI_COMPATIBLE',
+    `model_name`             VARCHAR(64) DEFAULT NULL COMMENT 'Model name',
+    `trace_id`               VARCHAR(64) NOT NULL COMMENT 'Trace ID',
+    `rag_enabled`            TINYINT     NOT NULL DEFAULT 0 COMMENT 'Whether RAG enabled',
+    `retrieval_provider`     VARCHAR(32) DEFAULT NULL COMMENT 'MILVUS/PYTHON_AI/NONE',
+    `tokens_input`           INT         DEFAULT NULL COMMENT 'Input tokens',
+    `tokens_output`          INT         DEFAULT NULL COMMENT 'Output tokens',
+    `latency_ms`             INT         DEFAULT NULL COMMENT 'Latency ms',
+    `run_status`             VARCHAR(16) NOT NULL DEFAULT 'SUCCEEDED' COMMENT 'RUNNING/SUCCEEDED/FAILED/DEGRADED',
+    `is_degraded`            TINYINT     NOT NULL DEFAULT 0 COMMENT 'Degraded response flag',
+    `request_payload_hash`   VARCHAR(64) DEFAULT NULL COMMENT 'Request payload hash',
+    `response_payload_hash`  VARCHAR(64) DEFAULT NULL COMMENT 'Response payload hash',
+    `started_at`             DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Started at',
+    `finished_at`            DATETIME    DEFAULT NULL COMMENT 'Finished at',
+    `created_at`             DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_doc_uuid` (`doc_uuid`),
-    KEY `idx_doc_category` (`category`),
-    KEY `idx_doc_status` (`status`),
-    KEY `idx_doc_content_hash` (`content_hash`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='知识文档表';
+    UNIQUE KEY `uk_ai_model_run_provider` (`provider_name`, `provider_run_id`),
+    KEY `idx_ai_model_run_turn` (`turn_id`, `started_at`),
+    KEY `idx_ai_model_run_trace` (`trace_id`),
+    CONSTRAINT `fk_ai_model_run_turn` FOREIGN KEY (`turn_id`) REFERENCES `ai_turn` (`id`),
+    CONSTRAINT `chk_ai_model_run_provider` CHECK (`provider_name` IN ('PYTHON_AI', 'DEEPSEEK', 'OPENAI_COMPATIBLE')),
+    CONSTRAINT `chk_ai_model_run_retrieval_provider` CHECK (`retrieval_provider` IS NULL OR `retrieval_provider` IN ('MILVUS', 'PYTHON_AI', 'NONE')),
+    CONSTRAINT `chk_ai_model_run_status` CHECK (`run_status` IN ('RUNNING', 'SUCCEEDED', 'FAILED', 'DEGRADED'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI model run metadata';
 
--- ----- 知识分块表（新增，对应 RAG 分块 + embedding） -----
--- 注意：向量数据本身存储在 Milvus，本表仅存文本与元数据，用于追溯和引用展示
-CREATE TABLE `knowledge_chunks` (
-    `id`           BIGINT        NOT NULL                                              COMMENT '雪花ID',
-    `document_id`  BIGINT        NOT NULL                                              COMMENT '所属文档ID',
-    `chunk_index`  INT           NOT NULL                                              COMMENT '分块序号（从0开始）',
-    `content`      TEXT          NOT NULL                                              COMMENT '分块文本内容',
-    `section`      VARCHAR(255)  DEFAULT NULL                                          COMMENT '所属章节标题',
-    `page`         INT           DEFAULT NULL                                          COMMENT '所在页码（PDF适用）',
-    `token_count`  INT           DEFAULT NULL                                          COMMENT 'Token数估算',
-    `vector_id`    VARCHAR(128)  DEFAULT NULL                                          COMMENT 'Milvus向量ID（关联用）',
-    `created_at`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP                    COMMENT '创建时间',
-    `updated_at`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+CREATE TABLE `ai_run_artifact` (
+    `id`                BIGINT      NOT NULL COMMENT 'Snowflake ID',
+    `run_id`            BIGINT      NOT NULL COMMENT 'Model run ID',
+    `artifact_type`     VARCHAR(32) NOT NULL COMMENT 'SUMMARY/CITATION/ROUTING/RAG_CONTEXT/PROMPT_DEBUG',
+    `artifact_json`     JSON        DEFAULT NULL COMMENT 'Masked or low-sensitivity artifact payload',
+    `artifact_encrypted` MEDIUMTEXT DEFAULT NULL COMMENT 'Encrypted high-sensitivity artifact payload',
+    `retention_until`   DATETIME    DEFAULT NULL COMMENT 'Retention deadline for sensitive payload',
+    `created_at`        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_doc_chunk` (`document_id`, `chunk_index`),
-    KEY `idx_chunk_document` (`document_id`),
-    KEY `idx_chunk_vector` (`vector_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='知识分块表';
+    KEY `idx_ai_run_artifact_run` (`run_id`, `artifact_type`),
+    CONSTRAINT `fk_ai_run_artifact_run` FOREIGN KEY (`run_id`) REFERENCES `ai_model_run` (`id`),
+    CONSTRAINT `chk_ai_run_artifact_type` CHECK (`artifact_type` IN ('SUMMARY', 'CITATION', 'ROUTING', 'RAG_CONTEXT', 'PROMPT_DEBUG')),
+    CONSTRAINT `chk_ai_run_artifact_payload` CHECK (`artifact_json` IS NOT NULL OR `artifact_encrypted` IS NOT NULL),
+    CONSTRAINT `chk_ai_run_artifact_retention` CHECK (
+        (`artifact_type` IN ('RAG_CONTEXT', 'PROMPT_DEBUG') AND `retention_until` IS NOT NULL)
+        OR (`artifact_type` IN ('SUMMARY', 'CITATION', 'ROUTING'))
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI run artifact';
+
+CREATE TABLE `ai_guardrail_event` (
+    `id`                 BIGINT      NOT NULL COMMENT 'Snowflake ID',
+    `run_id`             BIGINT      NOT NULL COMMENT 'Model run ID',
+    `risk_level`         VARCHAR(16) NOT NULL COMMENT 'LOW/MEDIUM/HIGH',
+    `action_taken`       VARCHAR(16) NOT NULL COMMENT 'PASS/CAUTION/REFUSE',
+    `matched_rule_codes` JSON        DEFAULT NULL COMMENT 'Matched rule codes',
+    `input_hash`         VARCHAR(64) DEFAULT NULL COMMENT 'Masked input hash',
+    `output_hash`        VARCHAR(64) DEFAULT NULL COMMENT 'Masked output hash',
+    `event_detail_json`  JSON        DEFAULT NULL COMMENT 'Guardrail detail payload',
+    `occurred_at`        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Occurred at',
+    PRIMARY KEY (`id`),
+    KEY `idx_ai_guardrail_event_run` (`run_id`, `occurred_at`),
+    KEY `idx_ai_guardrail_event_level` (`risk_level`, `occurred_at`),
+    CONSTRAINT `fk_ai_guardrail_event_run` FOREIGN KEY (`run_id`) REFERENCES `ai_model_run` (`id`),
+    CONSTRAINT `chk_ai_guardrail_event_level` CHECK (`risk_level` IN ('LOW', 'MEDIUM', 'HIGH')),
+    CONSTRAINT `chk_ai_guardrail_event_action` CHECK (`action_taken` IN ('PASS', 'CAUTION', 'REFUSE'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI guardrail event';
+
+CREATE TABLE `ai_feedback_task` (
+    `id`                 BIGINT      NOT NULL COMMENT 'Snowflake ID',
+    `session_id`         BIGINT      NOT NULL COMMENT 'AI session ID',
+    `turn_id`            BIGINT      DEFAULT NULL COMMENT 'AI turn ID',
+    `task_type`          VARCHAR(20) NOT NULL COMMENT 'REVIEW/CORRECTION/THUMBS',
+    `task_status`        VARCHAR(16) NOT NULL DEFAULT 'OPEN' COMMENT 'OPEN/ASSIGNED/CLOSED/CANCELLED',
+    `assigned_doctor_id` BIGINT      DEFAULT NULL COMMENT 'Assigned doctor ID',
+    `created_by`         BIGINT      DEFAULT NULL COMMENT 'Created by user ID',
+    `created_at`         DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`         DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
+    PRIMARY KEY (`id`),
+    KEY `idx_ai_feedback_task_session` (`session_id`, `task_status`),
+    KEY `idx_ai_feedback_task_doctor` (`assigned_doctor_id`, `task_status`),
+    CONSTRAINT `fk_ai_feedback_task_session` FOREIGN KEY (`session_id`) REFERENCES `ai_session` (`id`),
+    CONSTRAINT `fk_ai_feedback_task_turn` FOREIGN KEY (`turn_id`) REFERENCES `ai_turn` (`id`),
+    CONSTRAINT `fk_ai_feedback_task_doctor` FOREIGN KEY (`assigned_doctor_id`) REFERENCES `doctors` (`id`),
+    CONSTRAINT `fk_ai_feedback_task_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
+    CONSTRAINT `chk_ai_feedback_task_type` CHECK (`task_type` IN ('REVIEW', 'CORRECTION', 'THUMBS')),
+    CONSTRAINT `chk_ai_feedback_task_status` CHECK (`task_status` IN ('OPEN', 'ASSIGNED', 'CLOSED', 'CANCELLED'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI feedback task';
+
+CREATE TABLE `ai_feedback_review` (
+    `id`                 BIGINT        NOT NULL COMMENT 'Snowflake ID',
+    `task_id`            BIGINT        NOT NULL COMMENT 'Feedback task ID',
+    `reviewer_doctor_id` BIGINT        NOT NULL COMMENT 'Reviewer doctor ID',
+    `review_result`      VARCHAR(16)   NOT NULL COMMENT 'APPROVED/REJECTED/CORRECTED',
+    `review_score`       TINYINT       DEFAULT NULL COMMENT 'Review score 1-5',
+    `correction_summary` VARCHAR(2000) DEFAULT NULL COMMENT 'Correction summary',
+    `review_comment`     VARCHAR(1000) DEFAULT NULL COMMENT 'Review comment',
+    `reviewed_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Reviewed at',
+    `created_at`         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_ai_feedback_review_task` (`task_id`),
+    KEY `idx_ai_feedback_review_doctor` (`reviewer_doctor_id`, `reviewed_at`),
+    CONSTRAINT `fk_ai_feedback_review_task` FOREIGN KEY (`task_id`) REFERENCES `ai_feedback_task` (`id`),
+    CONSTRAINT `fk_ai_feedback_review_doctor` FOREIGN KEY (`reviewer_doctor_id`) REFERENCES `doctors` (`id`),
+    CONSTRAINT `chk_ai_feedback_review_result` CHECK (`review_result` IN ('APPROVED', 'REJECTED', 'CORRECTED')),
+    CONSTRAINT `chk_ai_feedback_review_score` CHECK (`review_score` IS NULL OR (`review_score` BETWEEN 1 AND 5))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI feedback review';
+
+CREATE TABLE `knowledge_base` (
+    `id`              BIGINT       NOT NULL COMMENT 'Snowflake ID',
+    `base_code`       VARCHAR(64)  NOT NULL COMMENT 'Knowledge base code',
+    `base_name`       VARCHAR(128) NOT NULL COMMENT 'Knowledge base name',
+    `owner_type`      VARCHAR(16)  NOT NULL DEFAULT 'SYSTEM' COMMENT 'SYSTEM/DEPARTMENT',
+    `owner_dept_id`   BIGINT       DEFAULT NULL COMMENT 'Owner department ID',
+    `embedding_model` VARCHAR(64)  DEFAULT NULL COMMENT 'Embedding model',
+    `vector_backend`  VARCHAR(32)  NOT NULL DEFAULT 'MILVUS' COMMENT 'MILVUS/FAISS/NONE',
+    `status`          VARCHAR(16)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/INACTIVE',
+    `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_knowledge_base_code` (`base_code`),
+    CONSTRAINT `fk_knowledge_base_owner_dept` FOREIGN KEY (`owner_dept_id`) REFERENCES `departments` (`id`),
+    CONSTRAINT `chk_knowledge_base_owner_type` CHECK (`owner_type` IN ('SYSTEM', 'DEPARTMENT')),
+    CONSTRAINT `chk_knowledge_base_backend` CHECK (`vector_backend` IN ('MILVUS', 'FAISS', 'NONE')),
+    CONSTRAINT `chk_knowledge_base_status` CHECK (`status` IN ('ACTIVE', 'INACTIVE'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Knowledge base';
+
+CREATE TABLE `knowledge_document` (
+    `id`                  BIGINT       NOT NULL COMMENT 'Snowflake ID',
+    `knowledge_base_id`   BIGINT       NOT NULL COMMENT 'Knowledge base ID',
+    `document_uuid`       VARCHAR(64)  NOT NULL COMMENT 'Document UUID',
+    `title`               VARCHAR(255) NOT NULL COMMENT 'Document title',
+    `source_uri`          VARCHAR(500) DEFAULT NULL COMMENT 'Source URI',
+    `doc_type`            VARCHAR(16)  NOT NULL DEFAULT 'MARKDOWN' COMMENT 'MARKDOWN/PDF/TEXT',
+    `category`            VARCHAR(64)  DEFAULT NULL COMMENT 'Document category',
+    `content_hash`        VARCHAR(64)  DEFAULT NULL COMMENT 'Content hash',
+    `ingest_status`       VARCHAR(16)  NOT NULL DEFAULT 'READY' COMMENT 'READY/INGESTING/FAILED/OFFLINE',
+    `ingested_by_service` VARCHAR(32)  NOT NULL DEFAULT 'PYTHON_AI' COMMENT 'Producer service',
+    `ingested_at`         DATETIME     DEFAULT NULL COMMENT 'Ingested at',
+    `created_at`          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_knowledge_document_uuid` (`document_uuid`),
+    KEY `idx_knowledge_document_base` (`knowledge_base_id`, `ingest_status`),
+    CONSTRAINT `fk_knowledge_document_base` FOREIGN KEY (`knowledge_base_id`) REFERENCES `knowledge_base` (`id`),
+    CONSTRAINT `chk_knowledge_document_type` CHECK (`doc_type` IN ('MARKDOWN', 'PDF', 'TEXT')),
+    CONSTRAINT `chk_knowledge_document_status` CHECK (`ingest_status` IN ('READY', 'INGESTING', 'FAILED', 'OFFLINE'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Knowledge document metadata';
+
+CREATE TABLE `knowledge_chunk` (
+    `id`             BIGINT       NOT NULL COMMENT 'Snowflake ID',
+    `document_id`    BIGINT       NOT NULL COMMENT 'Document ID',
+    `chunk_index`    INT          NOT NULL COMMENT 'Chunk index',
+    `content`        MEDIUMTEXT   NOT NULL COMMENT 'Chunk text',
+    `section`        VARCHAR(255) DEFAULT NULL COMMENT 'Section title',
+    `page_no`        INT          DEFAULT NULL COMMENT 'Page number',
+    `token_count`    INT          DEFAULT NULL COMMENT 'Estimated token count',
+    `vector_ref_id`  VARCHAR(128) DEFAULT NULL COMMENT 'Vector storage ID',
+    `metadata_json`  JSON         DEFAULT NULL COMMENT 'Extra metadata',
+    `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created at',
+    `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated at',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_knowledge_chunk_doc_idx` (`document_id`, `chunk_index`),
+    KEY `idx_knowledge_chunk_vector` (`vector_ref_id`),
+    CONSTRAINT `fk_knowledge_chunk_document` FOREIGN KEY (`document_id`) REFERENCES `knowledge_document` (`id`),
+    CONSTRAINT `chk_knowledge_chunk_index` CHECK (`chunk_index` >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Knowledge chunk';

@@ -1,287 +1,124 @@
 -- ============================================================
--- 99-seed-data.sql  —  开发环境测试数据
+-- 99-seed-data.sql  --  Minimal local demo seed for V3
 -- ============================================================
--- 所有ID使用 100000000xxx 段，避免与雪花ID冲突。
--- 密码统一为 'password123' 的 BCrypt 哈希。
 
--- =========================
--- 用户
--- =========================
-INSERT INTO `users` (`id`, `username`, `phone`, `password`, `user_type`, `real_name`, `gender`) VALUES
-(100000000001, 'doctor1',  '13800138001', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 2, '张医生', 1),
-(100000000002, 'doctor2',  '13800138002', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 2, '李医生', 1),
-(100000000003, 'patient1', '13900139001', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 1, '王患者', 1),
-(100000000004, 'patient2', '13900139002', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 1, '赵患者', 2),
-(100000000005, 'admin',    '13700137000', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 3, '系统管理员', 1);
+INSERT INTO `users` (`id`, `username`, `password_hash`, `user_type`, `account_status`) VALUES
+(100000000001, 'admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 'ADMIN', 'ACTIVE'),
+(100000000002, 'doctor1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 'DOCTOR', 'ACTIVE'),
+(100000000003, 'patient1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 'PATIENT', 'ACTIVE');
 
--- =========================
--- 角色（增强：parent_id, level, is_system）
--- =========================
-INSERT INTO `roles` (`id`, `role_code`, `role_name`, `parent_id`, `level`, `is_system`, `description`) VALUES
-(100000000001, 'super_admin', '超级管理员', NULL,          100, 1, '系统最高权限角色'),
-(100000000002, 'admin',       '管理员',     100000000001,  80,  1, '医院管理员'),
-(100000000003, 'doctor',      '医生',       NULL,          50,  1, '医生角色'),
-(100000000004, 'patient',     '患者',       NULL,          10,  1, '患者角色');
+INSERT INTO `user_pii_profile` (`id`, `user_id`, `real_name_encrypted`, `phone_masked`, `gender`) VALUES
+(100000000011, 100000000001, 'ENC_ADMIN', '137****0000', 1),
+(100000000012, 100000000002, 'ENC_DOCTOR', '138****0001', 1),
+(100000000013, 100000000003, 'ENC_PATIENT', '139****0001', 2);
 
--- =========================
--- 权限（增强：树形结构，含 perm_type/path/method/sort_order）
--- =========================
-INSERT INTO `permissions` (`id`, `perm_code`, `perm_name`, `parent_id`, `perm_type`, `path`, `method`, `sort_order`) VALUES
--- 排班管理（父节点）
-(100000000001, 'schedule',        '排班管理',   0,             'MENU',   '/schedules',                 NULL,     1),
-(100000000002, 'schedule:create', '创建排班',   100000000001,  'API',    '/api/v1/schedules',          'POST',   1),
-(100000000003, 'schedule:update', '更新排班',   100000000001,  'API',    '/api/v1/schedules/*',        'PUT',    2),
-(100000000004, 'schedule:query',  '查询排班',   100000000001,  'API',    '/api/v1/schedules',          'GET',    3),
-(100000000005, 'schedule:delete', '删除排班',   100000000001,  'API',    '/api/v1/schedules/*',        'DELETE', 4),
--- AI问诊（父节点）
-(100000000010, 'ai',              'AI问诊',     0,             'MENU',   '/ai',                        NULL,     2),
-(100000000011, 'ai:chat',         '发起问诊',   100000000010,  'API',    '/api/v1/ai/chat',            'POST',   1),
-(100000000012, 'ai:review',       'AI复核',     100000000010,  'API',    '/api/v1/ai/reviews',         'POST',   2),
-(100000000013, 'ai:metrics:view', '查看AI指标', 100000000010,  'API',    '/api/v1/ai/metrics',         'GET',    3),
--- 预约管理（父节点）
-(100000000020, 'appointment',        '预约管理',   0,             'MENU',   '/appointments',              NULL,     3),
-(100000000021, 'appointment:create', '创建预约',   100000000020,  'API',    '/api/v1/appointments',       'POST',   1),
-(100000000022, 'appointment:query',  '查询预约',   100000000020,  'API',    '/api/v1/appointments',       'GET',    2),
-(100000000023, 'appointment:cancel', '取消预约',   100000000020,  'API',    '/api/v1/appointments/*/cancel', 'PUT', 3),
--- 系统管理（父节点）
-(100000000030, 'system',          '系统管理',   0,             'MENU',   '/system',                    NULL,     10),
-(100000000031, 'system:user',     '用户管理',   100000000030,  'MENU',   '/system/users',              NULL,     1),
-(100000000032, 'system:role',     '角色管理',   100000000030,  'MENU',   '/system/roles',              NULL,     2),
-(100000000033, 'system:audit',    '审计日志',   100000000030,  'MENU',   '/system/audit',              NULL,     3);
+INSERT INTO `patient_profile` (`id`, `user_id`, `patient_no`, `allergy_summary`, `profile_status`) VALUES
+(100000000021, 100000000003, 'P000001', '青霉素过敏', 'ACTIVE');
 
--- =========================
--- 用户角色关联（增强：valid_from/until, grant_reason, grantor_id）
--- =========================
-INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `valid_from`, `valid_until`, `grant_reason`, `grantor_id`) VALUES
-(100000000001, 100000000001, 100000000003, NULL, NULL, '入职分配', NULL),
-(100000000002, 100000000002, 100000000003, NULL, NULL, '入职分配', NULL),
-(100000000003, 100000000003, 100000000004, NULL, NULL, '注册自动分配', NULL),
-(100000000004, 100000000004, 100000000004, NULL, NULL, '注册自动分配', NULL),
-(100000000005, 100000000005, 100000000001, NULL, NULL, '系统初始化', NULL),
-(100000000006, 100000000005, 100000000002, NULL, NULL, '系统初始化', NULL);
+INSERT INTO `roles` (`id`, `role_code`, `role_name`, `level`, `is_system`) VALUES
+(100000000031, 'super_admin', '超级管理员', 100, 1),
+(100000000032, 'doctor', '医生', 50, 1),
+(100000000033, 'patient', '患者', 10, 1);
 
--- =========================
--- 角色权限关联
--- =========================
+INSERT INTO `permissions` (`id`, `perm_code`, `perm_name`, `perm_type`, `path`, `method`, `sort_order`) VALUES
+(100000000041, 'schedule:publish', '发布门诊', 'API', '/api/v1/scheduling/publish', 'POST', 1),
+(100000000042, 'registration:create', '创建挂号', 'API', '/api/v1/registrations', 'POST', 2),
+(100000000043, 'ai:review', 'AI复核', 'API', '/api/v1/ai/reviews', 'POST', 3),
+(100000000044, 'audit:view', '查看审计', 'API', '/api/v1/audit/events', 'GET', 4);
+
+INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `grant_reason`) VALUES
+(100000000051, 100000000001, 100000000031, '初始化'),
+(100000000052, 100000000002, 100000000032, '初始化'),
+(100000000053, 100000000003, 100000000033, '初始化');
+
 INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`) VALUES
--- 超级管理员拥有所有权限
-(100000000001, 100000000001, 100000000001),
-(100000000002, 100000000001, 100000000002),
-(100000000003, 100000000001, 100000000003),
-(100000000004, 100000000001, 100000000004),
-(100000000005, 100000000001, 100000000005),
-(100000000006, 100000000001, 100000000010),
-(100000000007, 100000000001, 100000000011),
-(100000000008, 100000000001, 100000000012),
-(100000000009, 100000000001, 100000000013),
-(100000000010, 100000000001, 100000000020),
-(100000000011, 100000000001, 100000000021),
-(100000000012, 100000000001, 100000000022),
-(100000000013, 100000000001, 100000000023),
-(100000000014, 100000000001, 100000000030),
-(100000000015, 100000000001, 100000000031),
-(100000000016, 100000000001, 100000000032),
-(100000000017, 100000000001, 100000000033),
--- 医生：排班查询 + AI问诊/复核 + 预约查询
-(100000000020, 100000000003, 100000000004),
-(100000000021, 100000000003, 100000000011),
-(100000000022, 100000000003, 100000000012),
-(100000000023, 100000000003, 100000000013),
-(100000000024, 100000000003, 100000000022),
--- 患者：AI问诊 + 预约创建/查询/取消
-(100000000030, 100000000004, 100000000011),
-(100000000031, 100000000004, 100000000021),
-(100000000032, 100000000004, 100000000022),
-(100000000033, 100000000004, 100000000023);
+(100000000061, 100000000031, 100000000041),
+(100000000062, 100000000031, 100000000042),
+(100000000063, 100000000031, 100000000043),
+(100000000064, 100000000031, 100000000044),
+(100000000065, 100000000032, 100000000043),
+(100000000066, 100000000033, 100000000042);
 
--- =========================
--- 数据权限规则
--- =========================
-INSERT INTO `data_scope_rules` (`id`, `role_id`, `resource_type`, `scope_type`, `custom_condition`) VALUES
-(100000000001, 100000000001, 'APPOINTMENT',    'ALL',        NULL),
-(100000000002, 100000000001, 'MEDICAL_RECORD', 'ALL',        NULL),
-(100000000003, 100000000003, 'APPOINTMENT',    'DEPARTMENT', NULL),
-(100000000004, 100000000003, 'MEDICAL_RECORD', 'SELF',       NULL),
-(100000000005, 100000000004, 'APPOINTMENT',    'SELF',       NULL),
-(100000000006, 100000000004, 'MEDICAL_RECORD', 'SELF',       NULL);
+INSERT INTO `data_scope_rules` (`id`, `role_id`, `resource_type`, `scope_type`) VALUES
+(100000000071, 100000000031, 'EMR_RECORD', 'ALL'),
+(100000000072, 100000000032, 'EMR_RECORD', 'DEPARTMENT'),
+(100000000073, 100000000033, 'REGISTRATION_ORDER', 'SELF');
 
--- =========================
--- 医院与科室
--- =========================
 INSERT INTO `hospitals` (`id`, `hospital_name`, `hospital_code`, `hospital_level`, `address`, `contact_phone`, `status`) VALUES
-(100000000001, 'MediAsk附属医院', 'MDA001', '三级甲等', '示例路100号', '010-88886666', 1);
+(100000000101, 'MediAsk附属医院', 'MDA001', '三级甲等', '示例路100号', '010-88886666', 'ACTIVE');
 
-INSERT INTO `departments` (`id`, `hospital_id`, `dept_code`, `dept_name`, `dept_intro`, `display_order`, `status`) VALUES
-(100000000001, 100000000001, 'INT', '内科', '内科门诊，涵盖心血管、呼吸、消化、内分泌等亚专科', 1, 1),
-(100000000002, 100000000001, 'SUR', '外科', '外科门诊，涵盖普外、骨科、泌尿等亚专科', 2, 1);
+INSERT INTO `departments` (`id`, `hospital_id`, `dept_code`, `dept_name`, `dept_type`, `display_order`, `status`) VALUES
+(100000000111, 100000000101, 'CARD', '心内科', 'OUTPATIENT', 1, 'ACTIVE'),
+(100000000112, 100000000101, 'GEN', '全科医学', 'OUTPATIENT', 2, 'ACTIVE');
 
--- =========================
--- 医生档案
--- =========================
-INSERT INTO `doctors` (
-    `id`, `user_id`, `hospital_id`, `dept_id`, `doctor_code`, `title`, `specialty`, `introduction`,
-    `consultation_fee`, `license_number`, `status`
-) VALUES
-(100000000001, 100000000001, 100000000001, 100000000001, 'D001', '主治医师',
- '["内分泌","高血压","糖尿病"]', '擅长慢病管理，从医10年', 50.00, 'LIC-000001', 1),
-(100000000002, 100000000002, 100000000001, 100000000002, 'D002', '副主任医师',
- '["普通外科","腹腔镜手术"]', '擅长普外手术咨询，从医15年', 60.00, 'LIC-000002', 1);
+INSERT INTO `doctors` (`id`, `user_id`, `hospital_id`, `doctor_code`, `title`, `specialty_summary`, `default_consultation_fee`, `doctor_status`) VALUES
+(100000000121, 100000000002, 100000000101, 'D0001', '主治医师', '心血管与慢病管理', 50.00, 'ACTIVE');
 
--- =========================
--- 医生可排班规则
--- =========================
-INSERT INTO `doctor_availability_rules`
-(`id`, `doctor_id`, `weekday`, `period_code`, `is_available`, `priority`, `status`) VALUES
-(100000000001, 100000000001, 1, 1, 1, 9, 1),   -- 张医生 周一上午
-(100000000002, 100000000001, 1, 2, 1, 8, 1),   -- 张医生 周一下午
-(100000000003, 100000000001, 2, 1, 1, 9, 1),   -- 张医生 周二上午
-(100000000004, 100000000001, 3, 1, 1, 7, 1),   -- 张医生 周三上午
-(100000000005, 100000000001, 4, 2, 1, 6, 1),   -- 张医生 周四下午
-(100000000006, 100000000002, 1, 1, 1, 10, 1),  -- 李医生 周一上午
-(100000000007, 100000000002, 2, 1, 1, 10, 1),  -- 李医生 周二上午
-(100000000008, 100000000002, 3, 2, 1, 8, 1),   -- 李医生 周三下午
-(100000000009, 100000000002, 5, 1, 1, 9, 1);   -- 李医生 周五上午
+INSERT INTO `doctor_department_rel` (`id`, `doctor_id`, `department_id`, `is_primary`, `can_schedule`, `valid_from`, `status`) VALUES
+(100000000131, 100000000121, 100000000111, 1, 1, CURDATE(), 'ACTIVE');
 
--- =========================
--- 医生请假/停诊（增强：含 off_type）
--- =========================
-INSERT INTO `doctor_time_off`
-(`id`, `doctor_id`, `off_type`, `start_date`, `end_date`, `period_code`, `reason`, `status`) VALUES
-(100000000001, 100000000001, 'LEAVE', DATE_ADD(CURDATE(), INTERVAL 3 DAY), DATE_ADD(CURDATE(), INTERVAL 3 DAY), NULL, '培训停诊', 1),
-(100000000002, 100000000002, 'CLOSE', DATE_ADD(CURDATE(), INTERVAL 7 DAY), DATE_ADD(CURDATE(), INTERVAL 7 DAY), 2, '下午停诊（会议）', 1);
+INSERT INTO `schedule_ruleset` (`id`, `department_id`, `ruleset_code`, `ruleset_name`, `version_no`, `ruleset_status`, `created_by`) VALUES
+(100000000201, 100000000111, 'CARD-BASE', '心内科基础规则', 1, 'PUBLISHED', 100000000001);
 
--- =========================
--- 科室排班需求（改为周模板模式）
--- =========================
-INSERT INTO `department_schedule_demand`
-(`id`, `department_id`, `weekday`, `period_code`, `required_doctors`, `min_senior_doctors`, `status`) VALUES
--- 内科：周一至周五 上午下午各需1名医生
-(100000000001, 100000000001, 1, 1, 1, 0, 1),
-(100000000002, 100000000001, 1, 2, 1, 0, 1),
-(100000000003, 100000000001, 2, 1, 1, 0, 1),
-(100000000004, 100000000001, 2, 2, 1, 0, 1),
-(100000000005, 100000000001, 3, 1, 1, 0, 1),
-(100000000006, 100000000001, 3, 2, 1, 0, 1),
-(100000000007, 100000000001, 4, 1, 1, 0, 1),
-(100000000008, 100000000001, 4, 2, 1, 0, 1),
-(100000000009, 100000000001, 5, 1, 1, 0, 1),
-(100000000010, 100000000001, 5, 2, 1, 0, 1),
--- 外科：周一至周五 上午需1名医生
-(100000000011, 100000000002, 1, 1, 1, 0, 1),
-(100000000012, 100000000002, 2, 1, 1, 0, 1),
-(100000000013, 100000000002, 3, 1, 1, 0, 1),
-(100000000014, 100000000002, 4, 1, 1, 0, 1),
-(100000000015, 100000000002, 5, 1, 1, 0, 1);
+INSERT INTO `schedule_ruleset_item` (`id`, `ruleset_id`, `rule_code`, `rule_type`, `rule_scope`, `is_hard_constraint`, `priority`, `weight`, `rule_expr_json`, `status`) VALUES
+(100000000211, 100000000201, 'MAX_WEEKLY_SESSIONS', 'MAX_WEEKLY_SESSIONS', 'DOCTOR', 1, 100, 1.00, JSON_OBJECT('max', 8), 'ACTIVE'),
+(100000000212, 100000000201, 'REQUIRE_SENIOR', 'REQUIRE_SENIOR_COUNT', 'DEPARTMENT', 0, 50, 2.00, JSON_OBJECT('minimum', 1), 'ACTIVE');
 
--- =========================
--- 法定节假日日历
--- =========================
-INSERT INTO `calendar_day`
-(`id`, `calendar_date`, `is_holiday`, `is_makeup_workday`, `holiday_name`, `region_code`, `status`) VALUES
-(100000000001, '2026-01-01', 1, 0, '元旦',       'CN-NATIONAL', 1),
-(100000000002, '2026-02-17', 1, 0, '春节',       'CN-NATIONAL', 1),
-(100000000003, '2026-02-18', 1, 0, '春节',       'CN-NATIONAL', 1),
-(100000000004, '2026-02-19', 1, 0, '春节',       'CN-NATIONAL', 1),
-(100000000005, '2026-02-20', 1, 0, '春节',       'CN-NATIONAL', 1),
-(100000000006, '2026-02-22', 0, 1, '春节调休上班', 'CN-NATIONAL', 1),
-(100000000007, '2026-04-05', 1, 0, '清明节',     'CN-NATIONAL', 1),
-(100000000008, '2026-05-01', 1, 0, '劳动节',     'CN-NATIONAL', 1),
-(100000000009, '2026-05-02', 1, 0, '劳动节',     'CN-NATIONAL', 1),
-(100000000010, '2026-06-19', 1, 0, '端午节',     'CN-NATIONAL', 1),
-(100000000011, '2026-09-25', 1, 0, '中秋节',     'CN-NATIONAL', 1),
-(100000000012, '2026-10-01', 1, 0, '国庆节',     'CN-NATIONAL', 1),
-(100000000013, '2026-10-02', 1, 0, '国庆节',     'CN-NATIONAL', 1),
-(100000000014, '2026-10-03', 1, 0, '国庆节',     'CN-NATIONAL', 1);
+INSERT INTO `doctor_availability_rule` (`id`, `doctor_id`, `department_id`, `weekday`, `period_code`, `clinic_type`, `is_available`, `priority`, `effective_from`, `status`) VALUES
+(100000000221, 100000000121, 100000000111, 1, 1, 'GENERAL', 1, 10, CURDATE(), 'ACTIVE'),
+(100000000222, 100000000121, 100000000111, 3, 1, 'GENERAL', 1, 8, CURDATE(), 'ACTIVE');
 
--- =========================
--- 医生排班（plan_item_id = NULL 表示手动创建）
--- =========================
-INSERT INTO `doctor_schedules` (
-    `id`, `doctor_id`, `schedule_date`, `time_period`, `period_start_time`, `period_end_time`,
-    `slot_duration_minutes`, `total_slots`, `available_slots`, `fee`, `status`, `plan_item_id`
-) VALUES
-(100000000001, 100000000001, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 1, '08:00:00', '12:00:00', 15, 16, 16, 50.00, 1, NULL),
-(100000000002, 100000000001, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 2, '14:00:00', '18:00:00', 15, 16, 16, 50.00, 1, NULL),
-(100000000003, 100000000002, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 1, '08:00:00', '12:00:00', 20, 12, 12, 60.00, 1, NULL),
-(100000000004, 100000000001, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 1, '08:00:00', '12:00:00', 15, 16, 16, 50.00, 1, NULL);
+INSERT INTO `calendar_day` (`id`, `calendar_date`, `region_code`, `day_type`, `is_holiday`, `is_makeup_workday`, `holiday_name`, `status`) VALUES
+(100000000231, '2026-01-01', 'CN-NATIONAL', 'HOLIDAY', 1, 0, '元旦', 'ACTIVE');
 
--- =========================
--- 号源时段
--- =========================
-INSERT INTO `appointment_slots` (`id`, `schedule_id`, `slot_time`, `slot_end_time`, `is_occupied`) VALUES
--- 张医生 明天上午（schedule_id=100000000001）
-(100000000001, 100000000001, '08:00:00', '08:15:00', 0),
-(100000000002, 100000000001, '08:15:00', '08:30:00', 0),
-(100000000003, 100000000001, '08:30:00', '08:45:00', 0),
-(100000000004, 100000000001, '08:45:00', '09:00:00', 0),
-(100000000005, 100000000001, '09:00:00', '09:15:00', 0),
-(100000000006, 100000000001, '09:15:00', '09:30:00', 0),
-(100000000007, 100000000001, '09:30:00', '09:45:00', 0),
-(100000000008, 100000000001, '09:45:00', '10:00:00', 0),
-(100000000009, 100000000001, '10:00:00', '10:15:00', 0),
-(100000000010, 100000000001, '10:15:00', '10:30:00', 0),
--- 张医生 明天下午（schedule_id=100000000002）
-(100000000011, 100000000002, '14:00:00', '14:15:00', 0),
-(100000000012, 100000000002, '14:15:00', '14:30:00', 0),
-(100000000013, 100000000002, '14:30:00', '14:45:00', 0),
-(100000000014, 100000000002, '14:45:00', '15:00:00', 0),
-(100000000015, 100000000002, '15:00:00', '15:15:00', 0),
--- 李医生 明天上午（schedule_id=100000000003）
-(100000000016, 100000000003, '08:00:00', '08:20:00', 0),
-(100000000017, 100000000003, '08:20:00', '08:40:00', 0),
-(100000000018, 100000000003, '08:40:00', '09:00:00', 0),
-(100000000019, 100000000003, '09:00:00', '09:20:00', 0),
-(100000000020, 100000000003, '09:20:00', '09:40:00', 0);
+INSERT INTO `schedule_demand_template` (`id`, `department_id`, `weekday`, `period_code`, `clinic_type`, `required_doctor_count`, `required_senior_count`, `suggested_slot_count`, `min_slot_interval_minutes`, `effective_from`, `status`) VALUES
+(100000000241, 100000000111, 1, 1, 'GENERAL', 1, 0, 8, 15, CURDATE(), 'ACTIVE'),
+(100000000242, 100000000111, 3, 1, 'GENERAL', 1, 0, 8, 15, CURDATE(), 'ACTIVE');
 
--- =========================
--- AI会话与消息
--- =========================
-INSERT INTO `ai_conversations` (
-    `id`, `conversation_uuid`, `user_id`, `dept_id`, `scene_type`, `chief_complaint`,
-    `summary`, `model`, `total_tokens`, `status`, `started_at`
-) VALUES
-(100000000001, 'conv-demo-0001', 100000000003, 100000000001, 'pre_diagnosis',
- '头痛、低热三天', '患者近三天持续头痛伴低热，建议检查血常规和体温监测', 'deepseek-chat', 380, 2, NOW());
+INSERT INTO `schedule_generation_job` (`id`, `department_id`, `ruleset_id`, `job_type`, `start_date`, `end_date`, `solver_strategy`, `job_status`, `submitted_by`) VALUES
+(100000000251, 100000000111, 100000000201, 'FORMAL', DATE_ADD(CURDATE(), INTERVAL 1 DAY), DATE_ADD(CURDATE(), INTERVAL 7 DAY), 'RULE_GREEDY', 'SUCCEEDED', 100000000001);
 
-INSERT INTO `ai_messages` (
-    `id`, `conversation_id`, `role`, `content`, `context`, `citations_json`,
-    `tokens_used`, `trace_id`, `risk_level`, `model`, `latency_ms`, `is_degraded`, `guardrail_action`
-) VALUES
-(100000000001, 100000000001, 1,
- '我最近三天头痛，还有点发烧',
- NULL, NULL,
- 120, 'trace-demo-001', 'LOW', NULL, NULL, 0, NULL),
-(100000000002, 100000000001, 2,
- '您好，根据您的描述，头痛伴随低热持续三天，建议您：\n1. 监测体温变化\n2. 进行血常规检查\n3. 如症状加重请及时就诊神经内科\n\n⚠️ 本建议仅供参考，不作为诊断依据，请结合医生意见进行决策。',
- '{"rag": ["发热头痛鉴别诊断指南"]}',
- '[{"doc_id": "doc-001", "section": "发热头痛鉴别", "score": 0.85}]',
- 260, 'trace-demo-002', 'MEDIUM', 'deepseek-chat', 1520, 0, 'CAUTION');
+INSERT INTO `schedule_generation_result` (`id`, `job_id`, `result_no`, `result_status`, `score`, `hard_violation_count`, `warning_count`, `is_selected`) VALUES
+(100000000261, 100000000251, 1, 'PUBLISHED', 95.50, 0, 0, 1);
 
--- =========================
--- 知识文档与分块示例
--- =========================
-INSERT INTO `knowledge_documents` (
-    `id`, `doc_uuid`, `title`, `source`, `doc_type`, `category`,
-    `content_hash`, `chunk_count`, `status`, `ingested_at`
-) VALUES
-(100000000001, 'doc-demo-0001', '常见症状鉴别诊断指南', '/docs/symptom-guide.md', 'MARKDOWN', '诊断指南',
- 'sha256-placeholder-001', 3, 1, NOW());
+INSERT INTO `schedule_generation_assignment` (`id`, `result_id`, `doctor_id`, `department_id`, `schedule_date`, `period_code`, `clinic_type`, `suggested_start_time`, `suggested_end_time`, `suggested_fee`, `suggested_capacity`, `assignment_status`) VALUES
+(100000000271, 100000000261, 100000000121, 100000000111, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 1, 'GENERAL', '09:00:00', '11:00:00', 50.00, 4, 'PUBLISHED');
 
-INSERT INTO `knowledge_chunks` (
-    `id`, `document_id`, `chunk_index`, `content`, `section`, `page`, `token_count`, `vector_id`
-) VALUES
-(100000000001, 100000000001, 0, '头痛是临床最常见的症状之一，按病因可分为原发性头痛和继发性头痛。原发性头痛包括偏头痛、紧张型头痛、丛集性头痛等...', '头痛概述', NULL, 256, 'vec-demo-001'),
-(100000000002, 100000000001, 1, '发热伴头痛的常见原因包括：上呼吸道感染、流行性感冒、脑膜炎（需警惕）、中暑等。当体温>38.5°C且头痛剧烈时应优先排除中枢神经系统感染...', '发热头痛鉴别', NULL, 312, 'vec-demo-002'),
-(100000000003, 100000000001, 2, '头痛就诊建议：1) 记录头痛发作频率、持续时间、性质。2) 注意有无伴随症状（恶心、视觉异常、颈强直等）。3) 急性剧烈头痛应立即就医排除脑血管意外...', '头痛就诊建议', NULL, 280, 'vec-demo-003');
+INSERT INTO `clinic_session` (`id`, `department_id`, `doctor_id`, `source_assignment_id`, `session_date`, `period_code`, `clinic_type`, `start_time`, `end_time`, `fee`, `capacity`, `remaining_count`, `session_status`, `allow_registration`, `published_at`) VALUES
+(100000000301, 100000000111, 100000000121, 100000000271, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 1, 'GENERAL', '09:00:00', '11:00:00', 50.00, 4, 4, 'OPEN', 1, NOW());
 
--- =========================
--- 领域事件示例
--- =========================
-INSERT INTO `domain_events` (
-    `id`, `aggregate_type`, `aggregate_id`, `event_type`, `from_status`, `to_status`,
-    `operator_type`, `operator_id`, `payload_json`, `trace_id`, `occurred_at`
-) VALUES
-(100000000001, 'CONVERSATION', 100000000001, 'CONVERSATION_STARTED', NULL, 'ACTIVE',
- 'PATIENT', 100000000003, '{"scene_type": "pre_diagnosis"}', 'trace-demo-001', NOW()),
-(100000000002, 'CONVERSATION', 100000000001, 'CONVERSATION_ENDED', 'ACTIVE', 'ENDED',
- 'SYSTEM', NULL, '{"reason": "session_complete", "total_tokens": 380}', 'trace-demo-002', NOW());
+INSERT INTO `clinic_slot` (`id`, `session_id`, `slot_seq`, `slot_start_time`, `slot_end_time`, `slot_status`) VALUES
+(100000000311, 100000000301, 1, '09:00:00', '09:30:00', 'FREE'),
+(100000000312, 100000000301, 2, '09:30:00', '10:00:00', 'FREE'),
+(100000000313, 100000000301, 3, '10:00:00', '10:30:00', 'FREE'),
+(100000000314, 100000000301, 4, '10:30:00', '11:00:00', 'FREE');
+
+INSERT INTO `knowledge_base` (`id`, `base_code`, `base_name`, `owner_type`, `embedding_model`, `vector_backend`, `status`) VALUES
+(100000000401, 'SYS-MED', '系统医学知识库', 'SYSTEM', 'text-embedding-v4', 'MILVUS', 'ACTIVE');
+
+INSERT INTO `knowledge_document` (`id`, `knowledge_base_id`, `document_uuid`, `title`, `source_uri`, `doc_type`, `category`, `ingest_status`) VALUES
+(100000000411, 100000000401, 'doc-demo-001', '高血压基础宣教', 'docs/hypertension.md', 'MARKDOWN', '慢病', 'READY');
+
+INSERT INTO `knowledge_chunk` (`id`, `document_id`, `chunk_index`, `content`, `section`, `token_count`, `vector_ref_id`) VALUES
+(100000000421, 100000000411, 0, '高血压患者应规律监测血压，减少高盐饮食，遵循医生指导服药。', '生活方式管理', 32, 'vec-demo-001');
+
+INSERT INTO `ai_session` (`id`, `session_uuid`, `patient_id`, `department_id`, `scene_type`, `session_status`, `entrypoint`, `chief_complaint_summary`, `summary`) VALUES
+(100000000431, 'ai-session-demo-001', 100000000003, 100000000111, 'PRE_DIAGNOSIS', 'ACTIVE', 'JAVA', '胸闷三天', '患者主诉胸闷三天，无明确放射痛，建议进一步线下就诊。');
+
+INSERT INTO `ai_turn` (`id`, `session_id`, `turn_no`, `turn_status`, `input_hash`) VALUES
+(100000000441, 100000000431, 1, 'COMPLETED', 'input-hash-demo-001');
+
+INSERT INTO `ai_turn_content` (`id`, `turn_id`, `content_role`, `content_encrypted`, `content_masked`, `content_hash`) VALUES
+(100000000451, 100000000441, 'USER', 'ENC_USER_MESSAGE', '我最近胸闷三天', 'content-hash-demo-001');
+
+INSERT INTO `ai_model_run` (`id`, `turn_id`, `provider_run_id`, `provider_name`, `model_name`, `trace_id`, `rag_enabled`, `retrieval_provider`, `tokens_input`, `tokens_output`, `latency_ms`, `run_status`) VALUES
+(100000000461, 100000000441, 'py-run-001', 'PYTHON_AI', 'deepseek-chat', 'trace-ai-demo-001', 1, 'MILVUS', 120, 260, 980, 'SUCCEEDED');
+
+INSERT INTO `ai_run_artifact` (`id`, `run_id`, `artifact_type`, `artifact_json`) VALUES
+(100000000471, 100000000461, 'CITATION', JSON_ARRAY(JSON_OBJECT('document_uuid', 'doc-demo-001', 'section', '生活方式管理', 'score', 0.86)));
+
+INSERT INTO `ai_guardrail_event` (`id`, `run_id`, `risk_level`, `action_taken`, `matched_rule_codes`, `input_hash`, `output_hash`) VALUES
+(100000000481, 100000000461, 'MEDIUM', 'CAUTION', JSON_ARRAY('diagnosis_request'), 'input-hash-demo-001', 'output-hash-demo-001');
+
+INSERT INTO `drug_catalog` (`id`, `drug_code`, `drug_name`, `generic_name`, `specification`, `unit`, `manufacturer`, `unit_price`, `status`) VALUES
+(100000000501, 'DRUG001', '阿司匹林肠溶片', '阿司匹林', '100mg*30片', '盒', '示例药业', 18.50, 'ACTIVE');
